@@ -7,12 +7,15 @@ A privacy-first, client-side web application that enables users to create profes
 - General consumers creating ID photos at home
 - Privacy-conscious users who don't want to upload photos to external servers
 - Mobile-first users capturing photos directly from their cameras
+- International users needing localized interfaces and region-appropriate ID photo standards
 
 ## Technical Constraints
 - **Pure frontend implementation** (no backend required)
+- **Tech Stack**: Vite + React + TypeScript for SPA
 - **Deployment**: AWS S3 + CloudFront for static hosting
 - **AI Model**: U²-Net for portrait segmentation (~5MB WebAssembly/TensorFlow.js)
-- **Offline Support**: PWA-enabled with service worker caching
+- **Internationalization**: i18next with offline support for all languages
+- **Offline Support**: PWA-enabled with service worker caching (Workbox)
 
 ---
 
@@ -99,6 +102,31 @@ A privacy-first, client-side web application that enables users to create profes
   - No analytics, tracking, or error monitoring scripts
   - Minimal permissions (camera only when explicitly requested)
 - **Error Handling**: Intelligent error classification with user-friendly guidance and graceful degradation
+
+### Epic 5: Internationalization & Localization
+**User Stories:**
+- US-5.1: Manually select preferred language from language selector
+- US-5.2: All user-facing text properly extracted into translation files
+- US-5.3: Culturally appropriate date, number, and measurement formatting
+- US-5.4: Offline language support for all supported languages
+- US-5.5: Default language is English for consistent baseline experience
+
+**Technical Implementation:**
+- **i18next Integration**:
+  - All UI strings stored in JSON files by language code (en.json, es.json, fr.json, etc.)
+  - Language selector visible in header/navigation with native language names
+  - Instant language switching without page reload
+  - Session persistence of language preference
+- **Localization Features**:
+  - Number and date formatting per locale (1.000,00 vs 1,000.00)
+  - Measurement units appropriate for region (mm with proper decimal separators)
+  - RTL layout support for Arabic, Hebrew, etc.
+  - Fallback to English with visual indicators for missing translations
+- **Offline Support**:
+  - All translation files cached via Service Worker
+  - Language switching works offline
+  - Translation files included in precache manifest
+- **Default Behavior**: English as default language, marked as currently selected option
 
 ---
 

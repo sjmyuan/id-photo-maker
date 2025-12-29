@@ -1,6 +1,14 @@
 # Project: ID Photo Maker  
 A privacy-first, client-side web application that enables users to create professional ID photos (1-inch, 2-inch, 3-inch) with AI-powered background removal, standard sizing, and print-ready layout optimization. All processing occurs in the browser with zero server dependencies.
 
+## Technical Constraints
+- **Pure frontend implementation** (no backend required)
+- **Tech Stack**: Vite + React + TypeScript for SPA
+- **Deployment**: AWS S3 + CloudFront for static hosting
+- **AI Model**: U²-Net for portrait segmentation (~5MB WebAssembly/TensorFlow.js)
+- **Internationalization**: i18next with offline support for all languages
+- **Offline Support**: PWA-enabled with service worker caching (Workbox)
+
 ## Personas  
 ### Persona: General Consumer  
 Creates ID photos at home for official documents like passports, driver's licenses, or job applications.  

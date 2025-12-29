@@ -1,6 +1,14 @@
 ## 1. System Architecture Design
 
-Based on the requirements, this is a privacy-first, client-side web application with zero server dependencies. The architecture needs to support AI-powered background removal, standard sizing, print-ready layouts, and offline PWA capabilities.
+Based on the requirements, this is a privacy-first, client-side web application with zero server dependencies. The architecture needs to support AI-powered background removal, standard sizing, print-ready layouts, internationalization, and offline PWA capabilities.
+
+### Technical Constraints
+- **Pure frontend implementation** (no backend required)
+- **Tech Stack**: Vite + React + TypeScript for SPA
+- **Deployment**: AWS S3 + CloudFront for static hosting
+- **AI Model**: U²-Net for portrait segmentation (~5MB WebAssembly/TensorFlow.js)
+- **Internationalization**: i18next with offline support for all languages
+- **Offline Support**: PWA-enabled with service worker caching (Workbox)
 
 ### C4 Context Diagram
 
@@ -216,9 +224,9 @@ Based on the privacy-first, client-side requirements and need for AI-powered ima
 
 ### Core Technologies
 
-**Frontend Framework: React with TypeScript**
-- **Why**: Excellent component architecture, strong TypeScript support, vast ecosystem
-- **Performance**: Virtual DOM optimization, efficient re-renders for real-time previews
+**Frontend Framework: Vite + React + TypeScript**
+- **Why**: Vite provides blazing fast development and optimized builds, React offers excellent component architecture, TypeScript ensures type safety
+- **Performance**: Virtual DOM optimization, efficient re-renders for real-time previews, fast HMR during development
 - **Mobile Support**: React Native compatibility if mobile app expansion needed later
 - **Bundle Size**: Tree-shaking support to minimize final bundle size
 
