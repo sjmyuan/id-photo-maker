@@ -44,12 +44,23 @@ Enables quick processing even on mid-range mobile devices through adaptive perfo
 - Given a high-end device (hardwareConcurrency > 4), when uploading a photo ≤10MB, then matting completes within 3 seconds.  
 - Given any device, when uploading a photo >10MB, then the system shows a warning and automatically scales down the image before processing.  
 
-#### User Story 2: As a General Consumer, I want to select preset background colors (red, blue, white) or custom RGB so that I can meet specific ID requirements.  
+#### User Story 2: As a General Consumer, I want to select preset background colors (red, blue, white) or custom RGB so that I can meet specific ID requirements. ✅ COMPLETED
 Provides flexibility to comply with different official document standards while maintaining simplicity.  
 ##### Acceptance Criteria:  
-- Given the editing screen, when selecting "Red" from preset options, then the background changes to #FF0000 immediately.  
-- Given the editing screen, when entering custom RGB values (0-255 range), then the background updates in real-time with validation.  
-- Given invalid RGB input (e.g., negative numbers), when attempting to apply, then the system shows an error message and prevents application.  
+- ✅ Given the editing screen, when selecting "Red" from preset options, then the background changes to #FF0000 immediately.  
+- ✅ Given the editing screen, when entering custom RGB values (0-255 range), then the background updates in real-time with validation.  
+- ✅ Given invalid RGB input (e.g., negative numbers), when attempting to apply, then the system shows an error message and prevents application.
+
+##### Implementation Details:
+- Component: `BackgroundSelector` ([src/components/background/BackgroundSelector.tsx](src/components/background/BackgroundSelector.tsx))
+- Tests: `BackgroundSelector.test.tsx` ([src/components/background/BackgroundSelector.test.tsx](src/components/background/BackgroundSelector.test.tsx))
+- Features:
+  - Three preset buttons for Red (#FF0000), Blue (#0000FF), White (#FFFFFF)
+  - Real-time background preview showing selected color
+  - Custom RGB inputs with live validation (0-255 range)
+  - Error messages for invalid inputs (negative, > 255, non-numeric)
+  - Visual indication of selected preset color
+  - Accessible with proper ARIA labels  
 
 #### User Story 3: As a General Consumer, I want to preview matting results and choose to reprocess or continue so that I can ensure quality before proceeding.  
 Allows quality control and correction before finalizing the ID photo.  
