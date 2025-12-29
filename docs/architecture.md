@@ -1494,4 +1494,124 @@ interface BackgroundSelectorProps {
 - Color picker UI for advanced users
 - Recent colors history
 - Color palette suggestions based on ID requirements
-- Integration with matting preview component
+
+---
+
+### 3. MattingPreview Component
+
+**Location**: `src/components/preview/MattingPreview.tsx`
+
+**Purpose**: Displays original and processed images side-by-side for quality verification, allowing users to reprocess or continue to the next step.
+
+**Key Features**:
+- **Side-by-Side Comparison**: Displays original and processed images in a grid layout
+- **Action Buttons**: "Reprocess" to restart workflow, "Continue" to proceed
+- **Accessibility**: Proper ARIA labels and semantic HTML
+- **Responsive Design**: Works on mobile and desktop with Tailwind CSS
+
+**Props Interface**:
+```typescript
+interface MattingPreviewProps {
+  originalImage: string         // URL or data URL of original image
+  processedImage: string        // URL or data URL of processed image
+  onReprocess: () => void       // Callback to restart workflow
+  onContinue: () => void        // Callback to continue to next step
+}
+```
+
+**Component Structure**:
+- **Header**: "Preview Results" title
+- **Image Grid**: Two-column layout (original left, processed right)
+- **Image Labels**: "Original" and "Processed" headings
+- **Action Bar**: Centered buttons for reprocess and continue
+
+**Testing**: Comprehensive test coverage (7 tests) in `MattingPreview.test.tsx`
+- Side-by-side image display tests
+- Image labels and accessibility tests
+- Reprocess button functionality tests
+- Continue button functionality tests
+
+**Related User Story**: Epic 1, User Story 3 - "As a General Consumer, I want to preview matting results and choose to reprocess or continue"
+
+**Future Enhancements**:
+- Zoom functionality for detailed inspection
+- Before/after slider for comparison
+- Quality metrics display
+- Save draft functionality
+
+---
+
+### 4. App Workflow Integration
+
+**Location**: `src/App.tsx`
+
+**Purpose**: Orchestrates the main application workflow, managing state transitions between upload, background selection, preview, and size selection steps.
+
+**Workflow Steps**:
+1. **Upload**: User uploads and processes image (ImageUpload component)
+2. **Background**: User selects background color (BackgroundSelector component)
+3. **Preview**: User reviews matting results (MattingPreview component)
+4. **Size Selection**: User selects photo dimensions (placeholder - to be implemented)
+
+**State Management**:
+```typescript
+type WorkflowStep = 'upload' | 'background' | 'preview' | 'size-selection'
+
+interface ImageData {
+  originalFile: File      // Original uploaded file
+  originalUrl: string     // Object URL for display
+  processedBlob: Blob     // Processed image blob
+  processedUrl: string    // Object URL for display
+}
+```
+
+**Key Features**:
+- **Step Indicator**: Visual progress bar showing current step (1-4)
+- **State Management**: React useState for workflow and image data
+- **URL Management**: Creates and cleans up object URLs to prevent memory leaks
+- **Callback Propagation**: Passes callbacks down to child components
+- **Conditional Rendering**: Displays appropriate component based on current step
+
+**Component Integration**:
+- `ImageUpload`: Accepts `onImageProcessed` callback to transition to background step
+- `BackgroundSelector`: Manages color selection, integrated with continue button
+- `MattingPreview`: Displays images and provides reprocess/continue actions
+
+**Testing**: Comprehensive integration tests (6 tests) in `App.test.tsx`
+- Initial upload screen display
+- Transition to background selector after upload
+- Transition to preview after background selection
+- Reprocess button returns to upload
+- Continue button proceeds to size selection
+
+**Related User Stories**:
+- Epic 1, User Story 1 - Upload and matting functionality
+- Epic 1, User Story 2 - Background color selection
+- Epic 1, User Story 3 - Preview and quality control
+
+**Future Enhancements**:
+- Persistent state with localStorage
+- Back button navigation
+- Skip background selection option
+- Multiple image workflow
+
+---
+
+## Implementation Progress Summary
+
+**Completed Components**:
+- ✅ ImageUpload - Epic 1, User Story 1
+- ✅ BackgroundSelector - Epic 1, User Story 2
+- ✅ MattingPreview - Epic 1, User Story 3
+- ✅ App Workflow - Integrated workflow management
+
+**Test Coverage**: 79 tests passing
+- All components have comprehensive unit tests
+- Integration tests verify workflow transitions
+- No linting errors
+
+**Next Steps**:
+- Implement size selection component (Epic 2, User Story 1)
+- Add print layout system (Epic 3)
+- Implement PWA capabilities (Epic 4)
+- Add internationalization (Epic 5)

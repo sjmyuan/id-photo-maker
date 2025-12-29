@@ -5,11 +5,17 @@ import { mockMattingService } from '../../services/mattingService'
 import { detectDeviceCapability } from '../../utils/deviceCapability'
 import { usePerformanceMeasure } from '../../hooks/usePerformanceMeasure'
 
-export function ImageUpload() {
+export interface ImageUploadProps {
+  /** Callback when image is successfully processed */
+  onImageProcessed?: (originalFile: File, processedBlob: Blob) => void
+}
+
+export function ImageUpload({ onImageProcessed }: ImageUploadProps) {
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processedImage, setProcessedImage] = useState<Blob | null>(null)
+  const [originalFile, setOriginalFile] = useState<File | null>(null)
   
   const { elapsedTime, isMeasuring, start, stop } = usePerformanceMeasure()
   const deviceCapability = detectDeviceCapability()
@@ -23,6 +29,7 @@ export function ImageUpload() {
       setWarnings([])
       setErrors([])
       setProcessedImage(null)
+      setOriginalFile(file)
       setIsProcessing(true)
       start()
 
@@ -58,13 +65,18 @@ export function ImageUpload() {
         setProcessedImage(mattedImage)
         stop()
         setIsProcessing(false)
+        
+        // 5. Notify parent
+        if (onImageProcessed) {
+          onImageProcessed(file, mattedImage)
+        }
       } catch (error) {
         setErrors([error instanceof Error ? error.message : 'Processing failed'])
         stop()
         setIsProcessing(false)
       }
     },
-    [start, stop, deviceCapability]
+    [start, stop, deviceCapability, onImageProcessed]
   )
 
   return (
@@ -102,7 +114,7 @@ export function ImageUpload() {
         </div>
       )}
 
-      {processedImage && !isMeasuring && (
+      {processedImage && !isMeasuring && originalFile && (
         <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded" data-testid="processing-complete">
           <p>Processing complete!</p>
           {elapsedTime !== null && (

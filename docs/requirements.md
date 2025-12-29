@@ -60,14 +60,27 @@ Provides flexibility to comply with different official document standards while 
   - Custom RGB inputs with live validation (0-255 range)
   - Error messages for invalid inputs (negative, > 255, non-numeric)
   - Visual indication of selected preset color
-  - Accessible with proper ARIA labels  
+  - Accessible with proper ARIA labels
+  - Integrated into main App workflow (Upload → Background → Preview → Size)  
 
-#### User Story 3: As a General Consumer, I want to preview matting results and choose to reprocess or continue so that I can ensure quality before proceeding.  
+#### User Story 3: As a General Consumer, I want to preview matting results and choose to reprocess or continue so that I can ensure quality before proceeding. ✅ COMPLETED
 Allows quality control and correction before finalizing the ID photo.  
 ##### Acceptance Criteria:  
-- Given completed matting, when viewing the preview, then original and processed images are displayed side-by-side.  
-- Given dissatisfaction with matting results, when clicking "Reprocess", then the system returns to upload/edit state with original image.  
-- Given satisfaction with results, when clicking "Continue", then the system proceeds to size selection step.  
+- ✅ Given completed matting, when viewing the preview, then original and processed images are displayed side-by-side.  
+- ✅ Given dissatisfaction with matting results, when clicking "Reprocess", then the system returns to upload/edit state with original image.  
+- ✅ Given satisfaction with results, when clicking "Continue", then the system proceeds to size selection step.  
+
+##### Implementation Details:
+- Component: `MattingPreview` ([src/components/preview/MattingPreview.tsx](src/components/preview/MattingPreview.tsx))
+- Tests: `MattingPreview.test.tsx` ([src/components/preview/MattingPreview.test.tsx](src/components/preview/MattingPreview.test.tsx))
+- Features:
+  - Side-by-side image comparison with original and processed images
+  - Clear labels for "Original" and "Processed" images
+  - Accessible alt text for screen readers
+  - "Reprocess" button to return to upload step
+  - "Continue" button to proceed to size selection
+  - Integrated into main App workflow (Upload → Background → Preview → Size)
+  - Proper cleanup of object URLs to prevent memory leaks  
 
 #### User Story 4: As a General Consumer using a low-performance device, I want access to "quick mode" so that I can still create ID photos despite hardware limitations.  
 Ensures accessibility across diverse device capabilities through graceful degradation.  
