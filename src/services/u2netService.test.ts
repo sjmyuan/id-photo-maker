@@ -29,8 +29,7 @@ describe('u2netService', () => {
       const result = await loadU2NetModel('https://example.com/model.onnx')
 
       expect(ort.InferenceSession.create).toHaveBeenCalledWith(
-        'https://example.com/model.onnx',
-        { executionProviders: ['wasm'] }
+        'https://example.com/model.onnx'
       )
       expect(result).toHaveProperty('session')
       expect(result).toHaveProperty('status', 'loaded')
@@ -59,6 +58,7 @@ describe('u2netService', () => {
             dims: [1, 1, 320, 320],
           },
         }),
+        inputNames: ['input'],
         outputNames: ['output'],
       }
       const mockModel = {

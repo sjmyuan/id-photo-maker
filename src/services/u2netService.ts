@@ -174,8 +174,9 @@ export async function processImageWithU2Net(
 const { tensor } = preprocessImage(image)
     console.log('Image preprocessed, tensor shape:', tensor.dims)
     
-    // Run inference
-    const feeds: Record<string, ort.Tensor> = { input: tensor }
+    // Run inference - use the actual input name from the model
+    const inputName = model.session.inputNames[0]
+    const feeds: Record<string, ort.Tensor> = { [inputName]: tensor }
     const results = await model.session.run(feeds)
     console.log('Inference completed')
     
