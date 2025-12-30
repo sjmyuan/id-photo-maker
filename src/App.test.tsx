@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import App from './App'
 
 // Mock the services
@@ -27,17 +28,29 @@ vi.mock('./utils/deviceCapability', () => ({
 
 describe('App', () => {
   it('renders the app title', () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
   })
 
   it('should display ImageUpload component initially', () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
 
   it('should display BackgroundSelector after successful image upload and processing', async () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     const fileInput = screen.getByTestId('file-input')
     const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
@@ -56,7 +69,11 @@ describe('App', () => {
   })
 
   it('should display MattingPreview after background selection', async () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // First upload an image
     const fileInput = screen.getByTestId('file-input')
@@ -88,7 +105,11 @@ describe('App', () => {
   })
 
   it('should return to upload when reprocess is clicked from preview', async () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // Upload image
     const fileInput = screen.getByTestId('file-input')
@@ -125,7 +146,11 @@ describe('App', () => {
   })
 
   it('should proceed to next step when continue is clicked from preview', async () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // Upload image
     const fileInput = screen.getByTestId('file-input')
@@ -159,5 +184,24 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /size selection/i })).toBeInTheDocument()
     })
+  })
+
+  it('should navigate to main page at root route', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
+    expect(screen.getByTestId('file-input')).toBeInTheDocument()
+  })
+
+  it('should navigate to U2Net test page at /u2net-test route', () => {
+    render(
+      <MemoryRouter initialEntries={['/u2net-test']}>
+        <App />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('U2Net ONNX Model Test')).toBeInTheDocument()
   })
 })
