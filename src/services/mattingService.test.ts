@@ -3,7 +3,8 @@ import {
   mockMattingService, 
   removeBackground, 
   applyBackgroundColor,
-  MattingService 
+  MattingService,
+  removeBackgroundWithTransformer 
 } from './mattingService'
 
 // Helper to create a test image
@@ -354,6 +355,148 @@ describe('mattingService', () => {
       expect(result1.processedImage.width).toBe(result2.processedImage.width)
       expect(result1.processedImage.height).toBe(result2.processedImage.height)
     })
+  })
+
+  describe('removeBackgroundWithTransformer (Hugging Face)', () => {
+    beforeEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should load U-2-Netp model and process image', async () => {
+      const img = createTestImage(320, 320)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      expect(result).toBeDefined()
+      expect(result.processedImage).toBeInstanceOf(HTMLCanvasElement)
+      expect(result.foregroundMask).toBeInstanceOf(ImageData)
+      expect(result.processingTime).toBeGreaterThan(0)
+      expect(result.quality).toBe('high')
+    }, 60000) // 60s timeout for model loading
+
+    it('should return mask with correct dimensions', async () => {
+      const img = createTestImage(320, 320)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      // U-2-Netp outputs 320x320 mask
+      expect(result.foregroundMask.width).toBe(320)
+      expect(result.foregroundMask.height).toBe(320)
+      expect(result.processedImage.width).toBe(320)
+      expect(result.processedImage.height).toBe(320)
+    }, 60000)
+
+    it('should handle different image sizes by scaling', async () => {
+      const img = createTestImage(640, 480)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      expect(result).toBeDefined()
+      expect(result.processedImage).toBeDefined()
+      // Should scale to model input size then back to original
+      expect(result.processedImage.width).toBeGreaterThan(0)
+      expect(result.processedImage.height).toBeGreaterThan(0)
+    }, 60000)
+
+    it('should generate transparent background pixels', async () => {
+      const img = createTestImage(320, 320)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      const ctx = result.processedImage.getContext('2d')
+      expect(ctx).toBeTruthy()
+      
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, result.processedImage.width, result.processedImage.height)
+        let transparentCount = 0
+        for (let i = 3; i < imageData.data.length; i += 4) {
+          if (imageData.data[i] === 0) {
+            transparentCount++
+          }
+        }
+        
+        // Should have some transparent background pixels
+        expect(transparentCount).toBeGreaterThan(0)
+      }
+    }, 60000)
+
+    it('should throw error for invalid image', async () => {
+      const invalidImg = new Image()
+      
+      await expect(removeBackgroundWithTransformer(invalidImg))
+        .rejects.toThrow()
+    })
+
+    it('should track processing time', async () => {
+      const img = createTestImage(320, 320)
+      
+      const startTime = performance.now()
+      const result = await removeBackgroundWithTransformer(img)
+      const endTime = performance.now()
+      
+      const actualTime = endTime - startTime
+      
+      expect(result.processingTime).toBeGreaterThan(0)
+      // Processing time should be reasonable (within 50% margin due to model loading variations)
+      expect(Math.abs(result.processingTime - actualTime)).toBeLessThan(actualTime * 0.5)
+    }, 60000)
+
+    it('should use model caching for subsequent calls', async () => {
+      const img1 = createTestImage(320, 320)
+      const img2 = createTestImage(320, 320)
+      
+      const start1 = performance.now()
+      const result1 = await removeBackgroundWithTransformer(img1)
+      const time1 = performance.now() - start1
+      
+      const start2 = performance.now()
+      const result2 = await removeBackgroundWithTransformer(img2)
+      const time2 = performance.now() - start2
+      
+      expect(result1).toBeDefined()
+      expect(result2).toBeDefined()
+      // Second call should be faster due to model caching
+      expect(time2).toBeLessThan(time1)
+    }, 120000)
+
+    it('should handle small images', async () => {
+      const img = createTestImage(100, 100)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      expect(result).toBeDefined()
+      expect(result.processedImage.width).toBeGreaterThan(0)
+      expect(result.processedImage.height).toBeGreaterThan(0)
+    }, 60000)
+
+    it('should handle large images', async () => {
+      const img = createTestImage(1920, 1080)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      expect(result).toBeDefined()
+      expect(result.processedImage.width).toBe(1920)
+      expect(result.processedImage.height).toBe(1080)
+    }, 60000)
+
+    it('should provide foreground mask with alpha channel', async () => {
+      const img = createTestImage(320, 320)
+      
+      const result = await removeBackgroundWithTransformer(img)
+      
+      expect(result.foregroundMask).toBeInstanceOf(ImageData)
+      // Check that mask has both opaque and transparent regions
+      let hasOpaque = false
+      let hasTransparent = false
+      
+      for (let i = 3; i < result.foregroundMask.data.length; i += 4) {
+        if (result.foregroundMask.data[i] === 255) hasOpaque = true
+        if (result.foregroundMask.data[i] === 0) hasTransparent = true
+      }
+      
+      expect(hasOpaque).toBe(true)
+      expect(hasTransparent).toBe(true)
+    }, 60000)
   })
 })
 

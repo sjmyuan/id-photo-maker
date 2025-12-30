@@ -3,6 +3,12 @@
  * Provides background removal with adaptive performance based on device capability
  */
 
+import { AutoModel, AutoProcessor, RawImage, type Tensor } from '@huggingface/transformers'
+
+// Model caching
+let cachedModel: Awaited<ReturnType<typeof AutoModel.from_pretrained>> | null = null
+let cachedProcessor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>> | null = null
+
 // Types
 export interface MattingResult {
   foregroundMask: ImageData
@@ -214,9 +220,155 @@ export async function mockMattingService(
   })
 }
 
+/**
+ * Remove background from an image using Hugging Face Transformers (U-2-Netp model)
+ * This provides production-quality AI-powered background removal
+ * 
+ * @param image - The HTMLImageElement to process
+ * @returns Promise resolving to MattingResult with transparent background
+ */
+export async function removeBackgroundWithTransformer(
+  image: HTMLImageElement
+): Promise<MattingResult> {
+  const startTime = performance.now()
+  
+  // Validate input
+  if (!image || !image.width || !image.height || image.width === 0 || image.height === 0) {
+    throw new Error('Invalid image: Image must have valid width and height')
+  }
+
+  try {
+    // Load or use cached model and processor
+    if (!cachedModel || !cachedProcessor) {
+      cachedProcessor = await AutoProcessor.from_pretrained('BritishWerewolf/U-2-Netp')
+      cachedModel = await AutoModel.from_pretrained('BritishWerewolf/U-2-Netp', {
+        dtype: 'fp32',
+      })
+    }
+
+    // Convert HTMLImageElement to canvas for RawImage
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const ctx = canvas.getContext('2d')
+    
+    if (!ctx) {
+      throw new Error('Failed to get canvas 2d context')
+    }
+
+    ctx.drawImage(image, 0, 0)
+    
+    // Get image data for RawImage
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    
+    // Create RawImage from ImageData
+    const rawImage = new RawImage(
+      new Uint8ClampedArray(imageData.data),
+      canvas.width,
+      canvas.height,
+      4 // 4 channels (RGBA)
+    )
+
+    // Process image through processor
+    const processed = await cachedProcessor(rawImage)
+
+    // Run model inference
+    const output = await cachedModel({ input: processed.pixel_values })
+
+    // Extract mask tensor
+    const maskTensor = output.mask as Tensor
+    const maskData = maskTensor.data as Uint8Array
+    const [, maskHeight, maskWidth] = maskTensor.dims
+
+    // Create output canvas scaled to original size
+    const outputCanvas = document.createElement('canvas')
+    outputCanvas.width = image.width
+    outputCanvas.height = image.height
+    const outputCtx = outputCanvas.getContext('2d')
+    
+    if (!outputCtx) {
+      throw new Error('Failed to get output canvas 2d context')
+    }
+
+    // Draw original image
+    outputCtx.drawImage(image, 0, 0)
+
+    // Get original image data
+    const outputImageData = outputCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height)
+    const pixels = outputImageData.data
+
+    // Create scaled mask canvas
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = maskWidth
+    maskCanvas.height = maskHeight
+    const maskCtx = maskCanvas.getContext('2d')
+    
+    if (!maskCtx) {
+      throw new Error('Failed to get mask canvas 2d context')
+    }
+
+    // Convert mask tensor to ImageData
+    const maskImageData = maskCtx.createImageData(maskWidth, maskHeight)
+    for (let i = 0; i < maskData.length; i++) {
+      const idx = i * 4
+      const maskValue = maskData[i]
+      maskImageData.data[idx] = maskValue     // R
+      maskImageData.data[idx + 1] = maskValue // G
+      maskImageData.data[idx + 2] = maskValue // B
+      maskImageData.data[idx + 3] = 255       // A
+    }
+    maskCtx.putImageData(maskImageData, 0, 0)
+
+    // Scale mask to original image size if needed
+    const scaledMaskCanvas = document.createElement('canvas')
+    scaledMaskCanvas.width = outputCanvas.width
+    scaledMaskCanvas.height = outputCanvas.height
+    const scaledMaskCtx = scaledMaskCanvas.getContext('2d')
+    
+    if (!scaledMaskCtx) {
+      throw new Error('Failed to get scaled mask canvas 2d context')
+    }
+
+    scaledMaskCtx.drawImage(maskCanvas, 0, 0, outputCanvas.width, outputCanvas.height)
+    const scaledMaskData = scaledMaskCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height)
+
+    // Apply mask to original image (set alpha channel based on mask)
+    for (let i = 0; i < pixels.length; i += 4) {
+      const maskAlpha = scaledMaskData.data[i] // Use R channel of mask as alpha
+      pixels[i + 3] = maskAlpha // Set alpha channel
+    }
+
+    // Put modified image data back
+    outputCtx.putImageData(outputImageData, 0, 0)
+
+    // Create foreground mask ImageData
+    const foregroundMaskData = outputCtx.createImageData(outputCanvas.width, outputCanvas.height)
+    for (let i = 0; i < scaledMaskData.data.length; i += 4) {
+      const maskValue = scaledMaskData.data[i]
+      foregroundMaskData.data[i] = maskValue
+      foregroundMaskData.data[i + 1] = maskValue
+      foregroundMaskData.data[i + 2] = maskValue
+      foregroundMaskData.data[i + 3] = maskValue
+    }
+
+    const endTime = performance.now()
+    const processingTime = endTime - startTime
+
+    return {
+      foregroundMask: foregroundMaskData,
+      processedImage: outputCanvas,
+      processingTime,
+      quality: 'high'
+    }
+  } catch (error) {
+    throw new Error(`Failed to process image with transformer: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 export interface MattingServiceInterface {
   processMattingAsync(file: File, expectedProcessingTime: number): Promise<Blob>
   removeBackground(image: HTMLImageElement, options?: MattingOptions): Promise<MattingResult>
+  removeBackgroundWithTransformer(image: HTMLImageElement): Promise<MattingResult>
   applyBackgroundColor(transparentCanvas: HTMLCanvasElement, color: string): HTMLCanvasElement
 }
 
@@ -231,6 +383,10 @@ export class MattingService implements MattingServiceInterface {
 
   async removeBackground(image: HTMLImageElement, options?: MattingOptions): Promise<MattingResult> {
     return removeBackground(image, options)
+  }
+
+  async removeBackgroundWithTransformer(image: HTMLImageElement): Promise<MattingResult> {
+    return removeBackgroundWithTransformer(image)
   }
 
   applyBackgroundColor(transparentCanvas: HTMLCanvasElement, color: string): HTMLCanvasElement {
