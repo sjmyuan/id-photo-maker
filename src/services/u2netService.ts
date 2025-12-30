@@ -37,7 +37,7 @@ export async function loadU2NetModel(modelUrl: string): Promise<U2NetModel> {
 
 /**
  * Preprocess image for U2Net model
- * U2Net expects 320x320 RGB image normalized to [-1, 1]
+ * Normalizes using ImageNet mean and std values
  */
 function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; originalWidth: number; originalHeight: number } {
   const targetSize = 320
@@ -50,29 +50,46 @@ function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; origina
     throw new Error('Failed to get canvas context')
   }
   
-  // Draw image resized to 320x320
+  // Draw image resized to 320x320 using high-quality interpolation
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(image, 0, 0, targetSize, targetSize)
   
   // Get image data
   const imageData = ctx.getImageData(0, 0, targetSize, targetSize)
   const { data } = imageData
   
-  // Convert to RGB and normalize to [-1, 1]
-  const red = []
-  const green = []
-  const blue = []
+  // ImageNet normalization values
+  const mean = [0.485, 0.456, 0.406]
+  const std = [0.229, 0.224, 0.225]
   
+  // Find max value for initial normalization
+  let maxVal = 0
   for (let i = 0; i < data.length; i += 4) {
-    red.push(data[i] / 255.0)
-    green.push(data[i + 1] / 255.0)
-    blue.push(data[i + 2] / 255.0)
+    maxVal = Math.max(maxVal, data[i], data[i + 1], data[i + 2])
+  }
+  maxVal = Math.max(maxVal, 1e-6) // Avoid division by zero
+  
+  // Normalize: (pixel / maxVal - mean) / std for each channel
+  const normalized = new Float32Array(3 * targetSize * targetSize)
+  
+  for (let i = 0; i < targetSize * targetSize; i++) {
+    const pixelIdx = i * 4
+    
+    // Normalize to [0, 1] first
+    const r = data[pixelIdx] / maxVal
+    const g = data[pixelIdx + 1] / maxVal
+    const b = data[pixelIdx + 2] / maxVal
+    
+    // Apply mean and std normalization for each channel
+    // Store in CHW format: [C, H, W]
+    normalized[i] = (r - mean[0]) / std[0]                           // R channel
+    normalized[targetSize * targetSize + i] = (g - mean[1]) / std[1]  // G channel
+    normalized[2 * targetSize * targetSize + i] = (b - mean[2]) / std[2]  // B channel
   }
   
-  // Concatenate channels: [R, G, B]
-  const inputArray = Float32Array.from([...red, ...green, ...blue])
-  
   // Create tensor with shape [1, 3, 320, 320]
-  const tensor = new ort.Tensor('float32', inputArray, [1, 3, targetSize, targetSize])
+  const tensor = new ort.Tensor('float32', normalized, [1, 3, targetSize, targetSize])
   
   return {
     tensor,
