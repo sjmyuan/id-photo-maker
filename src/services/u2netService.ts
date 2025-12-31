@@ -100,6 +100,11 @@ function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; origina
 
 /**
  * Postprocess U2Net output to create transparent background image
+ * Follows the Python implementation:
+ * 1. Normalize prediction to [0, 1] using min-max normalization
+ * 2. Convert to uint8 mask (multiply by 255)
+ * 3. Resize to original image size using high-quality interpolation
+ * 4. Create cutout by compositing original image with empty image using mask
  */
 function postprocessOutput(
   mask: Float32Array,
@@ -107,23 +112,29 @@ function postprocessOutput(
   maskWidth: number,
   maskHeight: number
 ): Promise<Blob> {
-  // Create canvas for output
-  const canvas = document.createElement('canvas')
-  canvas.width = originalImage.width
-  canvas.height = originalImage.height
+  // Step 1: Normalize prediction to [0, 1] using min-max normalization
+  // pred = (pred - mi) / (ma - mi)
+  let minVal = Infinity
+  let maxVal = -Infinity
   
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Failed to get canvas context')
+  for (let i = 0; i < mask.length; i++) {
+    minVal = Math.min(minVal, mask[i])
+    maxVal = Math.max(maxVal, mask[i])
   }
   
-  // Draw original image
-  ctx.drawImage(originalImage, 0, 0)
+  const range = maxVal - minVal
+  const normalizedMask = new Float32Array(mask.length)
   
-  // Get image data
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const pixels = imageData.data
+  if (range > 0) {
+    for (let i = 0; i < mask.length; i++) {
+      normalizedMask[i] = (mask[i] - minVal) / range
+    }
+  } else {
+    // If all values are the same, set to 1
+    normalizedMask.fill(1)
+  }
   
+  // Step 2: Convert to uint8 mask (multiply by 255)
   // Create temporary canvas for mask
   const maskCanvas = document.createElement('canvas')
   maskCanvas.width = maskWidth
@@ -133,18 +144,18 @@ function postprocessOutput(
     throw new Error('Failed to get mask canvas context')
   }
   
-  // Draw mask
+  // Draw mask with values in alpha channel for 'destination-in' composite operation
   const maskImageData = maskCtx.createImageData(maskWidth, maskHeight)
-  for (let i = 0; i < mask.length; i++) {
-    const value = Math.max(0, Math.min(255, mask[i] * 255))
-    maskImageData.data[i * 4] = value
-    maskImageData.data[i * 4 + 1] = value
-    maskImageData.data[i * 4 + 2] = value
-    maskImageData.data[i * 4 + 3] = 255
+  for (let i = 0; i < normalizedMask.length; i++) {
+    const value = Math.round(normalizedMask[i] * 255)
+    maskImageData.data[i * 4] = 255        // R (white)
+    maskImageData.data[i * 4 + 1] = 255    // G (white)
+    maskImageData.data[i * 4 + 2] = 255    // B (white)
+    maskImageData.data[i * 4 + 3] = value  // A (mask value determines transparency)
   }
   maskCtx.putImageData(maskImageData, 0, 0)
   
-  // Scale mask to match original image size
+  // Step 3: Resize mask to original image size using high-quality interpolation (LANCZOS equivalent)
   const scaledMaskCanvas = document.createElement('canvas')
   scaledMaskCanvas.width = originalImage.width
   scaledMaskCanvas.height = originalImage.height
@@ -152,22 +163,36 @@ function postprocessOutput(
   if (!scaledMaskCtx) {
     throw new Error('Failed to get scaled mask canvas context')
   }
+  
+  // Use high-quality image smoothing (closest to LANCZOS)
+  scaledMaskCtx.imageSmoothingEnabled = true
+  scaledMaskCtx.imageSmoothingQuality = 'high'
   scaledMaskCtx.drawImage(maskCanvas, 0, 0, originalImage.width, originalImage.height)
   
-  const scaledMaskData = scaledMaskCtx.getImageData(0, 0, originalImage.width, originalImage.height)
+  // Step 4: Create cutout using composite operation
+  // empty = Image.new("RGBA", (img.size), 0)
+  // cutout = Image.composite(img, empty, mask)
   
-  // Apply mask to original image (set alpha channel)
-  for (let i = 0; i < pixels.length; i += 4) {
-    const maskValue = scaledMaskData.data[i] / 255.0
-    pixels[i + 3] = Math.round(maskValue * 255) // Set alpha channel
+  // Create output canvas
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = originalImage.width
+  outputCanvas.height = originalImage.height
+  const outputCtx = outputCanvas.getContext('2d')
+  if (!outputCtx) {
+    throw new Error('Failed to get output canvas context')
   }
   
-  // Put modified image data back
-  ctx.putImageData(imageData, 0, 0)
+  // Draw original image first
+  outputCtx.drawImage(originalImage, 0, 0)
+  
+  // Apply the mask using 'destination-in' composite operation
+  // This keeps only the parts of the image where the mask is opaque
+  outputCtx.globalCompositeOperation = 'destination-in'
+  outputCtx.drawImage(scaledMaskCanvas, 0, 0, originalImage.width, originalImage.height)
   
   // Convert canvas to blob
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
+    outputCanvas.toBlob((blob) => {
       if (blob) {
         resolve(blob)
       } else {
@@ -201,11 +226,23 @@ const { tensor } = preprocessImage(image)
     const outputName = model.session.outputNames[0]
     const outputTensor = results[outputName]
     
-    // Extract mask data
-    const maskData = outputTensor.data as Float32Array
-    const [, , maskHeight, maskWidth] = outputTensor.dims
-    
     console.log('Output shape:', outputTensor.dims)
+    
+    // Extract prediction: pred = ort_outs[0][:, 0, :, :]
+    // Output shape is [batch, channels, height, width], we need [batch, 0, :, :]
+    const [, , maskHeight, maskWidth] = outputTensor.dims
+    const fullData = outputTensor.data as Float32Array
+    
+    // Extract only channel 0 from the output
+    // For shape [1, C, H, W], we want [1, 0, H, W]
+    const channelSize = (maskHeight as number) * (maskWidth as number)
+    const maskData = new Float32Array(channelSize)
+    
+    for (let i = 0; i < channelSize; i++) {
+      // Channel 0 data starts at index 0 and has length channelSize
+      maskData[i] = fullData[i]
+    }
+    
     console.log('Processing output...')
     
     // Postprocess to create final image with transparent background

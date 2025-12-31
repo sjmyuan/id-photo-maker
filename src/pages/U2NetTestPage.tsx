@@ -159,23 +159,25 @@ export function U2NetTestPage() {
 
           {/* Image Comparison */}
           {originalImage && processedImage && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Original</h3>
+            <div className="flex flex-row items-start justify-center gap-8 mt-4">
+              <div className="flex flex-col items-center">
+                <span className="text-base font-semibold mb-2">Original</span>
                 <img
                   src={originalImage}
                   alt="Original"
-                  className="w-full rounded-lg border border-gray-300"
+                  className="max-w-[240px] w-full rounded-lg border border-gray-300 shadow"
+                  style={{ objectFit: 'contain' }}
                 />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Processed (Background Removed)</h3>
-                <div className="relative">
+              <div className="flex flex-col items-center">
+                <span className="text-base font-semibold mb-2">Processed</span>
+                <div className="relative max-w-[240px] w-full rounded-lg border border-gray-300 shadow overflow-hidden">
                   {/* Checkered background to show transparency */}
                   <div
-                    className="absolute inset-0 rounded-lg"
+                    className="absolute inset-0"
                     style={{
-                      backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                      backgroundImage:
+                        'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
                       backgroundSize: '20px 20px',
                       backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
                     }}
@@ -183,7 +185,8 @@ export function U2NetTestPage() {
                   <img
                     src={processedImage}
                     alt="Processed"
-                    className="relative w-full rounded-lg"
+                    className="relative w-full"
+                    style={{ objectFit: 'contain' }}
                   />
                 </div>
               </div>
