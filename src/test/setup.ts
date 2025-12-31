@@ -109,6 +109,14 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.toDataURL = vi.fn(function() {
     return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
   })
+  
+  // Mock toBlob method for U2Net service tests
+  HTMLCanvasElement.prototype.toBlob = vi.fn(function(callback: BlobCallback) {
+    // Create a simple PNG blob
+    const pngData = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...new Array(100).fill(0)])
+    const blob = new Blob([pngData], { type: 'image/png' })
+    setTimeout(() => callback(blob), 0)
+  })
 }
 
 // Mock localStorage

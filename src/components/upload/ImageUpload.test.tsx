@@ -13,6 +13,7 @@ vi.mock('../../services/imageScaling', () => ({
 
 vi.mock('../../services/mattingService', () => ({
   mockMattingService: vi.fn(),
+  processWithU2Net: vi.fn(),
 }))
 
 vi.mock('../../utils/deviceCapability', () => ({

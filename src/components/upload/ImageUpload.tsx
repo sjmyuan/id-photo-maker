@@ -1,16 +1,19 @@
 import { useState, useCallback, ChangeEvent } from 'react'
 import { validateImageFile } from '../../services/imageValidation'
 import { scaleImageToTarget } from '../../services/imageScaling'
-import { mockMattingService } from '../../services/mattingService'
+import { mockMattingService, processWithU2Net } from '../../services/mattingService'
 import { detectDeviceCapability } from '../../utils/deviceCapability'
 import { usePerformanceMeasure } from '../../hooks/usePerformanceMeasure'
+import type { U2NetModel } from '../../services/u2netService'
 
 export interface ImageUploadProps {
   /** Callback when image is successfully processed */
   onImageProcessed?: (originalFile: File, processedBlob: Blob) => void
+  /** Optional U2Net model for AI-powered background removal */
+  u2netModel?: U2NetModel | null
 }
 
-export function ImageUpload({ onImageProcessed }: ImageUploadProps) {
+export function ImageUpload({ onImageProcessed, u2netModel }: ImageUploadProps) {
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -56,10 +59,17 @@ export function ImageUpload({ onImageProcessed }: ImageUploadProps) {
         }
 
         // 3. Process matting
-        const mattedImage = await mockMattingService(
-          fileToProcess,
-          deviceCapability.expectedProcessingTime
-        )
+        let mattedImage: Blob
+        if (u2netModel) {
+          // Use U2Net model if available
+          mattedImage = await processWithU2Net(fileToProcess, u2netModel)
+        } else {
+          // Fall back to mock service
+          mattedImage = await mockMattingService(
+            fileToProcess,
+            deviceCapability.expectedProcessingTime
+          )
+        }
 
         // 4. Complete
         setProcessedImage(mattedImage)
@@ -76,7 +86,7 @@ export function ImageUpload({ onImageProcessed }: ImageUploadProps) {
         setIsProcessing(false)
       }
     },
-    [start, stop, deviceCapability, onImageProcessed]
+[start, stop, deviceCapability, onImageProcessed, u2netModel]
   )
 
   return (

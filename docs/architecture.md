@@ -682,6 +682,55 @@ interface DeviceCapability {
 }
 ```
 
+#### Face Detection Service
+
+```typescript
+interface FaceDetectionService {
+  // Model management
+  loadFaceDetectionModel(modelUrl: string): Promise<FaceDetectionModel>;
+  
+  // Face detection
+  detectFaces(
+    model: FaceDetectionModel,
+    image: HTMLImageElement,
+    confidenceThreshold?: number
+  ): Promise<FaceDetectionResult>;
+  
+  // Image preprocessing
+  preprocessImage(image: HTMLImageElement): {
+    tensor: Float32Array;
+    width: number;
+    height: number;
+  };
+}
+
+interface FaceDetectionModel {
+  session: InferenceSession; // ONNX Runtime session
+  inputName: string;
+  outputNames: string[];
+}
+
+interface FaceBox {
+  x: number;      // top-left x coordinate (0-1 normalized)
+  y: number;      // top-left y coordinate (0-1 normalized)
+  width: number;  // box width (0-1 normalized)
+  height: number; // box height (0-1 normalized)
+  confidence: number; // detection confidence (0-1)
+}
+
+interface FaceDetectionResult {
+  faces: FaceBox[];
+  error?: 'no-face-detected' | 'multiple-faces-detected' | 'detection-failed';
+}
+
+// UltraFace-320 Model Specifications:
+// - Input: 320x240x3 (RGB, normalized to [-1, 1])
+// - Output: Bounding boxes with confidence scores
+// - Algorithm: Non-maximum suppression (NMS) with IoU threshold 0.5
+// - Default confidence threshold: 0.7
+// - Model file: /version-RFB-320.onnx (~1.2MB)
+```
+
 #### Internationalization Service
 
 ```typescript
@@ -1610,15 +1659,29 @@ interface ImageData {
 - ✅ ImageUpload - Epic 1, User Story 1
 - ✅ BackgroundSelector - Epic 1, User Story 2
 - ✅ MattingPreview - Epic 1, User Story 3
-- ✅ App Workflow - Integrated workflow management
+- ✅ FaceDetectionService - Epic 2, User Story 5 (Face Detection)
+- ✅ SizeSelection with CropGuide - Epic 2, User Story 5 (Crop Positioning)
+- ✅ App Workflow - Integrated workflow management with face detection
 
-**Test Coverage**: 79 tests passing
+**Test Coverage**: 140 tests passing
 - All components have comprehensive unit tests
-- Integration tests verify workflow transitions
+- Face detection service: 10 tests
+- Size selection component: 21 tests
+- Integration tests verify workflow transitions including face detection step
 - No linting errors
+- Type checking clean
+
+**Architecture Updates**:
+- Added FaceDetectionService using UltraFace-320 ONNX model
+- Integrated face detection into MainWorkflow between preview and size selection
+- Size selection now includes integrated crop guide with:
+  - Auto-positioning based on face detection (30% padding)
+  - Manual drag and resize with aspect ratio maintenance
+  - Error handling for no-face and multiple-faces scenarios
+  - Three size options (1-inch, 2-inch, 3-inch) with dynamic aspect ratio adjustment
 
 **Next Steps**:
-- Implement size selection component (Epic 2, User Story 1)
-- Add print layout system (Epic 3)
+- Implement print layout system (Epic 3)
 - Implement PWA capabilities (Epic 4)
 - Add internationalization (Epic 5)
+

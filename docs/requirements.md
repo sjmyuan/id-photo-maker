@@ -197,7 +197,43 @@ Ensures print quality through appropriate file formats and resolution settings.
 - Given download request, when selecting PDF format, then the file includes embedded 300DPI metadata for home printers.  
 - Given any download, when checking file properties, then resolution is exactly 300DPI with correct physical dimensions.  
 
-#### User Story 5: As a General Consumer, I want clear printing instructions ("Select actual size, do not scale") so that my prints maintain correct dimensions.  
+#### User Story 5: As a General Consumer, I want automatic face detection with intelligent crop positioning so that I can easily frame my face correctly for ID photos. ✅ COMPLETED
+Ensures proper face positioning and framing through AI-powered face detection with manual adjustment capabilities.
+##### Acceptance Criteria:
+- ✅ Given the size selection screen, when proceeding from preview, then the system automatically detects faces using UltraFace-320 model on the matted image.
+- ✅ Given a single face detected, when viewing the crop interface, then the crop rectangle automatically positions around the face with 30% padding.
+- ✅ Given auto-positioned crop, when the user wants to adjust, then the rectangle can be dragged and resized while maintaining the selected size's aspect ratio.
+- ✅ Given size selection changes, when switching between 1-inch, 2-inch, or 3-inch, then the crop rectangle adjusts its aspect ratio accordingly.
+- ✅ Given no face detected, when viewing crop interface, then an error message displays and the rectangle centers on the image.
+- ✅ Given multiple faces detected, when viewing crop interface, then an error message displays suggesting to use a photo with one person.
+- ✅ Given the crop rectangle, when resizing via corner handles, then the aspect ratio is maintained and boundary constraints prevent moving outside the image.
+
+##### Implementation Details:
+- Service: `faceDetectionService` ([src/services/faceDetectionService.ts](src/services/faceDetectionService.ts))
+  - UltraFace-320 ONNX model loading and inference
+  - Image preprocessing (320x240 resize, normalization to [-1,1])
+  - Non-maximum suppression (NMS) with IoU threshold 0.5
+  - Confidence threshold 0.7 for face detection
+  - Error handling for no-face and multiple-faces scenarios
+- Component: `SizeSelection` ([src/components/size/SizeSelection.tsx](src/components/size/SizeSelection.tsx))
+  - Three size buttons with aspect ratios: 1-inch (0.714), 2-inch (0.714), 3-inch (0.673)
+  - Draggable crop rectangle with mouse and touch support
+  - Resizable corner handles maintaining aspect ratio
+  - Auto-positioning based on detected face with 30% padding
+  - Centered positioning fallback when no face detected
+  - Error display for no-face/multiple-faces scenarios
+  - Boundary constraints preventing rectangle from moving outside image
+  - Real-time visual feedback during drag and resize operations
+- Tests:
+  - `faceDetectionService.test.ts` ([src/services/faceDetectionService.test.ts](src/services/faceDetectionService.test.ts)) - 10 tests
+  - `SizeSelection.test.tsx` ([src/components/size/SizeSelection.test.tsx](src/components/size/SizeSelection.test.tsx)) - 21 tests
+- Integration: MainWorkflow ([src/pages/MainWorkflow.tsx](src/pages/MainWorkflow.tsx))
+  - Model loaded on component mount from `/version-RFB-320.onnx`
+  - Face detection runs on matted image before size selection step
+  - Crop area state managed and passed to size selection component
+  - Workflow: Upload → Background → Preview → **Face Detection + Size Selection with Crop Guide** → Layout → Download
+
+#### User Story 6: As a General Consumer, I want clear printing instructions ("Select actual size, do not scale") so that my prints maintain correct dimensions.  
 Prevents common printing errors through explicit guidance.  
 ##### Acceptance Criteria:  
 - Given completed layout, when viewing download screen, then printing instructions are prominently displayed.  

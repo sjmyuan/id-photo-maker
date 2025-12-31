@@ -180,9 +180,11 @@ describe('App', () => {
     const previewContinueButton = screen.getByRole('button', { name: /continue to next step/i })
     previewContinueButton.click()
     
-    // For now, it should show a placeholder message for size selection
+    // Should now show size selection with crop guide
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /size selection/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /select size and adjust crop/i })).toBeInTheDocument()
+      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('crop-rectangle')).toBeInTheDocument()
     })
   })
 
