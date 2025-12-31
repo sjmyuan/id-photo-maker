@@ -1,38 +1,43 @@
-import { useState, useEffect } from 'react'
-import { ImageUpload } from '../components/upload/ImageUpload'
+import { useState, useEffect, useCallback, type ChangeEvent } from 'react'
 import { BackgroundSelector } from '../components/background/BackgroundSelector'
-import { MattingPreview } from '../components/preview/MattingPreview'
-import { SizeSelection, type CropArea } from '../components/size/SizeSelection'
+import { SizeSelection, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/SizeSelection'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
-
-type WorkflowStep = 'upload' | 'background' | 'preview' | 'size-selection'
+import { validateImageFile } from '../services/imageValidation'
+import { scaleImageToTarget } from '../services/imageScaling'
+import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
+import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 
 interface ImageData {
   originalFile: File
   originalUrl: string
-  processedBlob: Blob
-  processedUrl: string
+  transparentBlob: Blob // Transparent matted image
+  transparentCanvas: HTMLCanvasElement // Canvas with transparent background
+  processedUrl: string // URL with applied background color
 }
 
 export function MainWorkflow() {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload')
+  // Default values: 1-inch size, Blue background
+  const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
+  const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
   const [imageData, setImageData] = useState<ImageData | null>(null)
-  const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF')
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
   const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
   const [detectedFace, setDetectedFace] = useState<FaceBox | null>(null)
   const [faceDetectionError, setFaceDetectionError] = useState<'no-face-detected' | 'multiple-faces-detected' | undefined>()
   const [cropArea, setCropArea] = useState<CropArea | null>(null)
-  const [isDetectingFace, setIsDetectingFace] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [warnings, setWarnings] = useState<string[]>([])
+  const [errors, setErrors] = useState<string[]>([])
+
+  const { start, stop } = usePerformanceMeasure()
 
   // Load models on mount
   useEffect(() => {
     const loadModels = async () => {
       // Load U2Net model
       try {
-        // Get model selection from localStorage, default to u2netp (lite version)
         const selectedModel = localStorage.getItem('selectedU2NetModel') || 'u2netp'
         const modelUrl = `/${selectedModel}.onnx`
         
@@ -56,84 +61,197 @@ export function MainWorkflow() {
     loadModels()
   }, [])
 
-  const handleImageProcessed = (originalFile: File, processedBlob: Blob) => {
-    // Create URLs for display
-    const originalUrl = URL.createObjectURL(originalFile)
-    const processedUrl = URL.createObjectURL(processedBlob)
-    
-    setImageData({
-      originalFile,
-      originalUrl,
-      processedBlob,
-      processedUrl,
-    })
-    setCurrentStep('background')
-  }
+  // Handle file upload
+  const handleFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
 
-  const handleBackgroundSelected = (color: string) => {
-    setBackgroundColor(color)
-  }
+      // Reset state
+      setWarnings([])
+      setErrors([])
+      setImageData(null)
+      setDetectedFace(null)
+      setFaceDetectionError(undefined)
+      setIsProcessing(true)
+      start()
 
-  const handleContinueToPreview = () => {
-    setCurrentStep('preview')
-  }
+      try {
+        // 1. Validate the file
+        const validation = await validateImageFile(file)
+        
+        if (!validation.isValid) {
+          setErrors(validation.errors)
+          stop()
+          setIsProcessing(false)
+          return
+        }
 
-  const handleReprocess = () => {
-    // Clean up URLs
-    if (imageData) {
-      URL.revokeObjectURL(imageData.originalUrl)
-      URL.revokeObjectURL(imageData.processedUrl)
-    }
-    setImageData(null)
-    setDetectedFace(null)
-    setFaceDetectionError(undefined)
-    setCropArea(null)
-    setCurrentStep('upload')
-  }
+        if (validation.warnings.length > 0) {
+          setWarnings(validation.warnings)
+        }
 
-  const handleContinueToSize = async () => {
-    // Run face detection before going to size selection
-    if (!imageData || !faceDetectionModel) {
-      setCurrentStep('size-selection')
-      return
-    }
+        // 2. Scale if needed
+        let fileToProcess = file
+        if (validation.needsScaling) {
+          const scaledBlob = await scaleImageToTarget(file, 10)
+          fileToProcess = new File([scaledBlob], file.name, { type: file.type })
+        }
 
-    setIsDetectingFace(true)
-    
-    try {
-      // Load the processed image
-      const img = new Image()
-      img.src = imageData.processedUrl
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-      })
-      
-      // Detect faces
-      const result = await detectFaces(faceDetectionModel, img)
-      
-      if (result.error) {
-        setFaceDetectionError(result.error)
-        setDetectedFace(result.faces[0] || null)
-      } else if (result.faces.length === 1) {
-        setDetectedFace(result.faces[0])
-        setFaceDetectionError(undefined)
+        // 3. Process matting
+        if (!u2netModel) {
+          setErrors(['AI model not loaded yet. Please wait and try again.'])
+          setIsProcessing(false)
+          stop()
+          return
+        }
+
+        const mattedBlob = await processWithU2Net(fileToProcess, u2netModel)
+
+        // Create transparent canvas from blob
+        const transparentImg = new Image()
+        const transparentUrl = URL.createObjectURL(mattedBlob)
+        transparentImg.src = transparentUrl
+        
+        await new Promise((resolve, reject) => {
+          transparentImg.onload = resolve
+          transparentImg.onerror = reject
+        })
+
+        const transparentCanvas = document.createElement('canvas')
+        transparentCanvas.width = transparentImg.naturalWidth
+        transparentCanvas.height = transparentImg.naturalHeight
+        const ctx = transparentCanvas.getContext('2d')
+        if (!ctx) throw new Error('Failed to get canvas context')
+        ctx.drawImage(transparentImg, 0, 0)
+
+        // Apply background color
+        const coloredCanvas = applyBackgroundColor(transparentCanvas, backgroundColor)
+        const coloredBlob = await new Promise<Blob>((resolve, reject) => {
+          coloredCanvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create blob'))
+          }, 'image/png')
+        })
+
+        // Create URLs for display
+        const originalUrl = URL.createObjectURL(file)
+        const processedUrl = URL.createObjectURL(coloredBlob)
+        
+        // Clean up temporary URL
+        URL.revokeObjectURL(transparentUrl)
+        
+        setImageData({
+          originalFile: file,
+          originalUrl,
+          transparentBlob: mattedBlob,
+          transparentCanvas,
+          processedUrl,
+        })
+
+        // 4. Detect face
+        if (faceDetectionModel) {
+          const img = new Image()
+          img.src = processedUrl
+          
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+          
+          const result = await detectFaces(faceDetectionModel, img)
+          
+          if (result.error) {
+            setFaceDetectionError(result.error)
+            setDetectedFace(result.faces[0] || null)
+          } else if (result.faces.length === 1) {
+            setDetectedFace(result.faces[0])
+            setFaceDetectionError(undefined)
+          }
+        }
+
+        stop()
+        setIsProcessing(false)
+      } catch (error) {
+        setErrors([error instanceof Error ? error.message : 'Processing failed'])
+        stop()
+        setIsProcessing(false)
       }
-      
-      setCurrentStep('size-selection')
-    } catch (error) {
-      console.error('Face detection failed:', error)
-      // Proceed anyway, user can manually adjust
-      setFaceDetectionError('no-face-detected')
-      setCurrentStep('size-selection')
-    } finally {
-      setIsDetectingFace(false)
+    },
+    [start, stop, u2netModel, faceDetectionModel]
+  )
+
+  const handleBackgroundChange = useCallback((color: string) => {
+    setBackgroundColor(color)
+    
+    // Re-apply background color to processed image in real-time
+    if (imageData && imageData.transparentCanvas) {
+      const coloredCanvas = applyBackgroundColor(imageData.transparentCanvas, color)
+      coloredCanvas.toBlob((blob) => {
+        if (blob) {
+          // Revoke old URL
+          URL.revokeObjectURL(imageData.processedUrl)
+          
+          // Create new URL with updated background
+          const newProcessedUrl = URL.createObjectURL(blob)
+          setImageData({
+            ...imageData,
+            processedUrl: newProcessedUrl,
+          })
+        }
+      }, 'image/png')
     }
+  }, [imageData])
+
+  const handleSizeChange = (size: SizeOption) => {
+    setSelectedSize(size)
+    // Crop area will be adjusted automatically by SizeSelection component
   }
 
   const handleCropAreaChange = (newCropArea: CropArea) => {
     setCropArea(newCropArea)
+  }
+
+  const handleDownload = () => {
+    if (!imageData || !cropArea) return
+    
+    // Create a canvas for the cropped image
+    const canvas = document.createElement('canvas')
+    
+    // Set canvas size to match the crop area
+    canvas.width = cropArea.width
+    canvas.height = cropArea.height
+    
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    // Apply background color
+    ctx.fillStyle = backgroundColor
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
+    // Draw the transparent image on top, cropped to the selected area
+    ctx.drawImage(
+      imageData.transparentCanvas,
+      cropArea.x, cropArea.y, cropArea.width, cropArea.height, // Source rectangle
+      0, 0, cropArea.width, cropArea.height // Destination rectangle
+    )
+    
+    // Convert to blob and download
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `id-photo-${selectedSize.id}-${Date.now()}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+    }, 'image/png')
   }
 
   return (
@@ -146,108 +264,122 @@ export function MainWorkflow() {
       </header>
 
       <main className="max-w-7xl mx-auto py-6 px-4">
-        {/* Step indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
-            <StepIndicator step={1} label="Upload" active={currentStep === 'upload'} />
-            <div className="w-16 h-0.5 bg-gray-300" />
-            <StepIndicator step={2} label="Background" active={currentStep === 'background'} />
-            <div className="w-16 h-0.5 bg-gray-300" />
-            <StepIndicator step={3} label="Preview" active={currentStep === 'preview'} />
-            <div className="w-16 h-0.5 bg-gray-300" />
-            <StepIndicator step={4} label="Size" active={currentStep === 'size-selection'} />
+        {/* Upper Area: Image Preview */}
+        <div data-testid="preview-area" className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Original Image */}
+          <div data-testid="original-image-container" className="bg-white rounded-lg shadow p-4">
+            <h2 className="text-lg font-semibold mb-3 text-gray-800">Original</h2>
+            <div className="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center">
+              {imageData ? (
+                <img 
+                  src={imageData.originalUrl} 
+                  alt="Original" 
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <p className="text-gray-400">No image uploaded</p>
+              )}
+            </div>
+          </div>
+
+          {/* Processed Image with Crop Rectangle */}
+          <div data-testid="processed-image-container" className="bg-white rounded-lg shadow p-4">
+            <h2 className="text-lg font-semibold mb-3 text-gray-800">Processed</h2>
+            <div className="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center">
+              {imageData ? (
+                <SizeSelection
+                  processedImageUrl={imageData.processedUrl}
+                  faceBox={detectedFace}
+                  error={faceDetectionError}
+                  onCropAreaChange={handleCropAreaChange}
+                  selectedSize={selectedSize}
+                  onSizeChange={handleSizeChange}
+                />
+              ) : (
+                <p className="text-gray-400">No image processed</p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Render current step */}
-        {currentStep === 'upload' && (
-          <div>
-            {isLoadingU2Net && (
-              <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
-                <p>Loading AI model...</p>
-              </div>
-            )}
-            <ImageUpload onImageProcessed={handleImageProcessed} u2netModel={u2netModel} />
-          </div>
-        )}
+        {/* Lower Area: Controls */}
+        <div data-testid="controls-area" className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Upload Control */}
+            <div data-testid="upload-control">
+              <h3 className="text-md font-semibold mb-3 text-gray-800">Upload Image</h3>
+              {isLoadingU2Net && (
+                <div className="mb-3 p-2 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
+                  Loading AI model...
+                </div>
+              )}
+              {warnings.length > 0 && (
+                <div className="mb-3 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
+                  {warnings.map((warning, i) => <div key={i}>{warning}</div>)}
+                </div>
+              )}
+              {errors.length > 0 && (
+                <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
+                  {errors.map((error, i) => <div key={i}>{error}</div>)}
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                disabled={isProcessing || isLoadingU2Net}
+                data-testid="file-input"
+                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {isProcessing && (
+                <p className="mt-2 text-sm text-blue-600">Processing image...</p>
+              )}
+            </div>
 
-        {currentStep === 'background' && imageData && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Background Color</h2>
-            <BackgroundSelector
-              onColorChange={handleBackgroundSelected}
-              initialColor={backgroundColor}
-            />
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={handleContinueToPreview}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                Continue to Preview
-              </button>
+            {/* Size Selector */}
+            <div data-testid="size-selector">
+              <h3 className="text-md font-semibold mb-3 text-gray-800">Photo Size</h3>
+              <div className="space-y-2">
+                {SIZE_OPTIONS.map((size) => (
+                  <button
+                    key={size.id}
+                    onClick={() => handleSizeChange(size)}
+                    className={`w-full px-4 py-2 text-left rounded-lg border-2 transition-colors ${
+                      selectedSize.id === size.id
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">{size.label}</div>
+                    <div className="text-sm text-gray-600">{size.dimensions}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Background Selector */}
+            <div data-testid="background-selector">
+              <h3 className="text-md font-semibold mb-3 text-gray-800">Background Color</h3>
+              <BackgroundSelector
+                onColorChange={handleBackgroundChange}
+                initialColor={backgroundColor}
+              />
             </div>
           </div>
-        )}
 
-        {currentStep === 'preview' && imageData && (
-          <MattingPreview
-            originalImage={imageData.originalUrl}
-            processedImage={imageData.processedUrl}
-            onReprocess={handleReprocess}
-            onContinue={handleContinueToSize}
-          />
-        )}
-
-        {currentStep === 'size-selection' && imageData && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Size and Adjust Crop</h2>
-            {isDetectingFace && (
-              <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
-                <p>Detecting face...</p>
-              </div>
-            )}
-            <SizeSelection
-              processedImageUrl={imageData.processedUrl}
-              faceBox={detectedFace}
-              error={faceDetectionError}
-              onCropAreaChange={handleCropAreaChange}
-            />
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={() => alert('Download functionality coming soon!')}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                Download ID Photo
-              </button>
-            </div>
+          {/* Download Button */}
+          <div className="mt-6 flex justify-center">
+            <button
+              data-testid="download-button"
+              onClick={handleDownload}
+              disabled={!imageData || isProcessing}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+            >
+              Download ID Photo
+            </button>
           </div>
-        )}
+        </div>
       </main>
-    </div>
-  )
-}
-
-interface StepIndicatorProps {
-  step: number
-  label: string
-  active: boolean
-}
-
-function StepIndicator({ step, label, active }: StepIndicatorProps) {
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-          active
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-200 text-gray-600'
-        }`}
-      >
-        {step}
-      </div>
-      <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
-        {label}
-      </span>
     </div>
   )
 }

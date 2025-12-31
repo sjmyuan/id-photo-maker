@@ -26,11 +26,16 @@ const SIZE_OPTIONS: SizeOption[] = [
   { id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52 }, // 0.673
 ]
 
+// Export SIZE_OPTIONS for external use
+export { SIZE_OPTIONS }
+
 export interface SizeSelectionProps {
   processedImageUrl: string
   faceBox: FaceBox | null
   error?: 'no-face-detected' | 'multiple-faces-detected'
   onCropAreaChange: (cropArea: CropArea) => void
+  selectedSize?: SizeOption // Optional: external size control
+  onSizeChange?: (size: SizeOption) => void // Optional: external size change handler
 }
 
 type ResizeHandle = 'ne' | 'nw' | 'se' | 'sw'
@@ -40,8 +45,11 @@ export function SizeSelection({
   faceBox,
   error,
   onCropAreaChange,
+  selectedSize: externalSelectedSize,
+  onSizeChange: externalOnSizeChange,
 }: SizeSelectionProps) {
-  const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
+  const [internalSelectedSize, setInternalSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
+  const selectedSize = externalSelectedSize || internalSelectedSize
   const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 200, height: 280 })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState<ResizeHandle | null>(null)
@@ -76,7 +84,12 @@ export function SizeSelection({
 
   // Handle size selection change
   const handleSizeChange = useCallback((size: SizeOption) => {
-    setSelectedSize(size)
+    // Use external handler if provided, otherwise use internal state
+    if (externalOnSizeChange) {
+      externalOnSizeChange(size)
+    } else {
+      setInternalSelectedSize(size)
+    }
     
     // Adjust crop area to new aspect ratio while maintaining center
     const centerX = cropArea.x + cropArea.width / 2
@@ -115,7 +128,7 @@ export function SizeSelection({
     const newCrop = { x: newX, y: newY, width: newWidth, height: newHeight }
     setCropArea(newCrop)
     onCropAreaChange(newCrop)
-  }, [cropArea, imageSize, onCropAreaChange])
+  }, [cropArea, imageSize, onCropAreaChange, externalOnSizeChange])
 
   // Mouse down on rectangle body - start dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
