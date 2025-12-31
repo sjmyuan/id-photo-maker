@@ -111,4 +111,39 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   })
 }
 
+// Mock localStorage
+class LocalStorageMock {
+  private store: Map<string, string>
 
+  constructor() {
+    this.store = new Map()
+  }
+
+  clear() {
+    this.store.clear()
+  }
+
+  getItem(key: string): string | null {
+    return this.store.get(key) || null
+  }
+
+  setItem(key: string, value: string) {
+    this.store.set(key, value)
+  }
+
+  removeItem(key: string) {
+    this.store.delete(key)
+  }
+
+  get length() {
+    return this.store.size
+  }
+
+  key(index: number): string | null {
+    const keys = Array.from(this.store.keys())
+    return keys[index] || null
+  }
+}
+
+// @ts-expect-error - Mocking localStorage
+global.localStorage = new LocalStorageMock()

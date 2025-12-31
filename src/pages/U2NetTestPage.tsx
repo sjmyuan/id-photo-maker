@@ -7,9 +7,32 @@ import { useState, useEffect, useRef } from 'react'
 import { loadU2NetModel, processImageWithU2Net } from '../services/u2netService'
 import type { U2NetModel } from '../services/u2netService'
 
-const MODEL_URL = 'http://localhost:5173/u2netp.onnx'
+type ModelType = 'u2netp' | 'u2net'
+
+const MODELS = {
+  u2netp: {
+    url: 'http://localhost:5173/u2netp.onnx',
+    name: 'U2Net-P (Lite)',
+    size: '~4.7MB',
+    speed: 'Fast',
+    quality: 'Good',
+  },
+  u2net: {
+    url: 'http://localhost:5173/u2net.onnx',
+    name: 'U2Net (Full)',
+    size: '~176MB',
+    speed: 'Slower',
+    quality: 'Excellent',
+  },
+} as const
 
 export function U2NetTestPage() {
+  // Load initial model selection from localStorage or default to u2netp
+  const [selectedModel, setSelectedModel] = useState<ModelType>(() => {
+    const saved = localStorage.getItem('u2net-model-selection')
+    return (saved === 'u2net' || saved === 'u2netp') ? saved : 'u2netp'
+  })
+  
   const [model, setModel] = useState<U2NetModel | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,13 +42,25 @@ export function U2NetTestPage() {
   const [processingTime, setProcessingTime] = useState<number | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
 
+  const handleModelChange = (modelType: ModelType) => {
+    setSelectedModel(modelType)
+    localStorage.setItem('u2net-model-selection', modelType)
+    
+    // Clear current model and processed images when switching models
+    setModel(null)
+    setProcessedImage(null)
+    setProcessingTime(null)
+    setError(null)
+  }
+
   useEffect(() => {
-    // Load model on mount
+    // Load model when selectedModel changes
     const initModel = async () => {
       try {
         setLoading(true)
         setError(null)
-        const loadedModel = await loadU2NetModel(MODEL_URL)
+        const modelUrl = MODELS[selectedModel].url
+        const loadedModel = await loadU2NetModel(modelUrl)
         setModel(loadedModel)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load model')
@@ -35,7 +70,7 @@ export function U2NetTestPage() {
     }
 
     initModel()
-  }, [])
+  }, [selectedModel])
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -90,12 +125,50 @@ export function U2NetTestPage() {
 
       <main className="max-w-7xl mx-auto py-6 px-4">
         <div className="bg-white rounded-lg shadow-md p-6">
+          {/* Model Selection */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-3">Model Selection</h2>
+            <div className="space-y-3">
+              {(Object.keys(MODELS) as ModelType[]).map((modelType) => {
+                const modelInfo = MODELS[modelType]
+                return (
+                  <label
+                    key={modelType}
+                    className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      selectedModel === modelType
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="model-selection"
+                      value={modelType}
+                      checked={selectedModel === modelType}
+                      onChange={() => handleModelChange(modelType)}
+                      className="mt-1 mr-3"
+                      disabled={loading}
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900">{modelInfo.name}</div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span className="inline-block mr-4">Size: {modelInfo.size}</span>
+                        <span className="inline-block mr-4">Speed: {modelInfo.speed}</span>
+                        <span className="inline-block">Quality: {modelInfo.quality}</span>
+                      </div>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Model Status */}
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Model Status</h2>
             {loading && (
               <div>
-                <p className="text-gray-600 mb-2">Loading model from: {MODEL_URL}</p>
+                <p className="text-gray-600 mb-2">Loading model from: {MODELS[selectedModel].url}</p>
                 <p className="text-sm text-gray-500">This may take a moment on first load...</p>
               </div>
             )}

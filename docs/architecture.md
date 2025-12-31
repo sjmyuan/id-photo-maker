@@ -237,9 +237,13 @@ Based on the privacy-first, client-side requirements and need for AI-powered ima
 
 **AI Processing: TensorFlow.js + U²-Net Model**
 - **Why**: Industry-standard for browser-based ML, excellent WebAssembly support
-- **Model**: Pre-trained U²-Net for portrait segmentation (~5MB model size)
+- **Model Variants**: 
+  - **U2Net-P (Lite)**: ~4.7MB, faster processing, good quality - default choice
+  - **U2Net (Full)**: ~176MB, slower processing, excellent quality - premium option
+- **Model Selection**: User-configurable via localStorage with automatic persistence
 - **Fallback**: Custom chroma key algorithm for low-performance devices
 - **Optimization**: Web Workers for non-blocking processing
+- **Implementation**: ONNX Runtime Web for efficient ONNX model execution
 
 **Image Processing: Canvas API + EXIF.js**
 - **Why**: Native browser support, no external dependencies
@@ -456,6 +460,9 @@ interface CachedData {
     lastUsedPaper: string;
     quickModePreference: boolean;
   };
+  
+  // Model selection (U2Net variant preference)
+  'u2net-model-selection': 'u2netp' | 'u2net'; // User's preferred model variant
   
   // Translation files (cached by Service Worker)
   'translations-en': Record<string, string>;

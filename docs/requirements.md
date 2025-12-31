@@ -82,14 +82,34 @@ Allows quality control and correction before finalizing the ID photo.
   - Integrated into main App workflow (Upload → Background → Preview → Size)
   - Proper cleanup of object URLs to prevent memory leaks  
 
-#### User Story 4: As a General Consumer using a low-performance device, I want access to "quick mode" so that I can still create ID photos despite hardware limitations.  
+#### User Story 4: As a General Consumer, I want to choose between U2Net-P (lite) and U2Net (full) models so that I can balance processing speed and quality based on my needs. ✅ COMPLETED
+Provides flexibility for users to optimize for speed on slower devices or quality for best results.
+##### Acceptance Criteria:  
+- ✅ Given the U2NetTestPage, when viewing model selection, then two radio buttons are displayed for U2Net-P (Lite) and U2Net (Full).
+- ✅ Given model selection, when no previous choice exists, then U2Net-P is selected by default.
+- ✅ Given model selection, when clicking a model option, then the selection is saved to localStorage for future visits.
+- ✅ Given model selection, when switching models, then the new model loads automatically and any processed images are cleared.
+- ✅ Given model information display, when viewing options, then size (~4.7MB vs ~176MB), speed (Fast vs Slower), and quality (Good vs Excellent) are clearly shown.
+
+##### Implementation Details:
+- Page: `U2NetTestPage` ([src/pages/U2NetTestPage.tsx](src/pages/U2NetTestPage.tsx))
+- Tests: `U2NetTestPage.test.tsx` ([src/pages/U2NetTestPage.test.tsx](src/pages/U2NetTestPage.test.tsx))
+- Features:
+  - Radio button UI with model selection
+  - Model information display (size, speed, quality trade-offs)
+  - LocalStorage persistence of model choice
+  - Dynamic model loading based on selection
+  - Automatic clearing of processed images on model switch
+  - Visual feedback for selected model
+
+#### User Story 5: As a General Consumer using a low-performance device, I want access to "quick mode" so that I can still create ID photos despite hardware limitations.  
 Ensures accessibility across diverse device capabilities through graceful degradation.  
 ##### Acceptance Criteria:  
 - Given a low-performance device (detected via hardwareConcurrency ≤ 2), when starting the app, then "Quick Mode" option is automatically enabled.  
 - Given "Quick Mode" enabled, when processing an image, then the system uses chroma key algorithm instead of U²-Net.  
 - Given "Quick Mode" enabled, when viewing results, then a subtle indicator shows reduced quality expectations.  
 
-#### User Story 5: As a General Consumer, I want to undo/redo background replacement operations so that I can experiment with different options without restarting.  
+#### User Story 6: As a General Consumer, I want to undo/redo background replacement operations so that I can experiment with different options without restarting.  
 Enhances user control and reduces frustration during the editing process.  
 ##### Acceptance Criteria:  
 - Given multiple background changes, when clicking "Undo", then the previous background state is restored.  
