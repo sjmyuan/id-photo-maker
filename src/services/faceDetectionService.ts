@@ -326,6 +326,8 @@ export async function detectFaces(
     } else if (faces.length > 1) {
       error = 'multiple-faces-detected'
     }
+
+    console.log('Detected faces:', faces, 'Error:', error)
     
     return { faces, error }
   } catch (error) {

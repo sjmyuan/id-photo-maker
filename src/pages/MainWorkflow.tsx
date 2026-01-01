@@ -208,9 +208,9 @@ export function MainWorkflow() {
     // Crop area will be adjusted automatically by SizeSelection component
   }
 
-  const handleCropAreaChange = (newCropArea: CropArea) => {
+  const handleCropAreaChange = useCallback((newCropArea: CropArea) => {
     setCropArea(newCropArea)
-  }
+  }, [])
 
   const handleDownload = () => {
     if (!imageData || !cropArea) return
