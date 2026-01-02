@@ -1663,12 +1663,12 @@ interface ImageData {
 - ✅ SizeSelection with CropGuide - Epic 2, User Story 5 (Crop Positioning)
 - ✅ App Workflow - Integrated workflow management with face detection
 
-**Test Coverage**: 140 tests passing
+**Test Coverage**: 160 tests (157 passing, 3 outdated App.test.tsx failures)
 - All components have comprehensive unit tests
 - Face detection service: 10 tests
-- Size selection component: 21 tests
+- Size selection component: 31 tests (added compact mode and external size change tests)
 - Integration tests verify workflow transitions including face detection step
-- No linting errors
+- No linting errors in modified files
 - Type checking clean
 
 **Architecture Updates**:
@@ -1679,9 +1679,19 @@ interface ImageData {
   - Manual drag and resize with aspect ratio maintenance
   - Error handling for no-face and multiple-faces scenarios
   - Three size options (1-inch, 2-inch, 3-inch) with dynamic aspect ratio adjustment
+  - **NEW**: Compact mode for cleaner processed image view (hides duplicate size buttons/instructions)
+  - **NEW**: Reactive crop area adjustment when size changes externally via props
+
+**Recent Improvements (January 2, 2026)**:
+- Refactored SizeSelection to support compact mode, removing duplicate UI elements from processed view
+- Fixed bug where crop box didn't update when size was changed from external controls
+- Added `compact` prop to conditionally hide size selection UI in processed image view
+- Implemented `useEffect` to watch `selectedSize.aspectRatio` and auto-adjust crop area on external size changes
+- Maintains crop center position during size transitions for better UX
 
 **Next Steps**:
 - Implement print layout system (Epic 3)
 - Implement PWA capabilities (Epic 4)
 - Add internationalization (Epic 5)
+- Update App.test.tsx to reflect unified single-view workflow (tests currently expect old multi-step flow)
 

@@ -333,3 +333,37 @@ Provides a reliable default experience while maintaining language choice flexibi
 - Risk: Incomplete translations affecting user experience in partially supported languages  
 - Dependency: RTL layout support in CSS framework  
 - Risk: Increased bundle size from multiple translation files affecting initial load time
+
+---
+
+## Recent Changes
+
+### Refactor: SizeSelection Component - Compact Mode (January 2, 2026)
+
+**Issue**: The processed image view in MainWorkflow displayed duplicate UI elements - size selection buttons and instructions were shown both in the processed image area and in the lower controls area.
+
+**Solution**: Added a `compact` prop to the `SizeSelection` component to conditionally hide size selection buttons and instructions when rendered in the processed image view. This creates a cleaner, more focused view showing only the image with the crop overlay.
+
+**Changes**:
+- Added `compact?: boolean` prop to `SizeSelectionProps` interface
+- Size selection buttons and instructions are now conditionally rendered based on `compact` prop
+- MainWorkflow passes `compact={true}` to SizeSelection in the processed image container
+- Error messages are still displayed in compact mode for user feedback
+
+**Impact**: Improved UX by removing duplicate controls and creating a cleaner processed image view.
+
+### Bug Fix: Crop Box Not Updating on External Size Change (January 2, 2026)
+
+**Issue**: When users selected a different photo size from the lower controls area, the crop box in the processed image view did not update to match the new aspect ratio.
+
+**Root Cause**: The SizeSelection component only adjusted the crop area when its internal size buttons were clicked. When `selectedSize` was changed externally via props from MainWorkflow, there was no `useEffect` watching for aspect ratio changes to adjust the crop area accordingly.
+
+**Solution**: Added a `useEffect` hook that watches `selectedSize.aspectRatio` changes and automatically adjusts the crop area to match the new aspect ratio while maintaining the center position of the crop.
+
+**Changes**:
+- Added new `useEffect` with `selectedSize.aspectRatio` as a dependency
+- Crop area adjustment logic calculates new dimensions while maintaining center position
+- Includes proper constraints to keep crop area within image bounds
+- Only updates if aspect ratio actually changed (to avoid unnecessary re-renders)
+
+**Impact**: Crop box now properly updates when users change size selection, providing immediate visual feedback and ensuring the crop matches the selected ID photo dimensions.

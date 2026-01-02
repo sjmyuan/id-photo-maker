@@ -458,4 +458,218 @@ describe('SizeSelection', () => {
       expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
     })
   })
+
+  describe('Compact mode', () => {
+    it('should hide size buttons when compact prop is true', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+          compact={true}
+        />
+      )
+
+      // Size buttons should not be visible
+      expect(screen.queryByTestId('size-1-inch')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('size-2-inch')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('size-3-inch')).not.toBeInTheDocument()
+      
+      // But image and crop rectangle should still be visible
+      expect(screen.getByTestId('processed-image')).toBeInTheDocument()
+      expect(screen.getByTestId('crop-rectangle')).toBeInTheDocument()
+    })
+
+    it('should hide instructions when compact prop is true', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+          compact={true}
+        />
+      )
+
+      // Instructions should not be visible
+      expect(screen.queryByText(/drag the rectangle/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/drag the corner handles/i)).not.toBeInTheDocument()
+    })
+
+    it('should show size buttons and instructions when compact prop is false', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+          compact={false}
+        />
+      )
+
+      // Size buttons should be visible
+      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('size-2-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('size-3-inch')).toBeInTheDocument()
+      
+      // Instructions should be visible
+      expect(screen.getByText(/drag the rectangle/i)).toBeInTheDocument()
+    })
+
+    it('should show size buttons and instructions when compact prop is undefined', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      // Size buttons should be visible by default
+      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('size-2-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('size-3-inch')).toBeInTheDocument()
+      
+      // Instructions should be visible by default
+      expect(screen.getByText(/drag the rectangle/i)).toBeInTheDocument()
+    })
+
+    it('should still allow drag and resize interactions in compact mode', () => {
+      const onCropAreaChange = vi.fn()
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={onCropAreaChange}
+          compact={true}
+        />
+      )
+
+      const rectangle = screen.getByTestId('crop-rectangle')
+      const initialCallCount = onCropAreaChange.mock.calls.length
+      
+      // Try dragging
+      fireEvent.mouseDown(rectangle, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(document, { clientX: 150, clientY: 150 })
+      fireEvent.mouseUp(document)
+
+      // Should still call callback
+      expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
+    })
+
+    it('should not hide error messages in compact mode', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={null}
+          error="no-face-detected"
+          onCropAreaChange={vi.fn()}
+          compact={true}
+        />
+      )
+
+      // Error messages should still be visible in compact mode
+      expect(screen.getByText(/no face detected/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('External size selection control', () => {
+    it('should adjust crop area when selectedSize prop changes externally', async () => {
+      const onCropAreaChange = vi.fn()
+      const { rerender } = render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={onCropAreaChange}
+          selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35 }}
+        />
+      )
+
+      const initialCallCount = onCropAreaChange.mock.calls.length
+
+      // Change size externally by updating prop
+      rerender(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={onCropAreaChange}
+          selectedSize={{ id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52 }}
+        />
+      )
+
+      // Should trigger crop area adjustment
+      await waitFor(() => {
+        expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
+      })
+
+      // Check that new aspect ratio is applied
+      const lastCall = onCropAreaChange.mock.calls[onCropAreaChange.mock.calls.length - 1][0]
+      const aspectRatio = lastCall.width / lastCall.height
+      expect(aspectRatio).toBeCloseTo(35 / 52, 2)
+    })
+
+    it('should maintain crop area center when size changes externally', async () => {
+      const onCropAreaChange = vi.fn()
+      const { rerender } = render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={onCropAreaChange}
+          selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35 }}
+        />
+      )
+
+      // Wait for initial crop area to be set
+      await waitFor(() => {
+        expect(onCropAreaChange).toHaveBeenCalled()
+      })
+
+      const initialCrop = onCropAreaChange.mock.calls[onCropAreaChange.mock.calls.length - 1][0]
+      const initialCenterX = initialCrop.x + initialCrop.width / 2
+      const initialCenterY = initialCrop.y + initialCrop.height / 2
+
+      // Change size externally
+      rerender(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={onCropAreaChange}
+          selectedSize={{ id: '2-inch', label: '2 Inch', dimensions: '35×49mm', aspectRatio: 35 / 49 }}
+        />
+      )
+
+      await waitFor(() => {
+        const calls = onCropAreaChange.mock.calls
+        if (calls.length > 1) {
+          const newCrop = calls[calls.length - 1][0]
+          const newCenterX = newCrop.x + newCrop.width / 2
+          const newCenterY = newCrop.y + newCrop.height / 2
+          
+          // Center should remain approximately the same (with some tolerance for rounding)
+          expect(newCenterX).toBeCloseTo(initialCenterX, 0)
+          expect(newCenterY).toBeCloseTo(initialCenterY, 0)
+        }
+      })
+    })
+
+    it('should use external onSizeChange callback when provided', () => {
+      const onSizeChange = vi.fn()
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+          onSizeChange={onSizeChange}
+        />
+      )
+
+      const twoInchButton = screen.getByTestId('size-2-inch')
+      fireEvent.click(twoInchButton)
+
+      expect(onSizeChange).toHaveBeenCalledWith({
+        id: '2-inch',
+        label: '2 Inch',
+        dimensions: '35×49mm',
+        aspectRatio: 35 / 49,
+      })
+    })
+  })
 })

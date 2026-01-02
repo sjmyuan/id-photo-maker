@@ -36,6 +36,7 @@ export interface SizeSelectionProps {
   onCropAreaChange: (cropArea: CropArea) => void
   selectedSize?: SizeOption // Optional: external size control
   onSizeChange?: (size: SizeOption) => void // Optional: external size change handler
+  compact?: boolean // Optional: hide size buttons and instructions for compact view
 }
 
 type ResizeHandle = 'ne' | 'nw' | 'se' | 'sw'
@@ -47,6 +48,7 @@ export function SizeSelection({
   onCropAreaChange,
   selectedSize: externalSelectedSize,
   onSizeChange: externalOnSizeChange,
+  compact = false,
 }: SizeSelectionProps) {
   const [internalSelectedSize, setInternalSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
   const selectedSize = externalSelectedSize || internalSelectedSize
@@ -130,6 +132,55 @@ export function SizeSelection({
     onCropAreaChange(newCrop)
   }, [cropArea, imageSize, onCropAreaChange, externalOnSizeChange])
 
+  // Watch for external size changes and adjust crop area accordingly
+  useEffect(() => {
+    // Skip if this is the initial mount or if crop area isn't set yet
+    if (!cropArea.width || !cropArea.height || !imageSize.width || !imageSize.height) return
+
+    // Calculate the center of current crop area
+    const centerX = cropArea.x + cropArea.width / 2
+    const centerY = cropArea.y + cropArea.height / 2
+    
+    // Calculate new dimensions maintaining the larger dimension
+    let newWidth, newHeight
+    const currentAspectRatio = cropArea.width / cropArea.height
+    
+    if (selectedSize.aspectRatio > currentAspectRatio) {
+      // New size is wider - keep height, adjust width
+      newHeight = cropArea.height
+      newWidth = newHeight * selectedSize.aspectRatio
+    } else {
+      // New size is taller - keep width, adjust height
+      newWidth = cropArea.width
+      newHeight = newWidth / selectedSize.aspectRatio
+    }
+    
+    // Constrain to image bounds
+    const maxWidth = imageSize.width
+    const maxHeight = imageSize.height
+    
+    if (newWidth > maxWidth) {
+      newWidth = maxWidth
+      newHeight = newWidth / selectedSize.aspectRatio
+    }
+    if (newHeight > maxHeight) {
+      newHeight = maxHeight
+      newWidth = newHeight * selectedSize.aspectRatio
+    }
+    
+    const newX = Math.max(0, Math.min(centerX - newWidth / 2, maxWidth - newWidth))
+    const newY = Math.max(0, Math.min(centerY - newHeight / 2, maxHeight - newHeight))
+    
+    // Only update if aspect ratio actually changed
+    const newAspectRatio = newWidth / newHeight
+    if (Math.abs(newAspectRatio - currentAspectRatio) > 0.001) {
+      const newCrop = { x: newX, y: newY, width: newWidth, height: newHeight }
+      setCropArea(newCrop)
+      onCropAreaChange(newCrop)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSize.aspectRatio, imageSize.width, imageSize.height, onCropAreaChange])
+
   // Mouse down on rectangle body - start dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
@@ -161,83 +212,8 @@ export function SizeSelection({
     setDragStart({ x: e.clientX, y: e.clientY })
   }, [])
 
-  // Mouse move - drag or resize
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return
-
-      const container = containerRef.current
-      const rect = container.getBoundingClientRect()
-      const scaleX = imageSize.width / rect.width
-      const scaleY = imageSize.height / rect.height
-
-      if (isDragging) {
-        const newX = (e.clientX - rect.left - dragStart.x) * scaleX
-        const newY = (e.clientY - rect.top - dragStart.y) * scaleY
-        
-        // Constrain to image bounds
-        const constrainedX = Math.max(0, Math.min(newX, imageSize.width - cropArea.width))
-        const constrainedY = Math.max(0, Math.min(newY, imageSize.height - cropArea.height))
-        
-        const newCrop = { ...cropArea, x: constrainedX, y: constrainedY }
-        setCropArea(newCrop)
-        onCropAreaChange(newCrop)
-      } else if (isResizing) {
-        const deltaX = (e.clientX - dragStart.x) * scaleX
-        const deltaY = (e.clientY - dragStart.y) * scaleY
-        
-        handleResize(isResizing, deltaX, deltaY)
-        setDragStart({ x: e.clientX, y: e.clientY })
-      }
-    }
-
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      setIsResizing(null)
-    }
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging || !containerRef.current) return
-      
-      const container = containerRef.current
-      const rect = container.getBoundingClientRect()
-      const scaleX = imageSize.width / rect.width
-      const scaleY = imageSize.height / rect.height
-      
-      const touch = e.touches[0]
-      const newX = (touch.clientX - rect.left - dragStart.x) * scaleX
-      const newY = (touch.clientY - rect.top - dragStart.y) * scaleY
-      
-      const constrainedX = Math.max(0, Math.min(newX, imageSize.width - cropArea.width))
-      const constrainedY = Math.max(0, Math.min(newY, imageSize.height - cropArea.height))
-      
-      const newCrop = { ...cropArea, x: constrainedX, y: constrainedY }
-      setCropArea(newCrop)
-      onCropAreaChange(newCrop)
-    }
-
-    const handleTouchEnd = () => {
-      setIsDragging(false)
-      setIsResizing(null)
-    }
-
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      document.addEventListener('touchmove', handleTouchMove)
-      document.addEventListener('touchend', handleTouchEnd)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-        document.removeEventListener('touchmove', handleTouchMove)
-        document.removeEventListener('touchend', handleTouchEnd)
-      }
-    }
-  }, [isDragging, isResizing, dragStart, cropArea, imageSize, onCropAreaChange])
-
   // Handle resize logic
-  const handleResize = useCallback((handle: ResizeHandle, deltaX: number, deltaY: number) => {
+  const handleResize = useCallback((handle: ResizeHandle, deltaX: number) => {
     const minSize = 100
     const aspectRatio = selectedSize.aspectRatio
     
@@ -308,29 +284,105 @@ export function SizeSelection({
     onCropAreaChange(newCrop)
   }, [cropArea, imageSize, selectedSize.aspectRatio, onCropAreaChange])
 
+  // Mouse move - drag or resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+
+      const container = containerRef.current
+      const rect = container.getBoundingClientRect()
+      const scaleX = imageSize.width / rect.width
+      const scaleY = imageSize.height / rect.height
+
+      if (isDragging) {
+        const newX = (e.clientX - rect.left - dragStart.x) * scaleX
+        const newY = (e.clientY - rect.top - dragStart.y) * scaleY
+        
+        // Constrain to image bounds
+        const constrainedX = Math.max(0, Math.min(newX, imageSize.width - cropArea.width))
+        const constrainedY = Math.max(0, Math.min(newY, imageSize.height - cropArea.height))
+        
+        const newCrop = { ...cropArea, x: constrainedX, y: constrainedY }
+        setCropArea(newCrop)
+        onCropAreaChange(newCrop)
+      } else if (isResizing) {
+        const deltaX = (e.clientX - dragStart.x) * scaleX
+        
+        handleResize(isResizing, deltaX)
+        setDragStart({ x: e.clientX, y: e.clientY })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      setIsResizing(null)
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging || !containerRef.current) return
+      
+      const container = containerRef.current
+      const rect = container.getBoundingClientRect()
+      const scaleX = imageSize.width / rect.width
+      const scaleY = imageSize.height / rect.height
+      
+      const touch = e.touches[0]
+      const newX = (touch.clientX - rect.left - dragStart.x) * scaleX
+      const newY = (touch.clientY - rect.top - dragStart.y) * scaleY
+      
+      const constrainedX = Math.max(0, Math.min(newX, imageSize.width - cropArea.width))
+      const constrainedY = Math.max(0, Math.min(newY, imageSize.height - cropArea.height))
+      
+      const newCrop = { ...cropArea, x: constrainedX, y: constrainedY }
+      setCropArea(newCrop)
+      onCropAreaChange(newCrop)
+    }
+
+    const handleTouchEnd = () => {
+      setIsDragging(false)
+      setIsResizing(null)
+    }
+
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.addEventListener('touchmove', handleTouchMove)
+      document.addEventListener('touchend', handleTouchEnd)
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('touchmove', handleTouchMove)
+        document.removeEventListener('touchend', handleTouchEnd)
+      }
+    }
+  }, [isDragging, isResizing, dragStart, cropArea, imageSize, onCropAreaChange, handleResize])
+
   return (
     <div className="size-selection">
-      {/* Size buttons */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-3">Select ID Photo Size</h3>
-        <div className="flex gap-3">
-          {SIZE_OPTIONS.map((size) => (
-            <button
-              key={size.id}
-              data-testid={`size-${size.id}`}
-              className={`px-6 py-3 rounded-lg border-2 transition-all ${
-                selectedSize.id === size.id
-                  ? 'border-blue-600 bg-blue-50 text-blue-700 selected'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-              }`}
-              onClick={() => handleSizeChange(size)}
-            >
-              <div className="font-semibold">{size.label}</div>
-              <div className="text-sm">{size.dimensions}</div>
-            </button>
-          ))}
+      {/* Size buttons - hidden in compact mode */}
+      {!compact && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">Select ID Photo Size</h3>
+          <div className="flex gap-3">
+            {SIZE_OPTIONS.map((size) => (
+              <button
+                key={size.id}
+                data-testid={`size-${size.id}`}
+                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                  selectedSize.id === size.id
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 selected'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                }`}
+                onClick={() => handleSizeChange(size)}
+              >
+                <div className="font-semibold">{size.label}</div>
+                <div className="text-sm">{size.dimensions}</div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Error messages */}
       {error === 'no-face-detected' && (
@@ -400,12 +452,14 @@ export function SizeSelection({
         )}
       </div>
 
-      {/* Instructions */}
-      <div className="mt-4 text-sm text-gray-600">
-        <p>• Drag the rectangle to reposition the crop area</p>
-        <p>• Drag the corner handles to resize (aspect ratio is maintained)</p>
-        <p>• The crop area shows where your ID photo will be extracted</p>
-      </div>
+      {/* Instructions - hidden in compact mode */}
+      {!compact && (
+        <div className="mt-4 text-sm text-gray-600">
+          <p>• Drag the rectangle to reposition the crop area</p>
+          <p>• Drag the corner handles to resize (aspect ratio is maintained)</p>
+          <p>• The crop area shows where your ID photo will be extracted</p>
+        </div>
+      )}
     </div>
   )
 }

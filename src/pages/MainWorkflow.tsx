@@ -294,6 +294,7 @@ export function MainWorkflow() {
                   onCropAreaChange={handleCropAreaChange}
                   selectedSize={selectedSize}
                   onSizeChange={handleSizeChange}
+                  compact={true}
                 />
               ) : (
                 <p className="text-gray-400">No image processed</p>
