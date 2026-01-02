@@ -17,6 +17,9 @@ interface ImageData {
 }
 
 export function MainWorkflow() {
+  // Step state: 1 = upload, 2 = edit
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
+  
   // Default values: 1-inch size, Blue background
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
@@ -177,6 +180,9 @@ export function MainWorkflow() {
 
         stop()
         setIsProcessing(false)
+        
+        // Automatically advance to step 2 after successful processing
+        setCurrentStep(2)
       } catch (error) {
         setErrors([error instanceof Error ? error.message : 'Processing failed'])
         stop()
@@ -216,6 +222,17 @@ export function MainWorkflow() {
   const handleCropAreaChange = useCallback((newCropArea: CropArea) => {
     setCropArea(newCropArea)
   }, [])
+
+  const handleGoBack = () => {
+    // Reset to step 1 and clear image data
+    setCurrentStep(1)
+    setImageData(null)
+    setDetectedFace(null)
+    setFaceDetectionError(undefined)
+    setCropArea(null)
+    setWarnings([])
+    setErrors([])
+  }
 
   const handleDownload = () => {
     if (!imageData || !cropArea) return
@@ -260,129 +277,139 @@ export function MainWorkflow() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="bg-white shadow-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto py-4 px-4">
           <h1 className="text-3xl font-bold text-gray-900">ID Photo Maker</h1>
           <p className="text-sm text-gray-600 mt-1">Privacy-first ID photo generator</p>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 px-4">
-        {/* Upper Area: Image Preview */}
-        <div data-testid="preview-area" className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Original Image */}
-          <div data-testid="original-image-container" className="bg-white rounded-lg shadow p-4">
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">Original</h2>
-            <div className="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center">
-              {imageData ? (
-                <img 
-                  src={imageData.originalUrl} 
-                  alt="Original" 
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <p className="text-gray-400">No image uploaded</p>
-              )}
-            </div>
-          </div>
-
-          {/* Processed Image with Crop Rectangle */}
-          <div data-testid="processed-image-container" className="bg-white rounded-lg shadow p-4">
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">Processed</h2>
-            <div className="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center">
-              {imageData ? (
-                <SizeSelection
-                  processedImageUrl={imageData.processedUrl}
-                  faceBox={detectedFace}
-                  error={faceDetectionError}
-                  onCropAreaChange={handleCropAreaChange}
-                  selectedSize={selectedSize}
-                />
-              ) : (
-                <p className="text-gray-400">No image processed</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Lower Area: Controls */}
-        <div data-testid="controls-area" className="bg-white rounded-lg shadow p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Upload Control */}
-            <div data-testid="upload-control">
-              <h3 className="text-md font-semibold mb-3 text-gray-800">Upload Image</h3>
+      <main className="max-w-7xl mx-auto py-4 px-4 flex-1 w-full flex flex-col">{/* Step 1: Upload */}
+        {currentStep === 1 && (
+          <div data-testid="upload-step" className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow p-8">
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">Upload Your Photo</h2>
+              
               {isLoadingU2Net && (
-                <div className="mb-3 p-2 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
+                <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
                   Loading AI model...
                 </div>
               )}
+              
               {warnings.length > 0 && (
-                <div className="mb-3 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
+                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
                   {warnings.map((warning, i) => <div key={i}>{warning}</div>)}
                 </div>
               )}
+              
               {errors.length > 0 && (
-                <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
                   {errors.map((error, i) => <div key={i}>{error}</div>)}
                 </div>
               )}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                disabled={isProcessing || isLoadingU2Net}
-                data-testid="file-input"
-                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select an image file
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  disabled={isProcessing || isLoadingU2Net}
+                  data-testid="file-input"
+                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed p-2"
+                />
+              </div>
+              
               {isProcessing && (
-                <p className="mt-2 text-sm text-blue-600">Processing image...</p>
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                    <p className="text-sm text-blue-700">Processing your image...</p>
+                  </div>
+                </div>
               )}
             </div>
+          </div>
+        )}
 
-            {/* Size Selector */}
-            <div data-testid="size-selector">
-              <h3 className="text-md font-semibold mb-3 text-gray-800">Photo Size</h3>
-              <div className="space-y-2">
-                {SIZE_OPTIONS.map((size) => (
-                  <button
-                    key={size.id}
-                    onClick={() => handleSizeChange(size)}
-                    className={`w-full px-4 py-2 text-left rounded-lg border-2 transition-colors ${
-                      selectedSize.id === size.id
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-semibold">{size.label}</div>
-                    <div className="text-sm text-gray-600">{size.dimensions}</div>
-                  </button>
-                ))}
+        {/* Step 2: Edit & Download */}
+        {currentStep === 2 && imageData && (
+          <div data-testid="edit-step" className="flex flex-col h-full">
+            {/* Two-column layout with equal heights and aligned */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 mb-4">
+              {/* Left Panel: Size & Background selectors */}
+              <div data-testid="left-panel" className="lg:col-span-1 flex flex-col gap-4">
+                {/* Size Selector */}
+                <div data-testid="size-selector" className="bg-white rounded-lg shadow p-4">
+                  <h3 className="text-base font-semibold mb-3 text-gray-800">Photo Size</h3>
+                  <div className="space-y-2">
+                    {SIZE_OPTIONS.map((size) => (
+                      <button
+                        key={size.id}
+                        onClick={() => handleSizeChange(size)}
+                        className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
+                          selectedSize.id === size.id
+                            ? 'border-blue-600 bg-blue-50 text-blue-900'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="font-semibold text-sm">{size.label}</div>
+                        <div className="text-xs text-gray-600">{size.dimensions}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Background Selector */}
+                <div data-testid="background-selector" className="bg-white rounded-lg shadow p-4 flex-1 overflow-auto">
+                  <h3 className="text-base font-semibold mb-3 text-gray-800">Background Color</h3>
+                  <BackgroundSelector
+                    onColorChange={handleBackgroundChange}
+                    initialColor={backgroundColor}
+                  />
+                </div>
+              </div>
+
+              {/* Right Panel: Processed image with crop */}
+              <div className="lg:col-span-2">
+                <div data-testid="processed-image-with-crop" className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
+                  <h3 className="text-base font-semibold mb-3 text-gray-800">Preview & Adjust</h3>
+                  <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
+                    <SizeSelection
+                      processedImageUrl={imageData.processedUrl}
+                      faceBox={detectedFace}
+                      error={faceDetectionError}
+                      onCropAreaChange={handleCropAreaChange}
+                      selectedSize={selectedSize}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Background Selector */}
-            <div data-testid="background-selector">
-              <h3 className="text-md font-semibold mb-3 text-gray-800">Background Color</h3>
-              <BackgroundSelector
-                onColorChange={handleBackgroundChange}
-                initialColor={backgroundColor}
-              />
+            {/* Action buttons */}
+            <div className="flex justify-center gap-4">
+              <button
+                data-testid="go-back-button"
+                onClick={handleGoBack}
+                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                ← Go Back
+              </button>
+              <button
+                data-testid="download-button"
+                onClick={handleDownload}
+                disabled={!imageData || isProcessing}
+                className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+              >
+                Download ID Photo
+              </button>
             </div>
           </div>
-
-          {/* Download Button */}
-          <div className="mt-6 flex justify-center">
-            <button
-              data-testid="download-button"
-              onClick={handleDownload}
-              disabled={!imageData || isProcessing}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-            >
-              Download ID Photo
-            </button>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   )

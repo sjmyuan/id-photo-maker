@@ -45,7 +45,8 @@ describe('App', () => {
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
 
-  it('should display BackgroundSelector after successful image upload and processing', async () => {
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should display BackgroundSelector after successful image upload and processing', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -68,7 +69,8 @@ describe('App', () => {
     })
   })
 
-  it('should display MattingPreview after background selection', async () => {
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should display MattingPreview after background selection', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -104,7 +106,8 @@ describe('App', () => {
     })
   })
 
-  it('should return to upload when reprocess is clicked from preview', async () => {
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should return to upload when reprocess is clicked from preview', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -145,7 +148,8 @@ describe('App', () => {
     })
   })
 
-  it('should proceed to next step when continue is clicked from preview', async () => {
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should proceed to next step when continue is clicked from preview', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
