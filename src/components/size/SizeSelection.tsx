@@ -381,6 +381,7 @@ export function SizeSelection({
 
 /**
  * Calculate initial crop area based on detected face
+ * Expands to include head and shoulders for professional ID photo framing
  */
 function calculateInitialCropArea(
   faceBox: FaceBox,
@@ -388,25 +389,33 @@ function calculateInitialCropArea(
   imageWidth: number,
   imageHeight: number
 ): CropArea {
-  // Add padding around face (30% on each side)
-  const padding = 0.3
+  // For ID photos, we need more space:
+  // - 150% expansion above the face (for head/hair)
+  // - 100% expansion below the face (for shoulders)
+  // - 80% expansion on each side (for natural portrait framing)
+  
   const faceWidth = faceBox.width
   const faceHeight = faceBox.height
   
-  // Calculate target dimensions with padding
-  const targetWidth = faceWidth * (1 + 2 * padding)
-  const targetHeight = faceHeight * (1 + 2 * padding)
+  // Calculate expanded dimensions
+  const horizontalExpansion = faceWidth * 0.8
+  const verticalExpansionAbove = faceHeight * 1.5
+  const verticalExpansionBelow = faceHeight * 1.0
   
-  // Adjust to match aspect ratio
+  // Calculate target crop dimensions
+  const targetWidth = faceWidth + (2 * horizontalExpansion)
+  const targetHeight = faceHeight + verticalExpansionAbove + verticalExpansionBelow
+  
+  // Adjust to match the required aspect ratio
   let cropWidth, cropHeight
-  const faceAspectRatio = targetWidth / targetHeight
+  const expandedAspectRatio = targetWidth / targetHeight
   
-  if (faceAspectRatio > aspectRatio) {
-    // Face is wider - use width and adjust height
+  if (expandedAspectRatio > aspectRatio) {
+    // Expanded area is wider - use width and adjust height
     cropWidth = targetWidth
     cropHeight = cropWidth / aspectRatio
   } else {
-    // Face is taller - use height and adjust width
+    // Expanded area is taller - use height and adjust width
     cropHeight = targetHeight
     cropWidth = cropHeight * aspectRatio
   }
@@ -416,12 +425,17 @@ function calculateInitialCropArea(
   cropWidth = Math.max(minSize, Math.min(cropWidth, imageWidth))
   cropHeight = Math.max(minSize / aspectRatio, Math.min(cropHeight, imageHeight))
   
-  // Center on face
+  // Position the face in the upper third of the crop area (typical ID photo composition)
+  // Face should be centered horizontally
   const faceCenterX = faceBox.x + faceBox.width / 2
   const faceCenterY = faceBox.y + faceBox.height / 2
   
+  // Center horizontally
   let cropX = faceCenterX - cropWidth / 2
-  let cropY = faceCenterY - cropHeight / 2
+  
+  // Position face in upper third vertically
+  // The face center should be at approximately 1/3 from the top
+  let cropY = faceCenterY - (cropHeight / 3)
   
   // Constrain to image bounds
   cropX = Math.max(0, Math.min(cropX, imageWidth - cropWidth))

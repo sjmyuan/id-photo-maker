@@ -90,13 +90,12 @@ describe('faceDetectionService', () => {
       )
 
       expect(result.faces.length).toBe(1)
-      expect(result.faces[0]).toEqual({
-        x: expect.any(Number),
-        y: expect.any(Number),
-        width: expect.any(Number),
-        height: expect.any(Number),
-        confidence: expect.any(Number),
-      })
+        expect(result.faces[0]).toEqual({
+          x: 192,
+          y: 96,
+          width: 256,
+          height: 288,
+        })
       expect(result.error).toBeUndefined()
     })
 
@@ -158,30 +157,9 @@ describe('faceDetectionService', () => {
       ).rejects.toThrow('Face detection failed')
     })
 
-    it('should use default confidence threshold of 0.7', async () => {
-      const mockFaces = [
-        {
-          box: {
-            xMin: 100,
-            yMin: 100,
-            width: 200,
-            height: 200,
-          },
-          keypoints: [],
-        },
-      ]
+    // confidence is no longer used or returned
 
-      mockDetector.estimateFaces.mockResolvedValue(mockFaces)
-
-      await detectFaces(
-        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
-        mockImage
-      )
-
-      expect(mockDetector.estimateFaces).toHaveBeenCalledWith(mockImage)
-    })
-
-    it('should scale bounding boxes correctly', async () => {
+    it('should return original bounding boxes without scaling', async () => {
       const mockFaces = [
         {
           box: {
@@ -202,10 +180,10 @@ describe('faceDetectionService', () => {
       )
 
       const face = result.faces[0]
-      expect(face.x).toBeGreaterThanOrEqual(0)
-      expect(face.y).toBeGreaterThanOrEqual(0)
-      expect(face.x + face.width).toBeLessThanOrEqual(mockImage.width)
-      expect(face.y + face.height).toBeLessThanOrEqual(mockImage.height)
+      expect(face.x).toBe(160)
+      expect(face.y).toBe(120)
+      expect(face.width).toBe(320)
+      expect(face.height).toBe(240)
     })
   })
 })

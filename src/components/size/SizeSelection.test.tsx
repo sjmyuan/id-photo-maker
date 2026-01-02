@@ -111,6 +111,32 @@ describe('SizeSelection', () => {
       // Rectangle should be positioned around the face
       expect(rectangle).toHaveClass('absolute')
     })
+
+    it('should expand crop area to include head and shoulders for ID photo', () => {
+      const onCropAreaChange = vi.fn()
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={onCropAreaChange}
+        />
+      )
+
+      expect(onCropAreaChange).toHaveBeenCalled()
+      const cropArea = onCropAreaChange.mock.calls[0][0]
+      
+      // Crop area should be significantly larger than face box to include head and shoulders
+      // We expect the crop to be at least 2x the face width
+      expect(cropArea.width).toBeGreaterThan(mockFaceBox.width * 2)
+      // Height will be constrained by aspect ratio, but should be larger than face box
+      expect(cropArea.height).toBeGreaterThan(mockFaceBox.height * 2)
+      
+      // Face should be positioned in the upper portion of the crop (not centered)
+      const faceCenterY = mockFaceBox.y + mockFaceBox.height / 2
+      const cropCenterY = cropArea.y + cropArea.height / 2
+      expect(faceCenterY).toBeLessThan(cropCenterY)
+    })
   })
 
   describe('Rectangle drag interactions', () => {
