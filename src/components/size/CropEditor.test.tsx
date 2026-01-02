@@ -4,17 +4,16 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { CropEditor, SIZE_OPTIONS } from './CropEditor'
-import type { FaceBox } from '../../services/faceDetectionService'
+import { CropEditor, SIZE_OPTIONS, type CropArea } from './CropEditor'
 
 describe('CropEditor', () => {
   const mockProcessedImageUrl = 'blob:http://localhost/processed-image'
   const mockSelectedSize = SIZE_OPTIONS[0] // 1-inch by default
-  const mockFaceBox: FaceBox = {
+  const mockInitialCropArea: CropArea = {
     x: 100,
     y: 80,
     width: 200,
-    height: 250,
+    height: 280,
   }
 
   // Mock image loading behavior
@@ -43,7 +42,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -57,7 +56,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -75,7 +74,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -102,7 +101,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -124,7 +123,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -135,36 +134,7 @@ describe('CropEditor', () => {
       expect(rectangle).toHaveClass('absolute')
     })
 
-    it('should expand crop area to include head and shoulders for ID photo', () => {
-      const onCropAreaChange = vi.fn()
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      expect(onCropAreaChange).toHaveBeenCalled()
-      const cropArea = onCropAreaChange.mock.calls[0][0]
-      
-      // Crop area should expand beyond the face box
-      // With expansion factors (80% horizontal, 150% above, 100% below),
-      // the expanded width should be: 200 * (1 + 2*0.8) = 520
-      // However, it will be shrunk if it exceeds image bounds
-      expect(cropArea.width).toBeGreaterThan(mockFaceBox.width)
-      expect(cropArea.height).toBeGreaterThan(mockFaceBox.height)
-      
-      // Face should be centered in the crop area (new behavior)
-      const faceCenterX = mockFaceBox.x + mockFaceBox.width / 2
-      const faceCenterY = mockFaceBox.y + mockFaceBox.height / 2
-      const cropCenterX = cropArea.x + cropArea.width / 2
-      const cropCenterY = cropArea.y + cropArea.height / 2
-      
-      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
-      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
-    })
+    // Test for face expansion logic removed - this is now handled in MainWorkflow
   })
 
   describe('Rectangle drag interactions', () => {
@@ -172,7 +142,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -193,7 +163,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -218,7 +188,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -239,7 +209,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -257,7 +227,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -284,7 +254,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -311,7 +281,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -333,51 +303,7 @@ describe('CropEditor', () => {
     })
   })
 
-  describe('Error handling', () => {
-    it('should display error when no face detected', () => {
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
-          error="no-face-detected"
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      expect(screen.getByText(/no face detected/i)).toBeInTheDocument()
-    })
-
-    it('should display error when multiple faces detected', () => {
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
-          error="multiple-faces-detected"
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      expect(screen.getByText(/multiple faces detected/i)).toBeInTheDocument()
-    })
-
-    it('should center rectangle when no face detected', () => {
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
-          error="no-face-detected"
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      const rectangle = screen.getByTestId('crop-rectangle')
-      expect(rectangle).toBeInTheDocument()
-      // Rectangle should still be present but centered
-    })
-  })
+  // Error handling tests removed - errors are now handled in MainWorkflow component
 
   describe('Callback invocation', () => {
     it('should call onCropAreaChange with initial crop area', () => {
@@ -385,7 +311,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -405,7 +331,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -427,7 +353,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -447,7 +373,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -463,7 +389,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -481,20 +407,7 @@ describe('CropEditor', () => {
       expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
     })
 
-    it('should not hide error messages', () => {
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
-          error="no-face-detected"
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      // Error messages should still be visible
-      expect(screen.getByText(/no face detected/i)).toBeInTheDocument()
-    })
+    // Test for error messages removed - errors are now handled in MainWorkflow
   })
 
   describe('External size selection control', () => {
@@ -503,7 +416,7 @@ describe('CropEditor', () => {
       const { rerender } = render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
           selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
         />
@@ -515,7 +428,7 @@ describe('CropEditor', () => {
       rerender(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
           selectedSize={{ id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }}
         />
@@ -537,7 +450,7 @@ describe('CropEditor', () => {
       const { rerender } = render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
           selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
         />
@@ -556,7 +469,7 @@ describe('CropEditor', () => {
       rerender(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
           selectedSize={{ id: '2-inch', label: '2 Inch', dimensions: '35×49mm', aspectRatio: 35 / 49, physicalWidth: 35, physicalHeight: 49 }}
         />
@@ -577,153 +490,14 @@ describe('CropEditor', () => {
     })
   })
 
-  describe('calculateInitialCropArea refactor tests', () => {
-    it('should center cropArea on faceBox center', async () => {
-      const onCropAreaChange = vi.fn()
-      
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      await waitFor(() => {
-        expect(onCropAreaChange).toHaveBeenCalled()
-      })
-
-      const cropArea = onCropAreaChange.mock.calls[0][0]
-      const cropCenterX = cropArea.x + cropArea.width / 2
-      const cropCenterY = cropArea.y + cropArea.height / 2
-      const faceCenterX = mockFaceBox.x + mockFaceBox.width / 2
-      const faceCenterY = mockFaceBox.y + mockFaceBox.height / 2
-
-      // Crop area center should match face center
-      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
-      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
-    })
-
-    it('should not enforce minimum size limitation', async () => {
-      // Create a very small face box
-      const smallFaceBox: FaceBox = {
-        x: 400,
-        y: 300,
-        width: 20,
-        height: 25,
-      }
-
-      const onCropAreaChange = vi.fn()
-      
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={smallFaceBox}
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      await waitFor(() => {
-        expect(onCropAreaChange).toHaveBeenCalled()
-      })
-
-      const cropArea = onCropAreaChange.mock.calls[0][0]
-      
-      // With expansion factors, the crop should still be relatively small
-      // Old implementation would force minimum of 100px width
-      // New implementation should allow smaller sizes based on actual face size
-      // Expected: width ~= 20 * (1 + 2*0.8) = ~52px
-      // Expected: height ~= 25 * (1 + 1.5 + 1.0) = ~87.5px
-      
-      // Verify it's not forced to 100px minimum
-      expect(cropArea.width).toBeLessThan(100)
-    })
-
-    it('should shrink cropArea when exceeding image bounds while maintaining center', async () => {
-      // Create a face box near the edge where expansion would exceed bounds
-      const edgeFaceBox: FaceBox = {
-        x: 700, // Near right edge (image width is 800)
-        y: 50,  // Near top edge
-        width: 80,
-        height: 100,
-      }
-
-      const onCropAreaChange = vi.fn()
-      
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={edgeFaceBox}
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      await waitFor(() => {
-        expect(onCropAreaChange).toHaveBeenCalled()
-      })
-
-      const cropArea = onCropAreaChange.mock.calls[0][0]
-      const cropCenterX = cropArea.x + cropArea.width / 2
-      const cropCenterY = cropArea.y + cropArea.height / 2
-      const faceCenterX = edgeFaceBox.x + edgeFaceBox.width / 2
-      const faceCenterY = edgeFaceBox.y + edgeFaceBox.height / 2
-
-      // Verify crop area is within image bounds
-      expect(cropArea.x).toBeGreaterThanOrEqual(0)
-      expect(cropArea.y).toBeGreaterThanOrEqual(0)
-      expect(cropArea.x + cropArea.width).toBeLessThanOrEqual(800)
-      expect(cropArea.y + cropArea.height).toBeLessThanOrEqual(600)
-
-      // Most importantly: center should still match face center
-      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
-      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
-    })
-
-    it('should maintain aspect ratio after shrinking', async () => {
-      // Face near bottom-right corner, but fully within image
-      const edgeFaceBox: FaceBox = {
-        x: 700,
-        y: 500,
-        width: 80,
-        height: 90,
-      }
-
-      const onCropAreaChange = vi.fn()
-      
-      render(
-        <CropEditor
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={edgeFaceBox}
-          selectedSize={mockSelectedSize}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      await waitFor(() => {
-        expect(onCropAreaChange).toHaveBeenCalled()
-      })
-
-      const cropArea = onCropAreaChange.mock.calls[0][0]
-      const resultAspectRatio = cropArea.width / cropArea.height
-
-      // Should maintain the target aspect ratio even after shrinking
-      expect(resultAspectRatio).toBeCloseTo(mockSelectedSize.aspectRatio, 2)
-      
-      // Verify positive dimensions
-      expect(cropArea.width).toBeGreaterThan(0)
-      expect(cropArea.height).toBeGreaterThan(0)
-    })
-  })
+  // Tests for calculateInitialCropArea logic removed - this function now lives in MainWorkflow
 
   describe('View mode toggle controls', () => {
     it('should render zoom to crop and show full image buttons', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -741,7 +515,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -756,7 +530,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -773,7 +547,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -795,7 +569,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -812,7 +586,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -833,7 +607,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -853,7 +627,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -870,7 +644,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -886,7 +660,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
+          initialCropArea={mockInitialCropArea}
           selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
@@ -922,7 +696,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={null} // No face box to control initial size
+          initialCropArea={null} // No face box to control initial size
           selectedSize={mockSelectedSize} // 1-inch: 25x35mm
           onCropAreaChange={onCropAreaChange}
         />
@@ -953,7 +727,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
+          initialCropArea={null}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
@@ -974,8 +748,8 @@ describe('CropEditor', () => {
     it('should not show warning when crop area achieves 300 DPI or higher', () => {
       const onCropAreaChange = vi.fn()
       
-      // Use a larger face box to ensure crop area exceeds 300 DPI
-      const largeFaceBox: FaceBox = {
+      // Use a larger crop area to ensure it exceeds 300 DPI
+      const largeCropArea: CropArea = {
         x: 50,
         y: 50,
         width: 300,
@@ -985,13 +759,13 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={largeFaceBox} // Large face box creates crop area with sufficient DPI
+          initialCropArea={largeCropArea} // Large crop area with sufficient DPI
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
 
-      // With large face box on 800x600 image, crop area should be large enough for 300+ DPI
+      // With large crop area on 800x600 image, should be large enough for 300+ DPI
       const warning = screen.queryByTestId('dpi-warning')
       expect(warning).not.toBeInTheDocument()
     })
@@ -1002,7 +776,7 @@ describe('CropEditor', () => {
       const { rerender } = render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
+          initialCropArea={null}
           selectedSize={SIZE_OPTIONS[0]} // 1-inch (25x35mm)
           onCropAreaChange={onCropAreaChange}
         />
@@ -1025,7 +799,7 @@ describe('CropEditor', () => {
       rerender(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
+          initialCropArea={null}
           selectedSize={SIZE_OPTIONS[2]} // 3-inch
           onCropAreaChange={onCropAreaChange}
         />
@@ -1042,7 +816,7 @@ describe('CropEditor', () => {
       render(
         <CropEditor
           processedImageUrl={mockProcessedImageUrl}
-          faceBox={null}
+          initialCropArea={null}
           selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />

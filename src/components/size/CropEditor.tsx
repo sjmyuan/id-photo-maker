@@ -5,7 +5,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import type { FaceBox } from '../../services/faceDetectionService'
 import { calculateDPI } from '../../utils/dpiCalculation'
 
 export interface CropArea {
@@ -35,8 +34,7 @@ export { SIZE_OPTIONS }
 
 export interface CropEditorProps {
   processedImageUrl: string
-  faceBox: FaceBox | null
-  error?: 'no-face-detected' | 'multiple-faces-detected'
+  initialCropArea: CropArea | null // Initial crop area calculated from face detection
   onCropAreaChange: (cropArea: CropArea) => void
   selectedSize: SizeOption // Required: external size control
 }
@@ -46,8 +44,7 @@ type ViewMode = 'full' | 'crop'
 
 export function CropEditor({
   processedImageUrl,
-  faceBox,
-  error,
+  initialCropArea,
   onCropAreaChange,
   selectedSize,
 }: CropEditorProps) {
@@ -103,7 +100,7 @@ export function CropEditor({
     return `scale(${scale}) translate(${translateX}%, ${translateY}%)`
   }, [viewMode, cropArea, imageSize])
 
-  // Initialize crop area based on face detection
+  // Initialize crop area from provided initialCropArea
   useEffect(() => {
     if (imageRef.current) {
       const img = imageRef.current
@@ -114,19 +111,18 @@ export function CropEditor({
 
       setImageSize({ width: imgWidth, height: imgHeight })
 
-      if (faceBox) {
-        // Auto-position based on face
-        const initialCrop = calculateInitialCropArea(faceBox, selectedSize.aspectRatio, imgWidth, imgHeight)
-        setCropArea(initialCrop)
-        onCropAreaChange(initialCrop)
+      if (initialCropArea) {
+        // Use the provided initial crop area
+        setCropArea(initialCropArea)
+        onCropAreaChange(initialCropArea)
       } else {
-        // Center the crop area if no face detected
-        const initialCrop = calculateCenteredCropArea(selectedSize.aspectRatio, imgWidth, imgHeight)
-        setCropArea(initialCrop)
-        onCropAreaChange(initialCrop)
+        // Fallback: center the crop area if no initial crop provided
+        const fallbackCrop = calculateCenteredCropArea(selectedSize.aspectRatio, imgWidth, imgHeight)
+        setCropArea(fallbackCrop)
+        onCropAreaChange(fallbackCrop)
       }
     }
-  }, [processedImageUrl, faceBox, selectedSize.aspectRatio, onCropAreaChange])
+  }, [processedImageUrl, initialCropArea, selectedSize.aspectRatio, onCropAreaChange])
 
 
 
@@ -379,20 +375,6 @@ export function CropEditor({
 
   return (
     <div className="crop-editor">
-      {/* Error messages */}
-      {error === 'no-face-detected' && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          <p className="font-semibold">No face detected</p>
-          <p className="text-sm">Please position the crop area manually to frame your face.</p>
-        </div>
-      )}
-      {error === 'multiple-faces-detected' && (
-        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-          <p className="font-semibold">Multiple faces detected</p>
-          <p className="text-sm">Please ensure only one person is in the photo and adjust the crop area manually.</p>
-        </div>
-      )}
-
       {/* Image with crop overlay */}
       <div className="relative inline-block" ref={containerRef}>
         {/* DPI Warning - positioned absolutely to not affect layout */}
@@ -581,96 +563,6 @@ export function CropEditor({
       </div>
     </div>
   )
-}
-
-/**
- * Calculate initial crop area based on detected face
- * Expands to include head and shoulders for professional ID photo framing
- * Always centers on face center, shrinks proportionally if exceeding bounds
- */
-function calculateInitialCropArea(
-  faceBox: FaceBox,
-  aspectRatio: number,
-  imageWidth: number,
-  imageHeight: number
-): CropArea {
-  // For ID photos, we need more space:
-  // - 150% expansion above the face (for head/hair)
-  // - 100% expansion below the face (for shoulders)
-  // - 80% expansion on each side (for natural portrait framing)
-  
-  const faceWidth = faceBox.width
-  const faceHeight = faceBox.height
-  
-  // Calculate face center - this is our anchor point
-  const faceCenterX = faceBox.x + faceBox.width / 2
-  const faceCenterY = faceBox.y + faceBox.height / 2
-  
-  // Clamp face center to image bounds (in case face is partially outside)
-  const clampedCenterX = Math.max(0, Math.min(faceCenterX, imageWidth))
-  const clampedCenterY = Math.max(0, Math.min(faceCenterY, imageHeight))
-  
-  // Calculate expanded dimensions
-  const horizontalExpansion = faceWidth * 0.8
-  const verticalExpansionAbove = faceHeight * 1.5
-  const verticalExpansionBelow = faceHeight * 1.0
-  
-  // Calculate target crop dimensions
-  const targetWidth = faceWidth + (2 * horizontalExpansion)
-  const targetHeight = faceHeight + verticalExpansionAbove + verticalExpansionBelow
-  
-  // Adjust to match the required aspect ratio
-  let cropWidth, cropHeight
-  const expandedAspectRatio = targetWidth / targetHeight
-  
-  if (expandedAspectRatio > aspectRatio) {
-    // Expanded area is wider - use width and adjust height
-    cropWidth = targetWidth
-    cropHeight = cropWidth / aspectRatio
-  } else {
-    // Expanded area is taller - use height and adjust width
-    cropHeight = targetHeight
-    cropWidth = cropHeight * aspectRatio
-  }
-  
-  // Calculate initial position centered on face
-  let cropX = clampedCenterX - cropWidth / 2
-  let cropY = clampedCenterY - cropHeight / 2
-  
-  // Check if crop area exceeds image bounds
-  // If it does, shrink proportionally while maintaining center and aspect ratio
-  const exceedsLeft = cropX < 0
-  const exceedsRight = cropX + cropWidth > imageWidth
-  const exceedsTop = cropY < 0
-  const exceedsBottom = cropY + cropHeight > imageHeight
-  
-  if (exceedsLeft || exceedsRight || exceedsTop || exceedsBottom) {
-    // Calculate maximum dimensions that fit within image bounds while centered on face
-    const maxWidthFromLeft = clampedCenterX * 2
-    const maxWidthFromRight = (imageWidth - clampedCenterX) * 2
-    const maxWidthFromCenter = Math.min(maxWidthFromLeft, maxWidthFromRight)
-    
-    const maxHeightFromTop = clampedCenterY * 2
-    const maxHeightFromBottom = (imageHeight - clampedCenterY) * 2
-    const maxHeightFromCenter = Math.min(maxHeightFromTop, maxHeightFromBottom)
-    
-    // Choose the dimension that fits while maintaining aspect ratio
-    if (maxWidthFromCenter / aspectRatio <= maxHeightFromCenter) {
-      // Width is the limiting factor
-      cropWidth = maxWidthFromCenter
-      cropHeight = maxWidthFromCenter / aspectRatio
-    } else {
-      // Height is the limiting factor
-      cropHeight = maxHeightFromCenter
-      cropWidth = maxHeightFromCenter * aspectRatio
-    }
-    
-    // Recalculate position to maintain center
-    cropX = clampedCenterX - cropWidth / 2
-    cropY = clampedCenterY - cropHeight / 2
-  }
-  
-  return { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
 }
 
 /**

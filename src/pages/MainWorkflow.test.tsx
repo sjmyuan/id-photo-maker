@@ -31,7 +31,11 @@ vi.mock('../services/u2netService', () => ({
 
 vi.mock('../services/faceDetectionService', () => ({
   loadFaceDetectionModel: vi.fn(() => Promise.resolve({ session: {} })),
-  detectFaces: vi.fn(() => Promise.resolve({ faces: [], error: undefined })),
+  // Default: return a large enough face for 300 DPI validation
+  detectFaces: vi.fn(() => Promise.resolve({ 
+    faces: [{ x: 100, y: 100, width: 300, height: 420 }], 
+    error: undefined 
+  })),
 }))
 
 vi.mock('../services/mattingService', () => ({
@@ -375,6 +379,269 @@ describe('MainWorkflow - Two-Step Wizard', () => {
   })
 })
 
+describe('MainWorkflow - Step 1 Configuration Tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show size selector in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Step 1 should show size selection
+    expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
+    
+    // Should show all three size options
+    expect(screen.getByRole('button', { name: /1 inch/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /2 inch/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /3 inch/i })).toBeInTheDocument()
+  })
+
+  it('should have 1-inch size selected by default in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Check that 1-inch button has selected styling
+    const oneInchButton = screen.getByRole('button', { name: /1 inch/i })
+    expect(oneInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
+  })
+
+  it('should allow selecting different photo sizes in step 1', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    // Select 2-inch size
+    const twoInchButton = screen.getByRole('button', { name: /2 inch/i })
+    await user.click(twoInchButton)
+    
+    // Check that 2-inch button is now selected
+    expect(twoInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
+    
+    // Check that 1-inch button is not selected
+    const oneInchButton = screen.getByRole('button', { name: /1 inch/i })
+    expect(oneInchButton).not.toHaveClass('border-blue-600', 'bg-blue-50')
+  })
+
+  it('should show DPI selector in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Step 1 should show DPI selection
+    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
+    
+    // Should show both DPI options
+    expect(screen.getByRole('button', { name: /300 dpi/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /none/i })).toBeInTheDocument()
+  })
+
+  it('should have 300 DPI selected by default in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Check that 300 DPI button has selected styling
+    const dpi300Button = screen.getByRole('button', { name: /300 dpi/i })
+    expect(dpi300Button).toHaveClass('border-blue-600', 'bg-blue-50')
+  })
+
+  it('should allow selecting None DPI option in step 1', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    // Select None DPI
+    const noneButton = screen.getByRole('button', { name: /none/i })
+    await user.click(noneButton)
+    
+    // Check that None button is now selected
+    expect(noneButton).toHaveClass('border-blue-600', 'bg-blue-50')
+    
+    // Check that 300 DPI button is not selected
+    const dpi300Button = screen.getByRole('button', { name: /300 dpi/i })
+    expect(dpi300Button).not.toHaveClass('border-blue-600', 'bg-blue-50')
+  })
+
+  it('should show size and DPI selectors above file input in step 1', () => {
+    render(<MainWorkflow />)
+    
+    const sizeSelector = screen.getByTestId('size-selector-step1')
+    const dpiSelector = screen.getByTestId('dpi-selector-step1')
+    const fileInput = screen.getByTestId('file-input')
+    
+    // Get their positions in the DOM
+    const uploadStep = screen.getByTestId('upload-step')
+    const children = Array.from(uploadStep.querySelectorAll('[data-testid]'))
+    
+    const sizeSelectorIndex = children.indexOf(sizeSelector)
+    const dpiSelectorIndex = children.indexOf(dpiSelector)
+    const fileInputIndex = children.findIndex(el => el.contains(fileInput))
+    
+    // Size and DPI selectors should appear before file input
+    expect(sizeSelectorIndex).toBeGreaterThan(-1)
+    expect(dpiSelectorIndex).toBeGreaterThan(-1)
+    expect(fileInputIndex).toBeGreaterThan(-1)
+    expect(sizeSelectorIndex).toBeLessThan(fileInputIndex)
+    expect(dpiSelectorIndex).toBeLessThan(fileInputIndex)
+  })
+})
+
+describe('MainWorkflow - Face Detection and DPI Validation Tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show error when no face is detected', async () => {
+    const { processWithU2Net } = await import('../services/mattingService')
+    const { detectFaces } = await import('../services/faceDetectionService')
+    
+    // Mock no face detected
+    vi.mocked(detectFaces).mockResolvedValue({ faces: [], error: 'no-face-detected' })
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    uploadFile(fileInput, file)
+    
+    // Should show error and NOT advance to step 2
+    await waitFor(() => {
+      expect(screen.getByText(/no face detected/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('should show error when multiple faces are detected', async () => {
+    const { processWithU2Net } = await import('../services/mattingService')
+    const { detectFaces } = await import('../services/faceDetectionService')
+    
+    // Mock multiple faces detected
+    vi.mocked(detectFaces).mockResolvedValue({
+      faces: [
+        { x: 100, y: 100, width: 50, height: 50 },
+        { x: 200, y: 200, width: 50, height: 50 }
+      ],
+      error: 'multiple-faces-detected'
+    })
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    uploadFile(fileInput, file)
+    
+    // Should show error and NOT advance to step 2
+    await waitFor(() => {
+      expect(screen.getByText(/multiple faces detected/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('should show error when DPI requirement cannot be met', async () => {
+    const { processWithU2Net } = await import('../services/mattingService')
+    const { detectFaces } = await import('../services/faceDetectionService')
+    
+    // Mock single face detected with small dimensions that will result in low DPI
+    vi.mocked(detectFaces).mockResolvedValue({
+      faces: [{ x: 100, y: 100, width: 50, height: 70 }],
+      error: undefined
+    })
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    // Upload file with 300 DPI requirement (default)
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    uploadFile(fileInput, file)
+    
+    // Should show DPI error and NOT advance to step 2
+    await waitFor(() => {
+      expect(screen.getByText(/dpi requirement.*cannot be met/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('should allow processing when DPI requirement is None (no validation)', async () => {
+    const { processWithU2Net } = await import('../services/mattingService')
+    const { detectFaces } = await import('../services/faceDetectionService')
+    const userEvent = (await import('@testing-library/user-event')).default
+    
+    // Mock single face detected with small dimensions
+    vi.mocked(detectFaces).mockResolvedValue({
+      faces: [{ x: 100, y: 100, width: 50, height: 70 }],
+      error: undefined
+    })
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    // Select "None" DPI option
+    const noneButton = screen.getByRole('button', { name: /none/i })
+    await user.click(noneButton)
+
+    // Upload file
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    uploadFile(fileInput, file)
+    
+    // Should NOT show DPI error and SHOULD advance to step 2
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-step')).toBeInTheDocument()
+      expect(screen.queryByText(/dpi requirement.*cannot be met/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('should advance to step 2 when face is detected and DPI is sufficient', async () => {
+    const { processWithU2Net } = await import('../services/mattingService')
+    const { detectFaces } = await import('../services/faceDetectionService')
+    
+    // Mock single face detected with large enough dimensions for 300 DPI
+    vi.mocked(detectFaces).mockResolvedValue({
+      faces: [{ x: 100, y: 100, width: 300, height: 420 }],
+      error: undefined
+    })
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    uploadFile(fileInput, file)
+    
+    // Should NOT show errors and SHOULD advance to step 2
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-step')).toBeInTheDocument()
+      expect(screen.queryByText(/no face detected/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/multiple faces detected/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/dpi requirement.*cannot be met/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+})
+
 describe('MainWorkflow - Step 2 Layout Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -417,7 +684,8 @@ describe('MainWorkflow - Step 2 Layout Tests', () => {
     
     await waitFor(() => {
       expect(screen.getByTestId('left-panel')).toBeInTheDocument()
-      expect(screen.getByTestId('size-selector')).toBeInTheDocument()
+      // Size selector should NOT be in step 2 after refactor
+      expect(screen.queryByTestId('size-selector')).not.toBeInTheDocument()
       expect(screen.getByTestId('background-selector')).toBeInTheDocument()
     }, { timeout: 3000 })
   })

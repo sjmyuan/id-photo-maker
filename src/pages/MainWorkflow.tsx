@@ -7,6 +7,7 @@ import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
 import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
+import { calculateDPI } from '../utils/dpiCalculation'
 
 interface ImageData {
   originalFile: File
@@ -16,19 +17,108 @@ interface ImageData {
   processedUrl: string // URL with applied background color
 }
 
+/**
+ * Calculate initial crop area based on detected face
+ * Expands to include head and shoulders for professional ID photo framing
+ * Always centers on face center, shrinks proportionally if exceeding bounds
+ */
+function calculateInitialCropArea(
+  faceBox: FaceBox,
+  aspectRatio: number,
+  imageWidth: number,
+  imageHeight: number
+): CropArea {
+  // For ID photos, we need more space:
+  // - 150% expansion above the face (for head/hair)
+  // - 100% expansion below the face (for shoulders)
+  // - 80% expansion on each side (for natural portrait framing)
+  
+  const faceWidth = faceBox.width
+  const faceHeight = faceBox.height
+  
+  // Calculate face center - this is our anchor point
+  const faceCenterX = faceBox.x + faceBox.width / 2
+  const faceCenterY = faceBox.y + faceBox.height / 2
+  
+  // Clamp face center to image bounds (in case face is partially outside)
+  const clampedCenterX = Math.max(0, Math.min(faceCenterX, imageWidth))
+  const clampedCenterY = Math.max(0, Math.min(faceCenterY, imageHeight))
+  
+  // Calculate expanded dimensions
+  const horizontalExpansion = faceWidth * 0.8
+  const verticalExpansionAbove = faceHeight * 1.5
+  const verticalExpansionBelow = faceHeight * 1.0
+  
+  // Calculate target crop dimensions
+  const targetWidth = faceWidth + (2 * horizontalExpansion)
+  const targetHeight = faceHeight + verticalExpansionAbove + verticalExpansionBelow
+  
+  // Adjust to match the required aspect ratio
+  let cropWidth, cropHeight
+  const expandedAspectRatio = targetWidth / targetHeight
+  
+  if (expandedAspectRatio > aspectRatio) {
+    // Expanded area is wider - use width and adjust height
+    cropWidth = targetWidth
+    cropHeight = cropWidth / aspectRatio
+  } else {
+    // Expanded area is taller - use height and adjust width
+    cropHeight = targetHeight
+    cropWidth = cropHeight * aspectRatio
+  }
+  
+  // Calculate initial position centered on face
+  let cropX = clampedCenterX - cropWidth / 2
+  let cropY = clampedCenterY - cropHeight / 2
+  
+  // Check if crop area exceeds image bounds
+  // If it does, shrink proportionally while maintaining center and aspect ratio
+  const exceedsLeft = cropX < 0
+  const exceedsRight = cropX + cropWidth > imageWidth
+  const exceedsTop = cropY < 0
+  const exceedsBottom = cropY + cropHeight > imageHeight
+  
+  if (exceedsLeft || exceedsRight || exceedsTop || exceedsBottom) {
+    // Calculate maximum dimensions that fit within image bounds while centered on face
+    const maxWidthFromLeft = clampedCenterX * 2
+    const maxWidthFromRight = (imageWidth - clampedCenterX) * 2
+    const maxWidthFromCenter = Math.min(maxWidthFromLeft, maxWidthFromRight)
+    
+    const maxHeightFromTop = clampedCenterY * 2
+    const maxHeightFromBottom = (imageHeight - clampedCenterY) * 2
+    const maxHeightFromCenter = Math.min(maxHeightFromTop, maxHeightFromBottom)
+    
+    // Choose the dimension that fits while maintaining aspect ratio
+    if (maxWidthFromCenter / aspectRatio <= maxHeightFromCenter) {
+      // Width is the limiting factor
+      cropWidth = maxWidthFromCenter
+      cropHeight = maxWidthFromCenter / aspectRatio
+    } else {
+      // Height is the limiting factor
+      cropHeight = maxHeightFromCenter
+      cropWidth = maxHeightFromCenter * aspectRatio
+    }
+    
+    // Recalculate position to maintain center
+    cropX = clampedCenterX - cropWidth / 2
+    cropY = clampedCenterY - cropHeight / 2
+  }
+  
+  return { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
+}
+
 export function MainWorkflow() {
   // Step state: 1 = upload, 2 = edit
   const [currentStep, setCurrentStep] = useState<1 | 2>(1)
   
-  // Default values: 1-inch size, Blue background
+  // Default values: 1-inch size, 300 DPI, Blue background
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
+  const [requiredDPI, setRequiredDPI] = useState<300 | null>(300) // 300 DPI or null for "None"
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
   const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
-  const [detectedFace, setDetectedFace] = useState<FaceBox | null>(null)
-  const [faceDetectionError, setFaceDetectionError] = useState<'no-face-detected' | 'multiple-faces-detected' | undefined>()
   const [cropArea, setCropArea] = useState<CropArea | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -74,8 +164,6 @@ export function MainWorkflow() {
       setWarnings([])
       setErrors([])
       setImageData(null)
-      setDetectedFace(null)
-      setFaceDetectionError(undefined)
       setIsProcessing(true)
       start()
 
@@ -103,6 +191,7 @@ export function MainWorkflow() {
 
         // 3. Detect face on the scaled image (before U2Net processing)
         // This ensures faceBox coordinates match the processed image dimensions
+        let initialCropArea: CropArea | null = null
         if (faceDetectionModel) {
           const img = new Image()
           const imgUrl = URL.createObjectURL(fileToProcess)
@@ -114,14 +203,59 @@ export function MainWorkflow() {
           })
           
           const result = await detectFaces(faceDetectionModel, img)
+          const imgWidth = img.naturalWidth
+          const imgHeight = img.naturalHeight
           
-          if (result.error) {
-            setFaceDetectionError(result.error)
-            setDetectedFace(result.faces[0] || null)
-          } else if (result.faces.length === 1) {
-            setDetectedFace(result.faces[0])
-            setFaceDetectionError(undefined)
+          // Validate: require exactly one face
+          if (result.faces.length === 0) {
+            setErrors(['No face detected in the image. Please upload an image with exactly one face.'])
+            stop()
+            setIsProcessing(false)
+            URL.revokeObjectURL(imgUrl)
+            return
+          } else if (result.faces.length > 1) {
+            setErrors(['Multiple faces detected in the image. Please upload an image with exactly one face.'])
+            stop()
+            setIsProcessing(false)
+            URL.revokeObjectURL(imgUrl)
+            return
           }
+          
+          // Exactly one face detected - proceed
+          const face = result.faces[0]
+          
+          // Calculate initial crop area based on face and selected size
+          initialCropArea = calculateInitialCropArea(
+            face,
+            selectedSize.aspectRatio,
+            imgWidth,
+            imgHeight
+          )
+          
+          // Validate DPI if requirement is set
+          if (requiredDPI !== null) {
+            const dpiResult = calculateDPI(
+              initialCropArea.width,
+              initialCropArea.height,
+              selectedSize.physicalWidth,
+              selectedSize.physicalHeight
+            )
+            
+            if (dpiResult.minDPI < requiredDPI) {
+              setErrors([
+                `DPI requirement (${requiredDPI} DPI) cannot be met. ` +
+                `The calculated DPI is ${Math.round(dpiResult.minDPI)} DPI. ` +
+                `Please upload a higher resolution image or select "None" for DPI requirement.`
+              ])
+              stop()
+              setIsProcessing(false)
+              URL.revokeObjectURL(imgUrl)
+              return
+            }
+          }
+          
+          // Store the calculated crop area
+          setCropArea(initialCropArea)
           
           // Clean up temporary URL
           URL.revokeObjectURL(imgUrl)
@@ -189,7 +323,7 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [start, stop, u2netModel, faceDetectionModel, backgroundColor]
+    [start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {
@@ -216,7 +350,10 @@ export function MainWorkflow() {
 
   const handleSizeChange = (size: SizeOption) => {
     setSelectedSize(size)
-    // Crop area will be adjusted automatically by CropEditor component
+  }
+
+  const handleDPIChange = (dpi: 300 | null) => {
+    setRequiredDPI(dpi)
   }
 
   const handleCropAreaChange = useCallback((newCropArea: CropArea) => {
@@ -227,8 +364,6 @@ export function MainWorkflow() {
     // Reset to step 1 and clear image data
     setCurrentStep(1)
     setImageData(null)
-    setDetectedFace(null)
-    setFaceDetectionError(undefined)
     setCropArea(null)
     setWarnings([])
     setErrors([])
@@ -309,6 +444,56 @@ export function MainWorkflow() {
                 </div>
               )}
               
+              {/* Size Selector */}
+              <div data-testid="size-selector-step1" className="mb-6">
+                <h3 className="text-base font-semibold mb-3 text-gray-800">Photo Size</h3>
+                <div className="space-y-2">
+                  {SIZE_OPTIONS.map((size) => (
+                    <button
+                      key={size.id}
+                      onClick={() => handleSizeChange(size)}
+                      className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
+                        selectedSize.id === size.id
+                          ? 'border-blue-600 bg-blue-50 text-blue-900'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="font-semibold text-sm">{size.label}</div>
+                      <div className="text-xs text-gray-600">{size.dimensions}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* DPI Selector */}
+              <div data-testid="dpi-selector-step1" className="mb-6">
+                <h3 className="text-base font-semibold mb-3 text-gray-800">DPI Requirement</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleDPIChange(300)}
+                    className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
+                      requiredDPI === 300
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">300 DPI</div>
+                    <div className="text-xs text-gray-600">Recommended for printing</div>
+                  </button>
+                  <button
+                    onClick={() => handleDPIChange(null)}
+                    className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
+                      requiredDPI === null
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">None</div>
+                    <div className="text-xs text-gray-600">No DPI requirement</div>
+                  </button>
+                </div>
+              </div>
+              
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select an image file
@@ -340,29 +525,8 @@ export function MainWorkflow() {
           <div data-testid="edit-step" className="flex flex-col h-full">
             {/* Two-column layout with equal heights and aligned */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 mb-4">
-              {/* Left Panel: Size & Background selectors */}
+              {/* Left Panel: Background selector */}
               <div data-testid="left-panel" className="lg:col-span-1 flex flex-col gap-4">
-                {/* Size Selector */}
-                <div data-testid="size-selector" className="bg-white rounded-lg shadow p-4">
-                  <h3 className="text-base font-semibold mb-3 text-gray-800">Photo Size</h3>
-                  <div className="space-y-2">
-                    {SIZE_OPTIONS.map((size) => (
-                      <button
-                        key={size.id}
-                        onClick={() => handleSizeChange(size)}
-                        className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
-                          selectedSize.id === size.id
-                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                        }`}
-                      >
-                        <div className="font-semibold text-sm">{size.label}</div>
-                        <div className="text-xs text-gray-600">{size.dimensions}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Background Selector */}
                 <div data-testid="background-selector" className="bg-white rounded-lg shadow p-4 flex-1 overflow-auto">
                   <h3 className="text-base font-semibold mb-3 text-gray-800">Background Color</h3>
@@ -380,8 +544,7 @@ export function MainWorkflow() {
                   <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
                     <CropEditor
                       processedImageUrl={imageData.processedUrl}
-                      faceBox={detectedFace}
-                      error={faceDetectionError}
+                      initialCropArea={cropArea}
                       onCropAreaChange={handleCropAreaChange}
                       selectedSize={selectedSize}
                     />
