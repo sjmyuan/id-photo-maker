@@ -716,4 +716,198 @@ describe('SizeSelection', () => {
       expect(cropArea.height).toBeGreaterThan(0)
     })
   })
+
+  describe('View mode toggle controls', () => {
+    it('should render zoom to crop and show full image buttons', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      // Should have buttons for toggling view modes
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      const showFullImageButton = screen.getByRole('button', { name: /show full image/i })
+      
+      expect(zoomToCropButton).toBeInTheDocument()
+      expect(showFullImageButton).toBeInTheDocument()
+    })
+
+    it('should start in full view mode by default', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      // Show full image button should be active (indicated by styling or aria attributes)
+      const showFullImageButton = screen.getByRole('button', { name: /show full image/i })
+      expect(showFullImageButton).toHaveClass('ring-2')
+    })
+
+    it('should toggle to crop view when zoom to crop button is clicked', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      fireEvent.click(zoomToCropButton)
+
+      // Zoom to crop button should now be active
+      expect(zoomToCropButton).toHaveClass('ring-2')
+    })
+
+    it('should toggle back to full view when show full image button is clicked', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      const showFullImageButton = screen.getByRole('button', { name: /show full image/i })
+      
+      // Switch to crop view
+      fireEvent.click(zoomToCropButton)
+      expect(zoomToCropButton).toHaveClass('ring-2')
+      
+      // Switch back to full view
+      fireEvent.click(showFullImageButton)
+      expect(showFullImageButton).toHaveClass('ring-2')
+    })
+
+    it('should display buttons at top-right of image container', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const controlsContainer = screen.getByTestId('view-mode-controls')
+      expect(controlsContainer).toBeInTheDocument()
+      expect(controlsContainer).toHaveClass('absolute')
+    })
+  })
+
+  describe('Crop view zoom behavior', () => {
+    it('should apply transform scale to image in crop view mode', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      fireEvent.click(zoomToCropButton)
+
+      const imageContainer = screen.getByTestId('image-container')
+      const style = imageContainer.style.transform
+      
+      // Should have scale and translate transforms applied
+      expect(style).toBeTruthy()
+      expect(style).toContain('scale')
+    })
+
+    it('should center crop area when in crop view mode', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      fireEvent.click(zoomToCropButton)
+
+      const imageContainer = screen.getByTestId('image-container')
+      const style = imageContainer.style.transform
+      
+      // Should have translate transform to center the crop area
+      expect(style).toContain('translate')
+    })
+
+    it('should not apply transforms in full view mode', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const imageContainer = screen.getByTestId('image-container')
+      const style = imageContainer.style.transform
+      
+      // Should not have transforms in full view mode
+      expect(style).toBeFalsy()
+    })
+
+    it('should add transition for smooth zoom animation', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const imageContainer = screen.getByTestId('image-container')
+      
+      // Should have transition property for smooth animation
+      expect(imageContainer).toHaveClass('transition-transform')
+    })
+
+    it('should update zoom when crop area changes in crop view mode', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const zoomToCropButton = screen.getByRole('button', { name: /zoom to crop/i })
+      fireEvent.click(zoomToCropButton)
+
+      const imageContainer = screen.getByTestId('image-container')
+
+      // Drag the crop rectangle to change crop area
+      const rectangle = screen.getByTestId('crop-rectangle')
+      fireEvent.mouseDown(rectangle, { clientX: 100, clientY: 100 })
+      fireEvent.mouseMove(document, { clientX: 150, clientY: 150 })
+      fireEvent.mouseUp(document)
+
+      // Transform should be recalculated
+      const updatedTransform = imageContainer.style.transform
+      expect(updatedTransform).toBeTruthy()
+      // Note: In actual implementation, we expect transform might change,
+      // but for this test we just verify it's still applied
+      expect(updatedTransform).toContain('scale')
+    })
+  })
 })

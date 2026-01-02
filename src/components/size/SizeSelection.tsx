@@ -3,7 +3,7 @@
  * Combines ID photo size selection with draggable/resizable crop rectangle
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { FaceBox } from '../../services/faceDetectionService'
 
 export interface CropArea {
@@ -38,6 +38,7 @@ export interface SizeSelectionProps {
 }
 
 type ResizeHandle = 'ne' | 'nw' | 'se' | 'sw'
+type ViewMode = 'full' | 'crop'
 
 export function SizeSelection({
   processedImageUrl,
@@ -51,9 +52,35 @@ export function SizeSelection({
   const [isResizing, setIsResizing] = useState<ResizeHandle | null>(null)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
+  const [viewMode, setViewMode] = useState<ViewMode>('full')
   
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Calculate zoom transform for crop view mode
+  const imageContainerTransform = useMemo(() => {
+    if (viewMode !== 'crop' || !imageSize.width || !imageSize.height) {
+      return undefined
+    }
+
+    // Calculate the center of the crop area
+    const cropCenterX = cropArea.x + cropArea.width / 2
+    const cropCenterY = cropArea.y + cropArea.height / 2
+
+    // Calculate scale to fit crop area to viewport (with some padding)
+    // We want the crop area to fill most of the view
+    const viewportPadding = 0.9 // Use 90% of viewport
+    const scaleX = (imageSize.width * viewportPadding) / cropArea.width
+    const scaleY = (imageSize.height * viewportPadding) / cropArea.height
+    const scale = Math.min(scaleX, scaleY)
+
+    // Calculate translation to center the crop area
+    // We need to move the image so the crop center is at the image center
+    const translateX = ((imageSize.width / 2 - cropCenterX) / imageSize.width) * 100
+    const translateY = ((imageSize.height / 2 - cropCenterY) / imageSize.height) * 100
+
+    return `scale(${scale}) translate(${translateX}%, ${translateY}%)`
+  }, [viewMode, cropArea, imageSize])
 
   // Initialize crop area based on face detection
   useEffect(() => {
@@ -148,7 +175,7 @@ export function SizeSelection({
     } else {
       setDragStart({ x: 0, y: 0 })
     }
-  }, [cropArea])
+  }, [cropArea, imageSize.width, imageSize.height])
 
   // Touch start for mobile
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -169,7 +196,7 @@ export function SizeSelection({
     } else {
       setDragStart({ x: 0, y: 0 })
     }
-  }, [cropArea])
+  }, [cropArea, imageSize.width, imageSize.height])
 
   // Mouse down on resize handle
   const handleResizeStart = useCallback((e: React.MouseEvent, handle: ResizeHandle) => {
@@ -345,84 +372,155 @@ export function SizeSelection({
 
       {/* Image with crop overlay */}
       <div className="relative inline-block" ref={containerRef}>
-        <img
-          ref={imageRef}
-          src={processedImageUrl}
-          alt="Processed"
-          data-testid="processed-image"
-          className="max-w-full max-h-[70vh] object-contain"
-          style={{ display: 'block' }}
-        />
-        
-        {/* Dark overlay outside crop area */}
-        {imageRef.current && (
-          <div
-            data-testid="crop-overlay"
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `
-                linear-gradient(to right,
-                  rgba(0,0,0,0.5) 0%,
-                  rgba(0,0,0,0.5) ${(cropArea.x / imageSize.width) * 100}%,
-                  transparent ${(cropArea.x / imageSize.width) * 100}%,
-                  transparent ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
-                  rgba(0,0,0,0.5) ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
-                  rgba(0,0,0,0.5) 100%
-                ),
-                linear-gradient(to bottom,
-                  rgba(0,0,0,0.5) 0%,
-                  rgba(0,0,0,0.5) ${(cropArea.y / imageSize.height) * 100}%,
-                  transparent ${(cropArea.y / imageSize.height) * 100}%,
-                  transparent ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
-                  rgba(0,0,0,0.5) ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
-                  rgba(0,0,0,0.5) 100%
-                )
-              `,
-            }}
-          />
-        )}
-        
-        {/* Crop rectangle overlay */}
-        {imageRef.current && (
-          <div
-            data-testid="crop-rectangle"
-            className="absolute border-2 border-blue-500 cursor-move"
-            style={{
-              left: `${(cropArea.x / imageSize.width) * 100}%`,
-              top: `${(cropArea.y / imageSize.height) * 100}%`,
-              width: `${(cropArea.width / imageSize.width) * 100}%`,
-              height: `${(cropArea.height / imageSize.height) * 100}%`,
-            }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
+        {/* View mode toggle controls */}
+        <div 
+          data-testid="view-mode-controls"
+          className="absolute top-2 right-2 z-10 flex gap-2 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-md"
+        >
+          <button
+            onClick={() => setViewMode('full')}
+            className={`p-2 rounded transition-all ${
+              viewMode === 'full' 
+                ? 'bg-blue-500 text-white ring-2 ring-blue-600' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+            aria-label="Show full image"
+            title="Show full image"
           >
-            {/* Resize handles */}
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              className="w-5 h-5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M9 3v18"/>
+              <path d="M15 3v18"/>
+              <path d="M3 9h18"/>
+              <path d="M3 15h18"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => setViewMode('crop')}
+            className={`p-2 rounded transition-all ${
+              viewMode === 'crop' 
+                ? 'bg-blue-500 text-white ring-2 ring-blue-600' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+            aria-label="Zoom to crop"
+            title="Zoom to crop area"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              className="w-5 h-5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+              <path d="M11 8v6"/>
+              <path d="M8 11h6"/>
+            </svg>
+          </button>
+        </div>
+        
+        {/* Overflow container to clip zoomed content */}
+        <div className="overflow-hidden relative inline-block">
+          <div
+            data-testid="image-container"
+            className="transition-transform duration-300 ease-in-out origin-center relative inline-block"
+            style={{
+              transform: imageContainerTransform,
+            }}
+          >
+            <img
+              ref={imageRef}
+              src={processedImageUrl}
+              alt="Processed"
+            data-testid="processed-image"
+            className="max-w-full max-h-[70vh] object-contain"
+            style={{ display: 'block' }}
+          />
+          
+          {/* Dark overlay outside crop area */}
+          {imageRef.current && (
             <div
-              data-testid="resize-handle-nw"
-              className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-nw-resize"
-              style={{ left: '-8px', top: '-8px' }}
-              onMouseDown={(e) => handleResizeStart(e, 'nw')}
+              data-testid="crop-overlay"
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `
+                  linear-gradient(to right,
+                    rgba(0,0,0,0.5) 0%,
+                    rgba(0,0,0,0.5) ${(cropArea.x / imageSize.width) * 100}%,
+                    transparent ${(cropArea.x / imageSize.width) * 100}%,
+                    transparent ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
+                    rgba(0,0,0,0.5) ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
+                    rgba(0,0,0,0.5) 100%
+                  ),
+                  linear-gradient(to bottom,
+                    rgba(0,0,0,0.5) 0%,
+                    rgba(0,0,0,0.5) ${(cropArea.y / imageSize.height) * 100}%,
+                    transparent ${(cropArea.y / imageSize.height) * 100}%,
+                    transparent ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
+                    rgba(0,0,0,0.5) ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
+                    rgba(0,0,0,0.5) 100%
+                  )
+                `,
+              }}
             />
+          )}
+          
+          {/* Crop rectangle overlay */}
+          {imageRef.current && (
             <div
-              data-testid="resize-handle-ne"
-              className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-ne-resize"
-              style={{ right: '-8px', top: '-8px' }}
-              onMouseDown={(e) => handleResizeStart(e, 'ne')}
-            />
-            <div
-              data-testid="resize-handle-sw"
-              className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-sw-resize"
-              style={{ left: '-8px', bottom: '-8px' }}
-              onMouseDown={(e) => handleResizeStart(e, 'sw')}
-            />
-            <div
-              data-testid="resize-handle-se"
-              className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-se-resize"
-              style={{ right: '-8px', bottom: '-8px' }}
-              onMouseDown={(e) => handleResizeStart(e, 'se')}
-            />
-          </div>
-        )}
+              data-testid="crop-rectangle"
+              className="absolute border-2 border-blue-500 cursor-move"
+              style={{
+                left: `${(cropArea.x / imageSize.width) * 100}%`,
+                top: `${(cropArea.y / imageSize.height) * 100}%`,
+                width: `${(cropArea.width / imageSize.width) * 100}%`,
+                height: `${(cropArea.height / imageSize.height) * 100}%`,
+              }}
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+            >
+              {/* Resize handles */}
+              <div
+                data-testid="resize-handle-nw"
+                className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-nw-resize"
+                style={{ left: '-8px', top: '-8px' }}
+                onMouseDown={(e) => handleResizeStart(e, 'nw')}
+              />
+              <div
+                data-testid="resize-handle-ne"
+                className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-ne-resize"
+                style={{ right: '-8px', top: '-8px' }}
+                onMouseDown={(e) => handleResizeStart(e, 'ne')}
+              />
+              <div
+                data-testid="resize-handle-sw"
+                className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-sw-resize"
+                style={{ left: '-8px', bottom: '-8px' }}
+                onMouseDown={(e) => handleResizeStart(e, 'sw')}
+              />
+              <div
+                data-testid="resize-handle-se"
+                className="resize-handle absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full cursor-se-resize"
+                style={{ right: '-8px', bottom: '-8px' }}
+                onMouseDown={(e) => handleResizeStart(e, 'se')}
+              />
+            </div>
+          )}
+        </div>
+        </div>
       </div>
     </div>
   )
@@ -514,9 +612,6 @@ function calculateInitialCropArea(
     cropX = clampedCenterX - cropWidth / 2
     cropY = clampedCenterY - cropHeight / 2
   }
-
-  console.log('Face box:', faceBox)
-  console.log('Calculated initial crop area:', { x: cropX, y: cropY, width: cropWidth, height: cropHeight })
   
   return { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
 }
