@@ -52,7 +52,7 @@ export function MainWorkflow() {
 
       // Load face detection model
       try {
-        const faceModel = await loadFaceDetectionModel('/version-RFB-320.onnx')
+        const faceModel = await loadFaceDetectionModel()
         setFaceDetectionModel(faceModel)
       } catch (error) {
         console.error('Failed to load face detection model:', error)

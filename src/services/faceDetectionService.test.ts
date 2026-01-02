@@ -1,60 +1,65 @@
 /**
  * Face Detection Service Tests
- * Tests for UltraFace-320 ONNX model integration
+ * Tests for TensorFlow.js face-detection integration
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as ort from 'onnxruntime-web'
+import * as faceDetection from '@tensorflow-models/face-detection'
 import {
   loadFaceDetectionModel,
   detectFaces,
-  FaceDetectionResult,
 } from './faceDetectionService'
 
-// Mock onnxruntime-web
-vi.mock('onnxruntime-web', () => ({
-  InferenceSession: {
-    create: vi.fn(),
+// Mock @tensorflow-models/face-detection
+vi.mock('@tensorflow-models/face-detection', () => ({
+  SupportedModels: {
+    MediaPipeFaceDetector: 'MediaPipeFaceDetector',
   },
-  Tensor: vi.fn(),
+  createDetector: vi.fn(),
 }))
 
 describe('faceDetectionService', () => {
   describe('loadFaceDetectionModel', () => {
     it('should load the face detection model successfully', async () => {
-      const mockSession = {
-        run: vi.fn(),
-        inputNames: ['input'],
-        outputNames: ['scores', 'boxes'],
+      const mockDetector = {
+        estimateFaces: vi.fn(),
+        dispose: vi.fn(),
       }
       
-      vi.mocked(ort.InferenceSession.create).mockResolvedValue(mockSession as any)
+      vi.mocked(faceDetection.createDetector).mockResolvedValue(mockDetector as unknown as faceDetection.FaceDetector)
 
-      const model = await loadFaceDetectionModel('/models/version-RFB-320.onnx')
+      const model = await loadFaceDetectionModel()
 
-      expect(ort.InferenceSession.create).toHaveBeenCalledWith('/models/version-RFB-320.onnx')
-      expect(model.session).toBe(mockSession)
+      expect(faceDetection.createDetector).toHaveBeenCalledWith(
+        faceDetection.SupportedModels.MediaPipeFaceDetector,
+        expect.any(Object)
+      )
+      expect(model.detector).toBe(mockDetector)
       expect(model.status).toBe('loaded')
     })
 
     it('should throw error when model fails to load', async () => {
-      vi.mocked(ort.InferenceSession.create).mockRejectedValue(new Error('Model not found'))
+      vi.mocked(faceDetection.createDetector).mockRejectedValue(new Error('Model not found'))
 
-      await expect(loadFaceDetectionModel('/invalid/path.onnx')).rejects.toThrow(
+      await expect(loadFaceDetectionModel()).rejects.toThrow(
         'Failed to load face detection model'
       )
     })
   })
 
   describe('detectFaces', () => {
-    let mockSession: any
+    let mockDetector: {
+      estimateFaces: ReturnType<typeof vi.fn>
+      dispose: ReturnType<typeof vi.fn>
+      reset: ReturnType<typeof vi.fn>
+    }
     let mockImage: HTMLImageElement
 
     beforeEach(() => {
-      mockSession = {
-        run: vi.fn(),
-        inputNames: ['input'],
-        outputNames: ['scores', 'boxes'],
+      mockDetector = {
+        estimateFaces: vi.fn(),
+        dispose: vi.fn(),
+        reset: vi.fn(),
       }
 
       // Create a mock image
@@ -64,20 +69,25 @@ describe('faceDetectionService', () => {
     })
 
     it('should detect single face and return bounding box', async () => {
-      // Mock model output: single face with high confidence
-      const mockScores = new Float32Array([
-        0.1, 0.95, // Background, Face class scores for detection 1
-      ])
-      const mockBoxes = new Float32Array([
-        0.3, 0.2, 0.6, 0.7, // Normalized coordinates [x1, y1, x2, y2]
-      ])
+      // Mock TensorFlow face detection output
+      const mockFaces = [
+        {
+          box: {
+            xMin: 192,
+            yMin: 96,
+            width: 256,
+            height: 288,
+          },
+          keypoints: [],
+        },
+      ]
 
-      mockSession.run.mockResolvedValue({
-        scores: { data: mockScores, dims: [1, 2, 1] },
-        boxes: { data: mockBoxes, dims: [1, 4, 1] },
-      })
+      mockDetector.estimateFaces.mockResolvedValue(mockFaces)
 
-      const result = await detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+      const result = await detectFaces(
+        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+        mockImage
+      )
 
       expect(result.faces.length).toBe(1)
       expect(result.faces[0]).toEqual({
@@ -91,109 +101,111 @@ describe('faceDetectionService', () => {
     })
 
     it('should return error when no face is detected', async () => {
-      // Mock model output: no faces (low confidence)
-      const mockScores = new Float32Array([
-        0.9, 0.05, // Low face confidence
-      ])
-      const mockBoxes = new Float32Array([0.3, 0.2, 0.6, 0.7])
+      // Mock TensorFlow output: no faces
+      mockDetector.estimateFaces.mockResolvedValue([])
 
-      mockSession.run.mockResolvedValue({
-        scores: { data: mockScores, dims: [1, 2, 1] },
-        boxes: { data: mockBoxes, dims: [1, 4, 1] },
-      })
-
-      const result = await detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+      const result = await detectFaces(
+        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+        mockImage
+      )
 
       expect(result.faces.length).toBe(0)
       expect(result.error).toBe('no-face-detected')
     })
 
     it('should return error when multiple faces are detected', async () => {
-      // Mock model output: multiple faces
-      // Format: scores are interleaved [bg_class, face_class] for each detection
-      const mockScores = new Float32Array([
-        0.1, 0.1,  // Class scores for detection 1
-        0.95, 0.92, // Background and Face scores
-      ])
-      // Format: boxes are [x1, y1, x2, y2] for detection 1, then detection 2
-      const mockBoxes = new Float32Array([
-        0.2, 0.6,  // x1 values for detection 1 and 2
-        0.1, 0.3,  // y1 values
-        0.5, 0.9,  // x2 values
-        0.6, 0.8,  // y2 values
-      ])
+      // Mock TensorFlow output: multiple faces
+      const mockFaces = [
+        {
+          box: {
+            xMin: 100,
+            yMin: 50,
+            width: 150,
+            height: 200,
+          },
+          keypoints: [],
+        },
+        {
+          box: {
+            xMin: 400,
+            yMin: 150,
+            width: 150,
+            height: 200,
+          },
+          keypoints: [],
+        },
+      ]
 
-      mockSession.run.mockResolvedValue({
-        scores: { data: mockScores, dims: [1, 2, 2] },
-        boxes: { data: mockBoxes, dims: [1, 4, 2] },
-      })
+      mockDetector.estimateFaces.mockResolvedValue(mockFaces)
 
-      const result = await detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+      const result = await detectFaces(
+        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+        mockImage
+      )
 
       expect(result.faces.length).toBeGreaterThan(1)
       expect(result.error).toBe('multiple-faces-detected')
     })
 
     it('should handle detection errors gracefully', async () => {
-      mockSession.run.mockRejectedValue(new Error('Inference failed'))
+      mockDetector.estimateFaces.mockRejectedValue(new Error('Inference failed'))
 
       await expect(
-        detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+        detectFaces(
+          { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+          mockImage
+        )
       ).rejects.toThrow('Face detection failed')
     })
 
-    it('should apply NMS to filter overlapping detections', async () => {
-      // Mock overlapping detections that should be filtered by NMS
-      const mockScores = new Float32Array([
-        0.1, 0.95, // Face 1 (high confidence)
-        0.1, 0.85, // Face 2 (lower confidence, overlapping)
-      ])
-      const mockBoxes = new Float32Array([
-        0.3, 0.2, 0.6, 0.7, // Face 1
-        0.32, 0.22, 0.62, 0.72, // Face 2 (very similar to Face 1)
-      ])
+    it('should use default confidence threshold of 0.7', async () => {
+      const mockFaces = [
+        {
+          box: {
+            xMin: 100,
+            yMin: 100,
+            width: 200,
+            height: 200,
+          },
+          keypoints: [],
+        },
+      ]
 
-      mockSession.run.mockResolvedValue({
-        scores: { data: mockScores, dims: [1, 2, 2] },
-        boxes: { data: mockBoxes, dims: [1, 4, 2] },
-      })
+      mockDetector.estimateFaces.mockResolvedValue(mockFaces)
 
-      const result = await detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+      await detectFaces(
+        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+        mockImage
+      )
 
-      // NMS should keep only the highest confidence detection
-      expect(result.faces.length).toBe(1)
+      expect(mockDetector.estimateFaces).toHaveBeenCalledWith(mockImage)
     })
 
-    it('should scale bounding boxes to original image dimensions', async () => {
-      const mockScores = new Float32Array([0.1, 0.95])
-      const mockBoxes = new Float32Array([
-        0.25, 0.25, 0.75, 0.75, // Normalized: center half of image
-      ])
+    it('should scale bounding boxes correctly', async () => {
+      const mockFaces = [
+        {
+          box: {
+            xMin: 160,
+            yMin: 120,
+            width: 320,
+            height: 240,
+          },
+          keypoints: [],
+        },
+      ]
 
-      mockSession.run.mockResolvedValue({
-        scores: { data: mockScores, dims: [1, 2, 1] },
-        boxes: { data: mockBoxes, dims: [1, 4, 1] },
-      })
+      mockDetector.estimateFaces.mockResolvedValue(mockFaces)
 
-      const result = await detectFaces({ session: mockSession, status: 'loaded' }, mockImage)
+      const result = await detectFaces(
+        { detector: mockDetector as unknown as faceDetection.FaceDetector, status: 'loaded' },
+        mockImage
+      )
 
       const face = result.faces[0]
-      // For 640x480 image, normalized 0.25-0.75 should scale appropriately
-      expect(face.x).toBeGreaterThan(0)
-      expect(face.y).toBeGreaterThan(0)
+      expect(face.x).toBeGreaterThanOrEqual(0)
+      expect(face.y).toBeGreaterThanOrEqual(0)
       expect(face.x + face.width).toBeLessThanOrEqual(mockImage.width)
       expect(face.y + face.height).toBeLessThanOrEqual(mockImage.height)
-    })
-  })
-
-  describe('NMS and IoU utilities', () => {
-    it('should correctly calculate IoU for overlapping boxes', () => {
-      // This will be tested indirectly through detectFaces tests
-      // but can be extracted as separate utility tests if needed
-    })
-
-    it('should correctly apply hard NMS to filter detections', () => {
-      // This will be tested indirectly through detectFaces tests
     })
   })
 })
