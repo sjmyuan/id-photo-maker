@@ -452,30 +452,49 @@ export function SizeSelection({
           
           {/* Dark overlay outside crop area */}
           {imageRef.current && (
-            <div
-              data-testid="crop-overlay"
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `
-                  linear-gradient(to right,
-                    rgba(0,0,0,0.5) 0%,
-                    rgba(0,0,0,0.5) ${(cropArea.x / imageSize.width) * 100}%,
-                    transparent ${(cropArea.x / imageSize.width) * 100}%,
-                    transparent ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
-                    rgba(0,0,0,0.5) ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
-                    rgba(0,0,0,0.5) 100%
-                  ),
-                  linear-gradient(to bottom,
-                    rgba(0,0,0,0.5) 0%,
-                    rgba(0,0,0,0.5) ${(cropArea.y / imageSize.height) * 100}%,
-                    transparent ${(cropArea.y / imageSize.height) * 100}%,
-                    transparent ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
-                    rgba(0,0,0,0.5) ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
-                    rgba(0,0,0,0.5) 100%
-                  )
-                `,
-              }}
-            />
+            <>
+              {/* Consistent dark overlay using four divs */}
+              {/* Top overlay */}
+              <div
+                data-testid="crop-overlay-top"
+                className="absolute left-0 right-0 bg-black/50 pointer-events-none"
+                style={{
+                  top: 0,
+                  height: `${(cropArea.y / imageSize.height) * 100}%`,
+                }}
+              />
+              {/* Bottom overlay */}
+              <div
+                data-testid="crop-overlay-bottom"
+                className="absolute left-0 right-0 bg-black/50 pointer-events-none"
+                style={{
+                  top: `${((cropArea.y + cropArea.height) / imageSize.height) * 100}%`,
+                  height: `${100 - ((cropArea.y + cropArea.height) / imageSize.height) * 100}%`,
+                }}
+              />
+              {/* Left overlay */}
+              <div
+                data-testid="crop-overlay-left"
+                className="absolute bg-black/50 pointer-events-none"
+                style={{
+                  left: 0,
+                  width: `${(cropArea.x / imageSize.width) * 100}%`,
+                  top: `${(cropArea.y / imageSize.height) * 100}%`,
+                  height: `${(cropArea.height / imageSize.height) * 100}%`,
+                }}
+              />
+              {/* Right overlay */}
+              <div
+                data-testid="crop-overlay-right"
+                className="absolute bg-black/50 pointer-events-none"
+                style={{
+                  left: `${((cropArea.x + cropArea.width) / imageSize.width) * 100}%`,
+                  width: `${100 - ((cropArea.x + cropArea.width) / imageSize.width) * 100}%`,
+                  top: `${(cropArea.y / imageSize.height) * 100}%`,
+                  height: `${(cropArea.height / imageSize.height) * 100}%`,
+                }}
+              />
+            </>
           )}
           
           {/* Crop rectangle overlay */}
