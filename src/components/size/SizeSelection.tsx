@@ -88,7 +88,9 @@ export function SizeSelection({
       const img = imageRef.current
       const imgWidth = img.naturalWidth
       const imgHeight = img.naturalHeight
-      
+      // Guard: only initialize if image dimensions are valid
+      if (!imgWidth || !imgHeight) return
+
       setImageSize({ width: imgWidth, height: imgHeight })
 
       if (faceBox) {
