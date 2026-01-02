@@ -4,11 +4,12 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { SizeSelection } from './SizeSelection'
+import { SizeSelection, SIZE_OPTIONS } from './SizeSelection'
 import type { FaceBox } from '../../services/faceDetectionService'
 
 describe('SizeSelection', () => {
   const mockProcessedImageUrl = 'blob:http://localhost/processed-image'
+  const mockSelectedSize = SIZE_OPTIONS[0] // 1-inch by default
   const mockFaceBox: FaceBox = {
     x: 100,
     y: 80,
@@ -38,73 +39,13 @@ describe('SizeSelection', () => {
     vi.restoreAllMocks()
   })
 
-  describe('Size button rendering and selection', () => {
-    it('should render all three size options', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-2-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-3-inch')).toBeInTheDocument()
-    })
-
-    it('should select 1-inch by default', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      const oneInchButton = screen.getByTestId('size-1-inch')
-      expect(oneInchButton).toHaveClass('selected')
-    })
-
-    it('should update selection when clicking different size', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      const twoInchButton = screen.getByTestId('size-2-inch')
-      fireEvent.click(twoInchButton)
-
-      expect(twoInchButton).toHaveClass('selected')
-      expect(screen.getByTestId('size-1-inch')).not.toHaveClass('selected')
-    })
-
-    it('should display correct aspect ratio for each size', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      // 1-inch and 2-inch: 25×35mm, 35×49mm → both 0.714 aspect ratio
-      expect(screen.getByTestId('size-1-inch')).toHaveTextContent('25×35mm')
-      expect(screen.getByTestId('size-2-inch')).toHaveTextContent('35×49mm')
-      // 3-inch: 35×52mm → 0.673 aspect ratio
-      expect(screen.getByTestId('size-3-inch')).toHaveTextContent('35×52mm')
-    })
-  })
-
   describe('Crop rectangle rendering', () => {
     it('should render crop rectangle overlay on image', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -113,11 +54,33 @@ describe('SizeSelection', () => {
       expect(screen.getByTestId('processed-image')).toBeInTheDocument()
     })
 
+    it('should render processed image with consistent styling matching original image', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const processedImage = screen.getByTestId('processed-image')
+      
+      // Should use the same styling as original image in MainWorkflow
+      expect(processedImage).toHaveClass('max-w-full')
+      expect(processedImage).toHaveClass('max-h-full')
+      expect(processedImage).toHaveClass('object-contain')
+      
+      // Should NOT have inline maxHeight style
+      expect(processedImage).not.toHaveStyle({ maxHeight: '600px' })
+    })
+
     it('should render crop rectangle with transparent background and only border visible', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -139,6 +102,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -146,55 +110,6 @@ describe('SizeSelection', () => {
       const rectangle = screen.getByTestId('crop-rectangle')
       // Rectangle should be positioned around the face
       expect(rectangle).toHaveClass('absolute')
-    })
-
-    it('should maintain aspect ratio of selected size', async () => {
-      const onCropAreaChange = vi.fn()
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      const twoInchButton = screen.getByTestId('size-2-inch')
-      fireEvent.click(twoInchButton)
-
-      await waitFor(() => {
-        const calls = onCropAreaChange.mock.calls
-        if (calls.length > 0) {
-          const lastCall = calls[calls.length - 1][0]
-          const aspectRatio = lastCall.width / lastCall.height
-          // 2-inch: 35×49mm = 0.714 aspect ratio (with some tolerance)
-          expect(aspectRatio).toBeCloseTo(0.714, 2)
-        }
-      })
-    })
-
-    it('should adjust rectangle when switching between sizes', async () => {
-      const onCropAreaChange = vi.fn()
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      // Initially 1-inch (0.714)
-      const threeInchButton = screen.getByTestId('size-3-inch')
-      fireEvent.click(threeInchButton)
-
-      await waitFor(() => {
-        const calls = onCropAreaChange.mock.calls
-        if (calls.length > 0) {
-          const lastCall = calls[calls.length - 1][0]
-          const aspectRatio = lastCall.width / lastCall.height
-          // 3-inch: 35×52mm = 0.673 aspect ratio (with some tolerance)
-          expect(aspectRatio).toBeCloseTo(0.673, 2)
-        }
-      })
     })
   })
 
@@ -204,6 +119,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -224,6 +140,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -248,6 +165,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -268,6 +186,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -285,6 +204,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -311,6 +231,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -337,6 +258,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -364,6 +286,7 @@ describe('SizeSelection', () => {
           processedImageUrl={mockProcessedImageUrl}
           faceBox={null}
           error="no-face-detected"
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -377,6 +300,7 @@ describe('SizeSelection', () => {
           processedImageUrl={mockProcessedImageUrl}
           faceBox={null}
           error="multiple-faces-detected"
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -390,6 +314,7 @@ describe('SizeSelection', () => {
           processedImageUrl={mockProcessedImageUrl}
           faceBox={null}
           error="no-face-detected"
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
         />
       )
@@ -407,6 +332,7 @@ describe('SizeSelection', () => {
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -420,30 +346,13 @@ describe('SizeSelection', () => {
       })
     })
 
-    it('should call onCropAreaChange when size changes', () => {
-      const onCropAreaChange = vi.fn()
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={onCropAreaChange}
-        />
-      )
-
-      const initialCallCount = onCropAreaChange.mock.calls.length
-      
-      const twoInchButton = screen.getByTestId('size-2-inch')
-      fireEvent.click(twoInchButton)
-
-      expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
-    })
-
     it('should call onCropAreaChange when rectangle is dragged', () => {
       const onCropAreaChange = vi.fn()
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
         />
       )
@@ -460,17 +369,17 @@ describe('SizeSelection', () => {
   })
 
   describe('Compact mode', () => {
-    it('should hide size buttons when compact prop is true', () => {
+    it('should not render size buttons', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
-          compact={true}
         />
       )
 
-      // Size buttons should not be visible
+      // Size buttons should never be visible
       expect(screen.queryByTestId('size-1-inch')).not.toBeInTheDocument()
       expect(screen.queryByTestId('size-2-inch')).not.toBeInTheDocument()
       expect(screen.queryByTestId('size-3-inch')).not.toBeInTheDocument()
@@ -480,66 +389,29 @@ describe('SizeSelection', () => {
       expect(screen.getByTestId('crop-rectangle')).toBeInTheDocument()
     })
 
-    it('should hide instructions when compact prop is true', () => {
+    it('should not render instructions', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
-          compact={true}
         />
       )
 
-      // Instructions should not be visible
+      // Instructions should never be visible
       expect(screen.queryByText(/drag the rectangle/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/drag the corner handles/i)).not.toBeInTheDocument()
     })
 
-    it('should show size buttons and instructions when compact prop is false', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-          compact={false}
-        />
-      )
-
-      // Size buttons should be visible
-      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-2-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-3-inch')).toBeInTheDocument()
-      
-      // Instructions should be visible
-      expect(screen.getByText(/drag the rectangle/i)).toBeInTheDocument()
-    })
-
-    it('should show size buttons and instructions when compact prop is undefined', () => {
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-        />
-      )
-
-      // Size buttons should be visible by default
-      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-2-inch')).toBeInTheDocument()
-      expect(screen.getByTestId('size-3-inch')).toBeInTheDocument()
-      
-      // Instructions should be visible by default
-      expect(screen.getByText(/drag the rectangle/i)).toBeInTheDocument()
-    })
-
-    it('should still allow drag and resize interactions in compact mode', () => {
+    it('should still allow drag and resize interactions', () => {
       const onCropAreaChange = vi.fn()
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
           onCropAreaChange={onCropAreaChange}
-          compact={true}
         />
       )
 
@@ -555,18 +427,18 @@ describe('SizeSelection', () => {
       expect(onCropAreaChange.mock.calls.length).toBeGreaterThan(initialCallCount)
     })
 
-    it('should not hide error messages in compact mode', () => {
+    it('should not hide error messages', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
           faceBox={null}
           error="no-face-detected"
+          selectedSize={mockSelectedSize}
           onCropAreaChange={vi.fn()}
-          compact={true}
         />
       )
 
-      // Error messages should still be visible in compact mode
+      // Error messages should still be visible
       expect(screen.getByText(/no face detected/i)).toBeInTheDocument()
     })
   })
@@ -647,28 +519,6 @@ describe('SizeSelection', () => {
           expect(newCenterX).toBeCloseTo(initialCenterX, 0)
           expect(newCenterY).toBeCloseTo(initialCenterY, 0)
         }
-      })
-    })
-
-    it('should use external onSizeChange callback when provided', () => {
-      const onSizeChange = vi.fn()
-      render(
-        <SizeSelection
-          processedImageUrl={mockProcessedImageUrl}
-          faceBox={mockFaceBox}
-          onCropAreaChange={vi.fn()}
-          onSizeChange={onSizeChange}
-        />
-      )
-
-      const twoInchButton = screen.getByTestId('size-2-inch')
-      fireEvent.click(twoInchButton)
-
-      expect(onSizeChange).toHaveBeenCalledWith({
-        id: '2-inch',
-        label: '2 Inch',
-        dimensions: '35×49mm',
-        aspectRatio: 35 / 49,
       })
     })
   })

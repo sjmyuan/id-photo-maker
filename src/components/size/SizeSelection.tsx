@@ -34,9 +34,7 @@ export interface SizeSelectionProps {
   faceBox: FaceBox | null
   error?: 'no-face-detected' | 'multiple-faces-detected'
   onCropAreaChange: (cropArea: CropArea) => void
-  selectedSize?: SizeOption // Optional: external size control
-  onSizeChange?: (size: SizeOption) => void // Optional: external size change handler
-  compact?: boolean // Optional: hide size buttons and instructions for compact view
+  selectedSize: SizeOption // Required: external size control
 }
 
 type ResizeHandle = 'ne' | 'nw' | 'se' | 'sw'
@@ -46,12 +44,8 @@ export function SizeSelection({
   faceBox,
   error,
   onCropAreaChange,
-  selectedSize: externalSelectedSize,
-  onSizeChange: externalOnSizeChange,
-  compact = false,
+  selectedSize,
 }: SizeSelectionProps) {
-  const [internalSelectedSize, setInternalSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
-  const selectedSize = externalSelectedSize || internalSelectedSize
   const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 200, height: 280 })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState<ResizeHandle | null>(null)
@@ -84,53 +78,7 @@ export function SizeSelection({
     }
   }, [processedImageUrl, faceBox, selectedSize.aspectRatio, onCropAreaChange])
 
-  // Handle size selection change
-  const handleSizeChange = useCallback((size: SizeOption) => {
-    // Use external handler if provided, otherwise use internal state
-    if (externalOnSizeChange) {
-      externalOnSizeChange(size)
-    } else {
-      setInternalSelectedSize(size)
-    }
-    
-    // Adjust crop area to new aspect ratio while maintaining center
-    const centerX = cropArea.x + cropArea.width / 2
-    const centerY = cropArea.y + cropArea.height / 2
-    
-    // Calculate new dimensions maintaining the larger dimension
-    let newWidth, newHeight
-    const currentAspectRatio = cropArea.width / cropArea.height
-    
-    if (size.aspectRatio > currentAspectRatio) {
-      // New size is wider - keep height, adjust width
-      newHeight = cropArea.height
-      newWidth = newHeight * size.aspectRatio
-    } else {
-      // New size is taller - keep width, adjust height
-      newWidth = cropArea.width
-      newHeight = newWidth / size.aspectRatio
-    }
-    
-    // Constrain to image bounds
-    const maxWidth = imageSize.width
-    const maxHeight = imageSize.height
-    
-    if (newWidth > maxWidth) {
-      newWidth = maxWidth
-      newHeight = newWidth / size.aspectRatio
-    }
-    if (newHeight > maxHeight) {
-      newHeight = maxHeight
-      newWidth = newHeight * size.aspectRatio
-    }
-    
-    const newX = Math.max(0, Math.min(centerX - newWidth / 2, maxWidth - newWidth))
-    const newY = Math.max(0, Math.min(centerY - newHeight / 2, maxHeight - newHeight))
-    
-    const newCrop = { x: newX, y: newY, width: newWidth, height: newHeight }
-    setCropArea(newCrop)
-    onCropAreaChange(newCrop)
-  }, [cropArea, imageSize, onCropAreaChange, externalOnSizeChange])
+
 
   // Watch for external size changes and adjust crop area accordingly
   useEffect(() => {
@@ -360,30 +308,6 @@ export function SizeSelection({
 
   return (
     <div className="size-selection">
-      {/* Size buttons - hidden in compact mode */}
-      {!compact && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Select ID Photo Size</h3>
-          <div className="flex gap-3">
-            {SIZE_OPTIONS.map((size) => (
-              <button
-                key={size.id}
-                data-testid={`size-${size.id}`}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
-                  selectedSize.id === size.id
-                    ? 'border-blue-600 bg-blue-50 text-blue-700 selected'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                }`}
-                onClick={() => handleSizeChange(size)}
-              >
-                <div className="font-semibold">{size.label}</div>
-                <div className="text-sm">{size.dimensions}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Error messages */}
       {error === 'no-face-detected' && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -405,8 +329,8 @@ export function SizeSelection({
           src={processedImageUrl}
           alt="Processed"
           data-testid="processed-image"
-          className="max-w-full h-auto"
-          style={{ display: 'block', maxHeight: '600px' }}
+          className="max-w-full max-h-full object-contain"
+          style={{ display: 'block' }}
         />
         
         {/* Crop rectangle overlay */}
@@ -451,15 +375,6 @@ export function SizeSelection({
           </div>
         )}
       </div>
-
-      {/* Instructions - hidden in compact mode */}
-      {!compact && (
-        <div className="mt-4 text-sm text-gray-600">
-          <p>• Drag the rectangle to reposition the crop area</p>
-          <p>• Drag the corner handles to resize (aspect ratio is maintained)</p>
-          <p>• The crop area shows where your ID photo will be extracted</p>
-        </div>
-      )}
     </div>
   )
 }
