@@ -113,6 +113,27 @@ describe('SizeSelection', () => {
       expect(screen.getByTestId('processed-image')).toBeInTheDocument()
     })
 
+    it('should render crop rectangle with transparent background and only border visible', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const rectangle = screen.getByTestId('crop-rectangle')
+      expect(rectangle).toBeInTheDocument()
+      
+      // Rectangle should have border styling
+      expect(rectangle).toHaveClass('border-2')
+      expect(rectangle).toHaveClass('border-blue-500')
+      
+      // Rectangle should NOT have any background color classes
+      expect(rectangle).not.toHaveClass('bg-blue-500')
+      expect(rectangle).not.toHaveClass('bg-opacity-10')
+    })
+
     it('should position rectangle based on face detection initially', () => {
       render(
         <SizeSelection

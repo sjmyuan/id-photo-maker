@@ -361,7 +361,7 @@ export function SizeSelection({
         {imageRef.current && (
           <div
             data-testid="crop-rectangle"
-            className="absolute border-2 border-blue-500 cursor-move bg-blue-500 bg-opacity-10"
+            className="absolute border-2 border-blue-500 cursor-move"
             style={{
               left: `${(cropArea.x / imageSize.width) * 100}%`,
               top: `${(cropArea.y / imageSize.height) * 100}%`,
