@@ -1663,7 +1663,10 @@ interface ImageData {
 - ✅ BackgroundSelector - Epic 1, User Story 2
 - ✅ MattingPreview - Epic 1, User Story 3
 - ✅ FaceDetectionService - Epic 2, User Story 5 (Face Detection)
-- ✅ SizeSelection with CropGuide - Epic 2, User Story 5 (Crop Positioning)
+- ✅ CropEditor with Size Guide - Epic 2, User Story 5 (Crop Positioning)
+  - Renamed from SizeSelection to better reflect primary function
+  - Added DPI calculation and warning for print quality validation
+  - Ensures faceBox coordinates match the processed image dimensions displayed in CropEditor
 - ✅ App Workflow - Integrated workflow management with face detection
 
 **Test Coverage**: 160 tests (157 passing, 3 outdated App.test.tsx failures)
@@ -1684,8 +1687,16 @@ interface ImageData {
   - Three size options (1-inch, 2-inch, 3-inch) with dynamic aspect ratio adjustment
   - **NEW**: Compact mode for cleaner processed image view (hides duplicate size buttons/instructions)
   - **NEW**: Reactive crop area adjustment when size changes externally via props
+  - **NEW (January 2, 2026)**: DPI calculation and warning system for print quality validation
 
 **Recent Improvements (January 2, 2026)**:
+- **Component Renamed**: SizeSelection → CropEditor to better reflect primary function
+- **DPI Warning System**: Added real-time DPI calculation based on crop area and physical dimensions
+  - Calculates DPI using formula: (pixels / mm) * 25.4
+  - Displays informational warning when DPI < 300 with actual DPI value
+  - Non-blocking warning allows users to proceed despite low DPI
+  - New utility: `src/utils/dpiCalculation.ts` with comprehensive test coverage
+  - Added `physicalWidth` and `physicalHeight` to `SizeOption` interface
 - Refactored SizeSelection to support compact mode, removing duplicate UI elements from processed view
 - Fixed bug where crop box didn't update when size was changed from external controls
 - Added `compact` prop to conditionally hide size selection UI in processed image view
@@ -1693,7 +1704,7 @@ interface ImageData {
 - Maintains crop center position during size transitions for better UX
 - **CRITICAL BUG FIX**: Fixed image dimension mismatch issue where face detection ran on original image instead of scaled image
   - Face detection now runs on scaled image (after scaling, before U2Net processing)
-  - Ensures faceBox coordinates match the processed image dimensions displayed in SizeSelection
+  - Ensures faceBox coordinates match the processed image dimensions displayed in CropEditor
   - Fixes crop box alignment when images are automatically scaled (>10MB files)
   - Processing order: Validate → Scale → **Detect Face** → U2Net Matting → Apply Background
   - Size changes now only adjust crop box without reprocessing (no redundant U2Net/TensorFlow calls)

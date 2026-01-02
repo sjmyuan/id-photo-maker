@@ -272,7 +272,7 @@ describe('MainWorkflow - Two-Step Wizard', () => {
 
   it.skip('should not cause infinite loops when crop area changes', async () => {
     // This test verifies that handleCropAreaChange maintains stable reference
-    // and doesn't trigger infinite re-renders in SizeSelection component
+    // and doesn't trigger infinite re-renders in CropEditor component
     const { container } = render(<MainWorkflow />)
     
     // Verify component renders without throwing maximum update depth error

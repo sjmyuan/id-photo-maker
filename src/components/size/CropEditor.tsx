@@ -393,23 +393,23 @@ export function CropEditor({
         </div>
       )}
 
-      {/* DPI Warning */}
-      {showDPIWarning && dpiInfo && (
-        <div 
-          className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded"
-          data-testid="dpi-warning"
-        >
-          <p className="font-semibold">Resolution Warning</p>
-          <p className="text-sm">
-            Current crop area provides approximately {Math.round(dpiInfo.minDPI)} DPI. 
-            For optimal print quality, 300 DPI is recommended. 
-            Consider increasing the crop area size or using a higher resolution image.
-          </p>
-        </div>
-      )}
-
       {/* Image with crop overlay */}
       <div className="relative inline-block" ref={containerRef}>
+        {/* DPI Warning - positioned absolutely to not affect layout */}
+        {showDPIWarning && dpiInfo && (
+          <div 
+            className="absolute bottom-2 left-2 right-2 z-20 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded shadow-lg"
+            data-testid="dpi-warning"
+          >
+            <p className="font-semibold text-xs">Resolution Warning</p>
+            <p className="text-xs">
+              Current crop area provides approximately {Math.round(dpiInfo.minDPI)} DPI. 
+              For optimal print quality, 300 DPI is recommended. 
+              Consider increasing the crop area size or using a higher resolution image.
+            </p>
+          </div>
+        )}
+        
         {/* View mode toggle controls */}
         <div 
           data-testid="view-mode-controls"

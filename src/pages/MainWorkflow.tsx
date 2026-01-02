@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from 'react'
 import { BackgroundSelector } from '../components/background/BackgroundSelector'
-import { SizeSelection, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/SizeSelection'
+import { CropEditor, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
 import { validateImageFile } from '../services/imageValidation'
@@ -216,7 +216,7 @@ export function MainWorkflow() {
 
   const handleSizeChange = (size: SizeOption) => {
     setSelectedSize(size)
-    // Crop area will be adjusted automatically by SizeSelection component
+    // Crop area will be adjusted automatically by CropEditor component
   }
 
   const handleCropAreaChange = useCallback((newCropArea: CropArea) => {
@@ -378,7 +378,7 @@ export function MainWorkflow() {
                 <div data-testid="processed-image-with-crop" className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
                   <h3 className="text-base font-semibold mb-3 text-gray-800">Preview & Adjust</h3>
                   <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
-                    <SizeSelection
+                    <CropEditor
                       processedImageUrl={imageData.processedUrl}
                       faceBox={detectedFace}
                       error={faceDetectionError}

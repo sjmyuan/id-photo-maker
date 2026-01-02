@@ -338,6 +338,32 @@ Provides a reliable default experience while maintaining language choice flexibi
 
 ## Recent Changes
 
+### Refactor: CropEditor Component - DPI Warning & Rename (January 2, 2026)
+
+**Issue**: The SizeSelection component name didn't accurately reflect its primary purpose (crop editing), and there was no validation to warn users when the crop area couldn't achieve 300 DPI for print quality.
+
+**Solution**: 
+1. Added DPI calculation and warning system to alert users when crop area is insufficient for 300 DPI
+2. Renamed component from `SizeSelection` to `CropEditor` to better reflect its purpose
+
+**Changes**:
+- Created `dpiCalculation.ts` utility with `calculateDPI()` function that computes DPI from pixel dimensions and physical millimeters
+- Added `physicalWidth` and `physicalHeight` properties to `SizeOption` interface (25mm, 35mm, etc.)
+- Integrated DPI calculation into component using `useMemo` based on crop area and selected size
+- Added informational (non-blocking) warning display when DPI < 300, showing actual calculated DPI
+- Warning styled with yellow colors to indicate informational status (not error)
+- Renamed component files: `SizeSelection.tsx` → `CropEditor.tsx`, `SizeSelection.test.tsx` → `CropEditor.test.tsx`
+- Updated all imports in `MainWorkflow.tsx` and other files
+- Updated component props interface: `SizeSelectionProps` → `CropEditorProps`
+- Updated CSS class name: `size-selection` → `crop-editor`
+- Added comprehensive tests for DPI calculation (8 test cases) and warning display (5 test cases)
+
+**Impact**: 
+- Users receive clear guidance when their crop area won't meet 300 DPI print standards
+- Component name now accurately reflects its primary function (crop editing with size guidance)
+- Improved code clarity and maintainability with better naming
+- All 181 tests passing, no regressions
+
 ### Refactor: SizeSelection Component - Compact Mode (January 2, 2026)
 
 **Issue**: The processed image view in MainWorkflow displayed duplicate UI elements - size selection buttons and instructions were shown both in the processed image area and in the lower controls area.
