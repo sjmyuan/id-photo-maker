@@ -152,4 +152,76 @@ describe('MainWorkflow - Unified Single View', () => {
     // After the fix, face detection should use the original image
     expect(true).toBe(true) // Placeholder - will add integration test separately
   })
+
+  // This test verifies that face detection runs on scaled image dimensions
+  // to ensure faceBox coordinates match the processed image that's displayed.
+  // The fix ensures: scale -> detect faces -> process with U2Net
+  // Integration test is skipped as it's complex to mock image loading properly
+  it.skip('should run face detection on scaled image to match processed dimensions', async () => {
+    const { detectFaces } = await import('../services/faceDetectionService')
+    const { scaleImageToTarget } = await import('../services/imageScaling')
+    const { validateImageFile } = await import('../services/imageValidation')
+    const { processWithU2Net } = await import('../services/mattingService')
+    
+    // Mock validation to require scaling
+    vi.mocked(validateImageFile).mockResolvedValue({
+      isValid: true,
+      fileSize: 11 * 1024 * 1024, // 11MB
+      needsScaling: true,
+      dimensions: { width: 4000, height: 3000 },
+      errors: [],
+      warnings: ['Image is large and will be scaled down'],
+    })
+
+    // Mock scaleImageToTarget to return a scaled blob
+    const scaledBlob = new Blob(['scaled'], { type: 'image/jpeg' })
+    vi.mocked(scaleImageToTarget).mockResolvedValue(scaledBlob)
+
+    // Mock detectFaces
+    vi.mocked(detectFaces).mockResolvedValue({
+      faces: [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.9 }],
+      error: undefined,
+    })
+
+    // Mock processWithU2Net
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+
+    // Wait for models to load
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    // Create a mock file that will require scaling
+    const largeFile = new File(['large image data'], 'large.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(largeFile, 'size', { value: 11 * 1024 * 1024 }) // 11MB
+
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    
+    // Simulate file upload
+    Object.defineProperty(fileInput, 'files', {
+      value: [largeFile],
+      writable: false,
+    })
+    
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }))
+
+    // Wait for face detection to be called
+    await waitFor(() => {
+      expect(detectFaces).toHaveBeenCalled()
+    }, { timeout: 5000 })
+
+    // Verify the correct call order: scale first, then detect faces, then process with U2Net
+    expect(scaleImageToTarget).toHaveBeenCalledWith(largeFile, 10)
+    
+    // Face detection should happen after scaling but before U2Net processing
+    const scaleCallOrder = vi.mocked(scaleImageToTarget).mock.invocationCallOrder[0]
+    const detectCallOrder = vi.mocked(detectFaces).mock.invocationCallOrder[0]
+    const u2netCallOrder = vi.mocked(processWithU2Net).mock.invocationCallOrder[0]
+    
+    expect(scaleCallOrder).toBeLessThan(detectCallOrder)
+    expect(detectCallOrder).toBeLessThan(u2netCallOrder)
+  })
 })

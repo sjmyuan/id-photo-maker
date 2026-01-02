@@ -1688,6 +1688,12 @@ interface ImageData {
 - Added `compact` prop to conditionally hide size selection UI in processed image view
 - Implemented `useEffect` to watch `selectedSize.aspectRatio` and auto-adjust crop area on external size changes
 - Maintains crop center position during size transitions for better UX
+- **CRITICAL BUG FIX**: Fixed image dimension mismatch issue where face detection ran on original image instead of scaled image
+  - Face detection now runs on scaled image (after scaling, before U2Net processing)
+  - Ensures faceBox coordinates match the processed image dimensions displayed in SizeSelection
+  - Fixes crop box alignment when images are automatically scaled (>10MB files)
+  - Processing order: Validate → Scale → **Detect Face** → U2Net Matting → Apply Background
+  - Size changes now only adjust crop box without reprocessing (no redundant U2Net/TensorFlow calls)
 
 **Next Steps**:
 - Implement print layout system (Epic 3)

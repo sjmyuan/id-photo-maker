@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { loadU2NetModel, processImageWithU2Net } from './u2netService'
+import { loadU2NetModel, processImageWithU2Net, type U2NetModel } from './u2netService'
 import * as ort from 'onnxruntime-web'
 
 // Mock onnxruntime-web
@@ -61,8 +61,8 @@ describe('u2netService', () => {
         inputNames: ['input'],
         outputNames: ['output'],
       }
-      const mockModel = {
-        session: mockSession,
+      const mockModel: U2NetModel = {
+        session: mockSession as unknown as U2NetModel['session'],
         status: 'loaded' as const,
       }
       const mockImage = new Image()

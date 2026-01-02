@@ -98,7 +98,33 @@ export function MainWorkflow() {
           fileToProcess = new File([scaledBlob], file.name, { type: file.type })
         }
 
-        // 3. Process matting
+        // 3. Detect face on the scaled image (before U2Net processing)
+        // This ensures faceBox coordinates match the processed image dimensions
+        if (faceDetectionModel) {
+          const img = new Image()
+          const imgUrl = URL.createObjectURL(fileToProcess)
+          img.src = imgUrl
+          
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+          
+          const result = await detectFaces(faceDetectionModel, img)
+          
+          if (result.error) {
+            setFaceDetectionError(result.error)
+            setDetectedFace(result.faces[0] || null)
+          } else if (result.faces.length === 1) {
+            setDetectedFace(result.faces[0])
+            setFaceDetectionError(undefined)
+          }
+          
+          // Clean up temporary URL
+          URL.revokeObjectURL(imgUrl)
+        }
+
+        // 4. Process matting
         if (!u2netModel) {
           setErrors(['AI model not loaded yet. Please wait and try again.'])
           setIsProcessing(false)
@@ -149,27 +175,6 @@ export function MainWorkflow() {
           processedUrl,
         })
 
-        // 4. Detect face
-        if (faceDetectionModel) {
-          const img = new Image()
-          img.src = originalUrl
-          
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-          })
-          
-          const result = await detectFaces(faceDetectionModel, img)
-          
-          if (result.error) {
-            setFaceDetectionError(result.error)
-            setDetectedFace(result.faces[0] || null)
-          } else if (result.faces.length === 1) {
-            setDetectedFace(result.faces[0])
-            setFaceDetectionError(undefined)
-          }
-        }
-
         stop()
         setIsProcessing(false)
       } catch (error) {
@@ -178,7 +183,7 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [start, stop, u2netModel, faceDetectionModel]
+    [start, stop, u2netModel, faceDetectionModel, backgroundColor]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {

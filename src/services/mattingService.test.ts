@@ -388,7 +388,7 @@ describe('mattingService', () => {
             if (this.onload) this.onload()
           }, 0)
         }
-      } as any
+      } as unknown as typeof Image
       
       // Create a mock U2Net model
       const mockModel: U2NetModel = {
@@ -401,7 +401,7 @@ describe('mattingService', () => {
               dims: [1, 1, 320, 320]
             }
           })
-        } as any,
+        } as unknown as U2NetModel['session'],
         status: 'loaded'
       }
 
@@ -423,7 +423,7 @@ describe('mattingService', () => {
     it('should reject invalid file', async () => {
       const file = new File([], 'empty.jpg', { type: 'image/jpeg' })
       const mockModel: U2NetModel = {
-        session: {} as any,
+        session: {} as unknown as U2NetModel['session'],
         status: 'loaded'
       }
 
