@@ -20,6 +20,7 @@ export interface FaceBox {
 
 export interface FaceDetectionResult {
   faces: FaceBox[]
+  faceCrops?: HTMLCanvasElement[]
   error?: 'no-face-detected' | 'multiple-faces-detected'
 }
 
@@ -206,10 +207,13 @@ function predict(
   boxDims: number[],
   probThreshold: number,
   iouThreshold: number = 0.5,
-  topK: number = -1
+  topK: number = 1
 ): { boxes: number[][]; labels: number[]; probs: number[] } {
   const numDetections = confDims[2]
   const numClasses = confDims[1]
+
+  console.log('numDetection', numDetections)
+  console.log('numClasses', numClasses)
   
   const pickedBoxProbs: number[][] = []
   const pickedLabels: number[] = []
@@ -248,7 +252,7 @@ function predict(
     
     // Apply NMS
     const nmsResults = hardNMS(boxProbs, iouThreshold, topK)
-    
+
     pickedBoxProbs.push(...nmsResults)
     pickedLabels.push(...Array(nmsResults.length).fill(classIndex))
   }
@@ -256,6 +260,8 @@ function predict(
   if (pickedBoxProbs.length === 0) {
     return { boxes: [], labels: [], probs: [] }
   }
+
+  console.log('original width:', width, 'height:', height)
   
   // Scale boxes to original image dimensions
   const scaledBoxes = pickedBoxProbs.map(bp => [
@@ -285,20 +291,20 @@ export async function detectFaces(
   try {
     // Preprocess image
     const { tensor } = preprocessImage(image)
-    
+
     // Run inference
     const inputName = model.session.inputNames[0]
     const results = await model.session.run({ [inputName]: tensor })
-    
+
     // Get output tensors (scores and boxes)
     const scoresOutput = results[model.session.outputNames[0]]
     const boxesOutput = results[model.session.outputNames[1]]
-    
+
     const scores = scoresOutput.data as Float32Array
     const boxes = boxesOutput.data as Float32Array
     const scoresDims = scoresOutput.dims as number[]
     const boxesDims = boxesOutput.dims as number[]
-    
+
     // Predict faces
     const { boxes: detectedBoxes, labels, probs } = predict(
       image.width,
@@ -309,16 +315,25 @@ export async function detectFaces(
       boxesDims,
       threshold
     )
-    
-    // Convert to FaceBox format
-    const faces: FaceBox[] = detectedBoxes.map((box, i) => ({
-      x: Math.round(box[0]),
-      y: Math.round(box[1]),
-      width: Math.round(box[2] - box[0]),
-      height: Math.round(box[3] - box[1]),
+
+    // Scale boxes to square and crop faces
+    const scaledBoxes = detectedBoxes.map(box => scaleBox([
+      Math.round(box[0]),
+      Math.round(box[1]),
+      Math.round(box[2]),
+      Math.round(box[3])
+    ]));
+    const faceCrops = scaledBoxes.map(box => cropImage(image, box));
+
+    // Convert to FaceBox format (using scaled boxes)
+    const faces: FaceBox[] = scaledBoxes.map((box, i) => ({
+      x: box[0],
+      y: box[1],
+      width: box[2] - box[0],
+      height: box[3] - box[1],
       confidence: probs[i],
-    }))
-    
+    }));
+
     // Check for errors
     let error: FaceDetectionResult['error']
     if (faces.length === 0) {
@@ -327,11 +342,47 @@ export async function detectFaces(
       error = 'multiple-faces-detected'
     }
 
-    console.log('Detected faces:', faces, 'Error:', error)
-    
-    return { faces, error }
+    return { faces, faceCrops, error }
   } catch (error) {
     console.error('Face detection failed:', error)
     throw new Error(`Face detection failed: ${error}`)
   }
+}
+
+/**
+ * Scale a bounding box to a square by expanding the shorter side
+ * @param box [x1, y1, x2, y2]
+ * @returns [x1, y1, x2, y2] scaled to square
+ */
+export function scaleBox(box: [number, number, number, number]): [number, number, number, number] {
+  const width = box[2] - box[0];
+  const height = box[3] - box[1];
+  const maximum = Math.max(width, height);
+  const dx = Math.floor((maximum - width) / 2);
+  const dy = Math.floor((maximum - height) / 2);
+  return [
+    box[0] - dx,
+    box[1] - dy,
+    box[2] + dx,
+    box[3] + dy,
+  ];
+}
+
+/**
+ * Crop an image to the given box
+ * @param image HTMLImageElement
+ * @param box [x1, y1, x2, y2]
+ * @returns HTMLCanvasElement containing the cropped region
+ */
+export function cropImage(image: HTMLImageElement, box: [number, number, number, number]): HTMLCanvasElement {
+  const [x1, y1, x2, y2] = box;
+  const width = x2 - x1;
+  const height = y2 - y1;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get canvas context');
+  ctx.drawImage(image, x1, y1, width, height, 0, 0, width, height);
+  return canvas;
 }

@@ -152,7 +152,7 @@ export function MainWorkflow() {
         // 4. Detect face
         if (faceDetectionModel) {
           const img = new Image()
-          img.src = processedUrl
+          img.src = originalUrl
           
           await new Promise((resolve, reject) => {
             img.onload = resolve
