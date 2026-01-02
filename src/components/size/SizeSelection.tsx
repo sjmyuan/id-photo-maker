@@ -403,6 +403,7 @@ export function SizeSelection({
 /**
  * Calculate initial crop area based on detected face
  * Expands to include head and shoulders for professional ID photo framing
+ * Always centers on face center, shrinks proportionally if exceeding bounds
  */
 function calculateInitialCropArea(
   faceBox: FaceBox,
@@ -417,6 +418,14 @@ function calculateInitialCropArea(
   
   const faceWidth = faceBox.width
   const faceHeight = faceBox.height
+  
+  // Calculate face center - this is our anchor point
+  const faceCenterX = faceBox.x + faceBox.width / 2
+  const faceCenterY = faceBox.y + faceBox.height / 2
+  
+  // Clamp face center to image bounds (in case face is partially outside)
+  const clampedCenterX = Math.max(0, Math.min(faceCenterX, imageWidth))
+  const clampedCenterY = Math.max(0, Math.min(faceCenterY, imageHeight))
   
   // Calculate expanded dimensions
   const horizontalExpansion = faceWidth * 0.8
@@ -441,26 +450,45 @@ function calculateInitialCropArea(
     cropWidth = cropHeight * aspectRatio
   }
   
-  // Ensure minimum size and don't exceed image bounds
-  const minSize = 100
-  cropWidth = Math.max(minSize, Math.min(cropWidth, imageWidth))
-  cropHeight = Math.max(minSize / aspectRatio, Math.min(cropHeight, imageHeight))
+  // Calculate initial position centered on face
+  let cropX = clampedCenterX - cropWidth / 2
+  let cropY = clampedCenterY - cropHeight / 2
   
-  // Position the face in the upper third of the crop area (typical ID photo composition)
-  // Face should be centered horizontally
-  const faceCenterX = faceBox.x + faceBox.width / 2
-  const faceCenterY = faceBox.y + faceBox.height / 2
+  // Check if crop area exceeds image bounds
+  // If it does, shrink proportionally while maintaining center and aspect ratio
+  const exceedsLeft = cropX < 0
+  const exceedsRight = cropX + cropWidth > imageWidth
+  const exceedsTop = cropY < 0
+  const exceedsBottom = cropY + cropHeight > imageHeight
   
-  // Center horizontally
-  let cropX = faceCenterX - cropWidth / 2
-  
-  // Position face in upper third vertically
-  // The face center should be at approximately 1/3 from the top
-  let cropY = faceCenterY - (cropHeight / 3)
-  
-  // Constrain to image bounds
-  cropX = Math.max(0, Math.min(cropX, imageWidth - cropWidth))
-  cropY = Math.max(0, Math.min(cropY, imageHeight - cropHeight))
+  if (exceedsLeft || exceedsRight || exceedsTop || exceedsBottom) {
+    // Calculate maximum dimensions that fit within image bounds while centered on face
+    const maxWidthFromLeft = clampedCenterX * 2
+    const maxWidthFromRight = (imageWidth - clampedCenterX) * 2
+    const maxWidthFromCenter = Math.min(maxWidthFromLeft, maxWidthFromRight)
+    
+    const maxHeightFromTop = clampedCenterY * 2
+    const maxHeightFromBottom = (imageHeight - clampedCenterY) * 2
+    const maxHeightFromCenter = Math.min(maxHeightFromTop, maxHeightFromBottom)
+    
+    // Choose the dimension that fits while maintaining aspect ratio
+    if (maxWidthFromCenter / aspectRatio <= maxHeightFromCenter) {
+      // Width is the limiting factor
+      cropWidth = maxWidthFromCenter
+      cropHeight = maxWidthFromCenter / aspectRatio
+    } else {
+      // Height is the limiting factor
+      cropHeight = maxHeightFromCenter
+      cropWidth = maxHeightFromCenter * aspectRatio
+    }
+    
+    // Recalculate position to maintain center
+    cropX = clampedCenterX - cropWidth / 2
+    cropY = clampedCenterY - cropHeight / 2
+  }
+
+  console.log('Face box:', faceBox)
+  console.log('Calculated initial crop area:', { x: cropX, y: cropY, width: cropWidth, height: cropHeight })
   
   return { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
 }

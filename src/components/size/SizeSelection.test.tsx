@@ -126,16 +126,21 @@ describe('SizeSelection', () => {
       expect(onCropAreaChange).toHaveBeenCalled()
       const cropArea = onCropAreaChange.mock.calls[0][0]
       
-      // Crop area should be significantly larger than face box to include head and shoulders
-      // We expect the crop to be at least 2x the face width
-      expect(cropArea.width).toBeGreaterThan(mockFaceBox.width * 2)
-      // Height will be constrained by aspect ratio, but should be larger than face box
-      expect(cropArea.height).toBeGreaterThan(mockFaceBox.height * 2)
+      // Crop area should expand beyond the face box
+      // With expansion factors (80% horizontal, 150% above, 100% below),
+      // the expanded width should be: 200 * (1 + 2*0.8) = 520
+      // However, it will be shrunk if it exceeds image bounds
+      expect(cropArea.width).toBeGreaterThan(mockFaceBox.width)
+      expect(cropArea.height).toBeGreaterThan(mockFaceBox.height)
       
-      // Face should be positioned in the upper portion of the crop (not centered)
+      // Face should be centered in the crop area (new behavior)
+      const faceCenterX = mockFaceBox.x + mockFaceBox.width / 2
       const faceCenterY = mockFaceBox.y + mockFaceBox.height / 2
+      const cropCenterX = cropArea.x + cropArea.width / 2
       const cropCenterY = cropArea.y + cropArea.height / 2
-      expect(faceCenterY).toBeLessThan(cropCenterY)
+      
+      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
+      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
     })
   })
 
@@ -546,6 +551,147 @@ describe('SizeSelection', () => {
           expect(newCenterY).toBeCloseTo(initialCenterY, 0)
         }
       })
+    })
+  })
+
+  describe('calculateInitialCropArea refactor tests', () => {
+    it('should center cropArea on faceBox center', async () => {
+      const onCropAreaChange = vi.fn()
+      
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={onCropAreaChange}
+        />
+      )
+
+      await waitFor(() => {
+        expect(onCropAreaChange).toHaveBeenCalled()
+      })
+
+      const cropArea = onCropAreaChange.mock.calls[0][0]
+      const cropCenterX = cropArea.x + cropArea.width / 2
+      const cropCenterY = cropArea.y + cropArea.height / 2
+      const faceCenterX = mockFaceBox.x + mockFaceBox.width / 2
+      const faceCenterY = mockFaceBox.y + mockFaceBox.height / 2
+
+      // Crop area center should match face center
+      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
+      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
+    })
+
+    it('should not enforce minimum size limitation', async () => {
+      // Create a very small face box
+      const smallFaceBox: FaceBox = {
+        x: 400,
+        y: 300,
+        width: 20,
+        height: 25,
+      }
+
+      const onCropAreaChange = vi.fn()
+      
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={smallFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={onCropAreaChange}
+        />
+      )
+
+      await waitFor(() => {
+        expect(onCropAreaChange).toHaveBeenCalled()
+      })
+
+      const cropArea = onCropAreaChange.mock.calls[0][0]
+      
+      // With expansion factors, the crop should still be relatively small
+      // Old implementation would force minimum of 100px width
+      // New implementation should allow smaller sizes based on actual face size
+      // Expected: width ~= 20 * (1 + 2*0.8) = ~52px
+      // Expected: height ~= 25 * (1 + 1.5 + 1.0) = ~87.5px
+      
+      // Verify it's not forced to 100px minimum
+      expect(cropArea.width).toBeLessThan(100)
+    })
+
+    it('should shrink cropArea when exceeding image bounds while maintaining center', async () => {
+      // Create a face box near the edge where expansion would exceed bounds
+      const edgeFaceBox: FaceBox = {
+        x: 700, // Near right edge (image width is 800)
+        y: 50,  // Near top edge
+        width: 80,
+        height: 100,
+      }
+
+      const onCropAreaChange = vi.fn()
+      
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={edgeFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={onCropAreaChange}
+        />
+      )
+
+      await waitFor(() => {
+        expect(onCropAreaChange).toHaveBeenCalled()
+      })
+
+      const cropArea = onCropAreaChange.mock.calls[0][0]
+      const cropCenterX = cropArea.x + cropArea.width / 2
+      const cropCenterY = cropArea.y + cropArea.height / 2
+      const faceCenterX = edgeFaceBox.x + edgeFaceBox.width / 2
+      const faceCenterY = edgeFaceBox.y + edgeFaceBox.height / 2
+
+      // Verify crop area is within image bounds
+      expect(cropArea.x).toBeGreaterThanOrEqual(0)
+      expect(cropArea.y).toBeGreaterThanOrEqual(0)
+      expect(cropArea.x + cropArea.width).toBeLessThanOrEqual(800)
+      expect(cropArea.y + cropArea.height).toBeLessThanOrEqual(600)
+
+      // Most importantly: center should still match face center
+      expect(cropCenterX).toBeCloseTo(faceCenterX, 1)
+      expect(cropCenterY).toBeCloseTo(faceCenterY, 1)
+    })
+
+    it('should maintain aspect ratio after shrinking', async () => {
+      // Face near bottom-right corner, but fully within image
+      const edgeFaceBox: FaceBox = {
+        x: 700,
+        y: 500,
+        width: 80,
+        height: 90,
+      }
+
+      const onCropAreaChange = vi.fn()
+      
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={edgeFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={onCropAreaChange}
+        />
+      )
+
+      await waitFor(() => {
+        expect(onCropAreaChange).toHaveBeenCalled()
+      })
+
+      const cropArea = onCropAreaChange.mock.calls[0][0]
+      const resultAspectRatio = cropArea.width / cropArea.height
+
+      // Should maintain the target aspect ratio even after shrinking
+      expect(resultAspectRatio).toBeCloseTo(mockSelectedSize.aspectRatio, 2)
+      
+      // Verify positive dimensions
+      expect(cropArea.width).toBeGreaterThan(0)
+      expect(cropArea.height).toBeGreaterThan(0)
     })
   })
 })
