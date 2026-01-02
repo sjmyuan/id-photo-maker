@@ -350,9 +350,37 @@ export function SizeSelection({
           src={processedImageUrl}
           alt="Processed"
           data-testid="processed-image"
-          className="max-w-full max-h-full object-contain"
+          className="max-w-full max-h-[70vh] object-contain"
           style={{ display: 'block' }}
         />
+        
+        {/* Dark overlay outside crop area */}
+        {imageRef.current && (
+          <div
+            data-testid="crop-overlay"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `
+                linear-gradient(to right,
+                  rgba(0,0,0,0.5) 0%,
+                  rgba(0,0,0,0.5) ${(cropArea.x / imageSize.width) * 100}%,
+                  transparent ${(cropArea.x / imageSize.width) * 100}%,
+                  transparent ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
+                  rgba(0,0,0,0.5) ${((cropArea.x + cropArea.width) / imageSize.width) * 100}%,
+                  rgba(0,0,0,0.5) 100%
+                ),
+                linear-gradient(to bottom,
+                  rgba(0,0,0,0.5) 0%,
+                  rgba(0,0,0,0.5) ${(cropArea.y / imageSize.height) * 100}%,
+                  transparent ${(cropArea.y / imageSize.height) * 100}%,
+                  transparent ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
+                  rgba(0,0,0,0.5) ${((cropArea.y + cropArea.height) / imageSize.height) * 100}%,
+                  rgba(0,0,0,0.5) 100%
+                )
+              `,
+            }}
+          />
+        )}
         
         {/* Crop rectangle overlay */}
         {imageRef.current && (

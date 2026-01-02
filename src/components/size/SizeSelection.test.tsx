@@ -54,7 +54,7 @@ describe('SizeSelection', () => {
       expect(screen.getByTestId('processed-image')).toBeInTheDocument()
     })
 
-    it('should render processed image with consistent styling matching original image', () => {
+    it('should render processed image with maximum height constraint', () => {
       render(
         <SizeSelection
           processedImageUrl={mockProcessedImageUrl}
@@ -66,13 +66,35 @@ describe('SizeSelection', () => {
 
       const processedImage = screen.getByTestId('processed-image')
       
-      // Should use the same styling as original image in MainWorkflow
+      // Should have maximum height styling to avoid scrolling
+      expect(processedImage).toHaveClass('max-h-[70vh]')
       expect(processedImage).toHaveClass('max-w-full')
-      expect(processedImage).toHaveClass('max-h-full')
       expect(processedImage).toHaveClass('object-contain')
+    })
+
+    it('should render dark overlay outside crop area', () => {
+      render(
+        <SizeSelection
+          processedImageUrl={mockProcessedImageUrl}
+          faceBox={mockFaceBox}
+          selectedSize={mockSelectedSize}
+          onCropAreaChange={vi.fn()}
+        />
+      )
+
+      const overlay = screen.getByTestId('crop-overlay')
+      expect(overlay).toBeInTheDocument()
       
-      // Should NOT have inline maxHeight style
-      expect(processedImage).not.toHaveStyle({ maxHeight: '600px' })
+      // Overlay should be absolutely positioned and cover entire image
+      expect(overlay).toHaveClass('absolute')
+      expect(overlay).toHaveClass('inset-0')
+      expect(overlay).toHaveClass('pointer-events-none')
+      
+      // Overlay should have inline background style with gradients creating dark areas
+      const backgroundStyle = overlay.style.background
+      expect(backgroundStyle).toContain('linear-gradient')
+      expect(backgroundStyle).toContain('rgba(0, 0, 0, 0.5)') // Note: CSS normalizes with spaces
+      expect(backgroundStyle).toContain('transparent')
     })
 
     it('should render crop rectangle with transparent background and only border visible', () => {
