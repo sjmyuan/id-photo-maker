@@ -702,6 +702,9 @@ interface FaceDetectionService {
     width: number;
     height: number;
   };
+  
+  // Image sharpening for enhanced edge detection
+  sharpenImage(imageData: ImageData): ImageData;
 }
 
 interface FaceDetectionModel {
@@ -1694,6 +1697,11 @@ interface ImageData {
   - Fixes crop box alignment when images are automatically scaled (>10MB files)
   - Processing order: Validate → Scale → **Detect Face** → U2Net Matting → Apply Background
   - Size changes now only adjust crop box without reprocessing (no redundant U2Net/TensorFlow calls)
+- **NEW (January 2, 2026)**: Added image sharpening preprocessing for U2Net
+  - Applies convolution-based sharpening filter before U2Net processing
+  - Enhances edge detection for better background removal quality
+  - Moderate kernel intensity (5/-1 pattern) to avoid artifacts
+  - Sharpening applied after resizing to 320x320, before tensor normalization
 
 **Next Steps**:
 - Implement print layout system (Epic 3)

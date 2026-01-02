@@ -36,6 +36,66 @@ export async function loadU2NetModel(modelUrl: string): Promise<U2NetModel> {
 }
 
 /**
+ * Sharpen image using convolution kernel
+ * Applies a sharpening filter to enhance edges before U2Net processing
+ * 
+ * @param imageData - ImageData to sharpen
+ * @returns Sharpened ImageData
+ */
+export function sharpenImage(imageData: ImageData): ImageData {
+  const width = imageData.width
+  const height = imageData.height
+  const src = imageData.data
+  const dst = new Uint8ClampedArray(src.length)
+  
+  // Sharpening kernel (subtle enhancement)
+  // Center weight = 3, neighbors = -0.5
+  // This provides a gentle edge enhancement
+  const kernel = [
+    0,   -0.5,  0,
+   -0.5, 3,   -0.5,
+    0,   -0.5,  0
+  ]
+  
+  // Apply convolution
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+      
+      // For each color channel (R, G, B)
+      for (let c = 0; c < 3; c++) {
+        let sum = 0
+        
+        // Apply kernel
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const px = x + kx
+            const py = y + ky
+            
+            // Handle edge cases by clamping to image bounds
+            const clampedX = Math.max(0, Math.min(width - 1, px))
+            const clampedY = Math.max(0, Math.min(height - 1, py))
+            
+            const srcIdx = (clampedY * width + clampedX) * 4 + c
+            const kernelIdx = (ky + 1) * 3 + (kx + 1)
+            
+            sum += src[srcIdx] * kernel[kernelIdx]
+          }
+        }
+        
+        // Clamp result to [0, 255]
+        dst[idx + c] = Math.max(0, Math.min(255, sum))
+      }
+      
+      // Preserve alpha channel
+      dst[idx + 3] = src[idx + 3]
+    }
+  }
+  
+  return new ImageData(dst, width, height)
+}
+
+/**
  * Preprocess image for U2Net model
  * Normalizes using ImageNet mean and std values
  */
@@ -55,8 +115,14 @@ function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; origina
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(image, 0, 0, targetSize, targetSize)
   
-  // Get image data
-  const imageData = ctx.getImageData(0, 0, targetSize, targetSize)
+  // Get image data and apply sharpening
+  let imageData = ctx.getImageData(0, 0, targetSize, targetSize)
+  imageData = sharpenImage(imageData)
+  
+  // Put sharpened data back to canvas
+  ctx.putImageData(imageData, 0, 0)
+  
+  // Get the sharpened data for tensor conversion
   const { data } = imageData
   
   // ImageNet normalization values
