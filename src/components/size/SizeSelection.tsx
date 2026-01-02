@@ -137,7 +137,17 @@ export function SizeSelection({
     
     e.preventDefault()
     setIsDragging(true)
-    setDragStart({ x: e.clientX - cropArea.x, y: e.clientY - cropArea.y })
+    // Store the offset between pointer and crop area origin in image coordinates
+    if (imageRef.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const scaleX = imageSize.width / rect.width
+      const scaleY = imageSize.height / rect.height
+      const pointerX = (e.clientX - rect.left) * scaleX
+      const pointerY = (e.clientY - rect.top) * scaleY
+      setDragStart({ x: pointerX - cropArea.x, y: pointerY - cropArea.y })
+    } else {
+      setDragStart({ x: 0, y: 0 })
+    }
   }, [cropArea])
 
   // Touch start for mobile
@@ -149,7 +159,16 @@ export function SizeSelection({
     e.preventDefault()
     setIsDragging(true)
     const touch = e.touches[0]
-    setDragStart({ x: touch.clientX - cropArea.x, y: touch.clientY - cropArea.y })
+    if (imageRef.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const scaleX = imageSize.width / rect.width
+      const scaleY = imageSize.height / rect.height
+      const pointerX = (touch.clientX - rect.left) * scaleX
+      const pointerY = (touch.clientY - rect.top) * scaleY
+      setDragStart({ x: pointerX - cropArea.x, y: pointerY - cropArea.y })
+    } else {
+      setDragStart({ x: 0, y: 0 })
+    }
   }, [cropArea])
 
   // Mouse down on resize handle
@@ -243,13 +262,15 @@ export function SizeSelection({
       const scaleY = imageSize.height / rect.height
 
       if (isDragging) {
-        const newX = (e.clientX - rect.left - dragStart.x) * scaleX
-        const newY = (e.clientY - rect.top - dragStart.y) * scaleY
-        
+        // Calculate pointer position in image coordinates
+        const pointerX = (e.clientX - rect.left) * scaleX
+        const pointerY = (e.clientY - rect.top) * scaleY
+        // Subtract the offset to get the new crop origin
+        const newX = pointerX - dragStart.x
+        const newY = pointerY - dragStart.y
         // Constrain to image bounds
         const constrainedX = Math.max(0, Math.min(newX, imageSize.width - cropArea.width))
         const constrainedY = Math.max(0, Math.min(newY, imageSize.height - cropArea.height))
-        
         const newCrop = { ...cropArea, x: constrainedX, y: constrainedY }
         setCropArea(newCrop)
         onCropAreaChange(newCrop)
