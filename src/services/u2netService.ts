@@ -100,68 +100,78 @@ export function sharpenImage(imageData: ImageData): ImageData {
  * Normalizes using ImageNet mean and std values
  */
 function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; originalWidth: number; originalHeight: number } {
-  const targetSize = 320
-  const canvas = document.createElement('canvas')
-  canvas.width = targetSize
-  canvas.height = targetSize
-  
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Failed to get canvas context')
+  const targetSize = 320;
+
+  // Step 1: Draw original image to a canvas at its original size
+  const originalCanvas = document.createElement('canvas');
+  originalCanvas.width = image.width;
+  originalCanvas.height = image.height;
+  const originalCtx = originalCanvas.getContext('2d');
+  if (!originalCtx) {
+    throw new Error('Failed to get original canvas context');
   }
-  
-  // Draw image resized to 320x320 using high-quality interpolation
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(image, 0, 0, targetSize, targetSize)
-  
-  // Get image data and apply sharpening
-  let imageData = ctx.getImageData(0, 0, targetSize, targetSize)
-  imageData = sharpenImage(imageData)
-  
-  // Put sharpened data back to canvas
-  ctx.putImageData(imageData, 0, 0)
-  
-  // Get the sharpened data for tensor conversion
-  const { data } = imageData
-  
+  originalCtx.drawImage(image, 0, 0, image.width, image.height);
+
+  // Step 2: Apply sharpening to the original image
+  let sharpenedImageData = originalCtx.getImageData(0, 0, image.width, image.height);
+  sharpenedImageData = sharpenImage(sharpenedImageData);
+
+  // Step 3: Draw the sharpened image onto a 320x320 canvas
+  const resizedCanvas = document.createElement('canvas');
+  resizedCanvas.width = targetSize;
+  resizedCanvas.height = targetSize;
+  const resizedCtx = resizedCanvas.getContext('2d');
+  if (!resizedCtx) {
+    throw new Error('Failed to get resized canvas context');
+  }
+  // Put sharpened data back to original-sized canvas
+  originalCtx.putImageData(sharpenedImageData, 0, 0);
+  // Draw sharpened original onto 320x320 canvas with high-quality interpolation
+  resizedCtx.imageSmoothingEnabled = true;
+  resizedCtx.imageSmoothingQuality = 'high';
+  resizedCtx.drawImage(originalCanvas, 0, 0, image.width, image.height, 0, 0, targetSize, targetSize);
+
+  // Step 4: Get the resized, sharpened image data for tensor conversion
+  const imageData = resizedCtx.getImageData(0, 0, targetSize, targetSize);
+  const { data } = imageData;
+
   // ImageNet normalization values
-  const mean = [0.485, 0.456, 0.406]
-  const std = [0.229, 0.224, 0.225]
-  
+  const mean = [0.485, 0.456, 0.406];
+  const std = [0.229, 0.224, 0.225];
+
   // Find max value for initial normalization
-  let maxVal = 0
+  let maxVal = 0;
   for (let i = 0; i < data.length; i += 4) {
-    maxVal = Math.max(maxVal, data[i], data[i + 1], data[i + 2])
+    maxVal = Math.max(maxVal, data[i], data[i + 1], data[i + 2]);
   }
-  maxVal = Math.max(maxVal, 1e-6) // Avoid division by zero
-  
+  maxVal = Math.max(maxVal, 1e-6); // Avoid division by zero
+
   // Normalize: (pixel / maxVal - mean) / std for each channel
-  const normalized = new Float32Array(3 * targetSize * targetSize)
-  
+  const normalized = new Float32Array(3 * targetSize * targetSize);
+
   for (let i = 0; i < targetSize * targetSize; i++) {
-    const pixelIdx = i * 4
-    
+    const pixelIdx = i * 4;
+
     // Normalize to [0, 1] first
-    const r = data[pixelIdx] / maxVal
-    const g = data[pixelIdx + 1] / maxVal
-    const b = data[pixelIdx + 2] / maxVal
-    
+    const r = data[pixelIdx] / maxVal;
+    const g = data[pixelIdx + 1] / maxVal;
+    const b = data[pixelIdx + 2] / maxVal;
+
     // Apply mean and std normalization for each channel
     // Store in CHW format: [C, H, W]
-    normalized[i] = (r - mean[0]) / std[0]                           // R channel
-    normalized[targetSize * targetSize + i] = (g - mean[1]) / std[1]  // G channel
-    normalized[2 * targetSize * targetSize + i] = (b - mean[2]) / std[2]  // B channel
+    normalized[i] = (r - mean[0]) / std[0]; // R channel
+    normalized[targetSize * targetSize + i] = (g - mean[1]) / std[1]; // G channel
+    normalized[2 * targetSize * targetSize + i] = (b - mean[2]) / std[2]; // B channel
   }
-  
+
   // Create tensor with shape [1, 3, 320, 320]
-  const tensor = new ort.Tensor('float32', normalized, [1, 3, targetSize, targetSize])
-  
+  const tensor = new ort.Tensor('float32', normalized, [1, 3, targetSize, targetSize]);
+
   return {
     tensor,
     originalWidth: image.width,
     originalHeight: image.height,
-  }
+  };
 }
 
 /**
