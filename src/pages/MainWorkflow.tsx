@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
-import { CropEditor, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
+import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { PRESET_COLORS } from '../components/background/BackgroundSelector'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
@@ -9,12 +9,20 @@ import { processWithU2Net, applyBackgroundColor } from '../services/mattingServi
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { calculateDPI } from '../utils/dpiCalculation'
 
+interface CropArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface ImageData {
   originalFile: File
   originalUrl: string
   transparentBlob: Blob // Transparent matted image
   transparentCanvas: HTMLCanvasElement // Canvas with transparent background
   processedUrl: string // URL with applied background color
+  croppedPreviewUrl: string // URL of the final cropped preview image
 }
 
 /**
@@ -108,9 +116,6 @@ function calculateInitialCropArea(
 }
 
 export function MainWorkflow() {
-  // Step state: 1 = upload, 2 = edit
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
-  
   // Default values: 1-inch size, 300 DPI, Blue background
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
   const [requiredDPI, setRequiredDPI] = useState<300 | null>(300) // 300 DPI or null for "None"
@@ -119,7 +124,8 @@ export function MainWorkflow() {
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
   const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
-  const [cropArea, setCropArea] = useState<CropArea | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [cropArea, setCropArea] = useState<CropArea | null>(null) // Used during processing, not exposed in UI
   const [isProcessing, setIsProcessing] = useState(false)
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
@@ -329,9 +335,37 @@ export function MainWorkflow() {
           }, 'image/png')
         })
 
+        // Create cropped preview canvas
+        const croppedCanvas = document.createElement('canvas')
+        if (initialCropArea) {
+          croppedCanvas.width = initialCropArea.width
+          croppedCanvas.height = initialCropArea.height
+          const croppedCtx = croppedCanvas.getContext('2d')
+          if (!croppedCtx) throw new Error('Failed to get canvas context')
+          
+          // Apply background color to cropped canvas
+          croppedCtx.fillStyle = backgroundColor
+          croppedCtx.fillRect(0, 0, croppedCanvas.width, croppedCanvas.height)
+          
+          // Draw the transparent image on top, cropped to the selected area
+          croppedCtx.drawImage(
+            transparentCanvas,
+            initialCropArea.x, initialCropArea.y, initialCropArea.width, initialCropArea.height, // Source rectangle
+            0, 0, initialCropArea.width, initialCropArea.height // Destination rectangle
+          )
+        }
+
+        const croppedBlob = await new Promise<Blob>((resolve, reject) => {
+          croppedCanvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create cropped blob'))
+          }, 'image/png')
+        })
+
         // Create URLs for display
         const originalUrl = URL.createObjectURL(file)
         const processedUrl = URL.createObjectURL(coloredBlob)
+        const croppedPreviewUrl = URL.createObjectURL(croppedBlob)
         
         // Clean up temporary URL
         URL.revokeObjectURL(transparentUrl)
@@ -342,13 +376,11 @@ export function MainWorkflow() {
           transparentBlob: mattedBlob,
           transparentCanvas,
           processedUrl,
+          croppedPreviewUrl,
         })
 
         stop()
         setIsProcessing(false)
-        
-        // Automatically advance to step 2 after successful processing
-        setCurrentStep(2)
       } catch (error) {
         setErrors([error instanceof Error ? error.message : 'Processing failed'])
         stop()
@@ -388,13 +420,20 @@ export function MainWorkflow() {
     setRequiredDPI(dpi)
   }
 
-  const handleCropAreaChange = useCallback((newCropArea: CropArea) => {
-    setCropArea(newCropArea)
-  }, [])
+  const handleDownload = () => {
+    if (!imageData || !imageData.croppedPreviewUrl) return
+    
+    // Create download link directly from the cropped preview URL
+    const link = document.createElement('a')
+    link.href = imageData.croppedPreviewUrl
+    link.download = `id-photo-${selectedSize.id}-${Date.now()}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
-  const handleGoBack = () => {
-    // Reset to step 1 and clear image data
-    setCurrentStep(1)
+  const handleReupload = () => {
+    // Clear all state and return to upload view
     setImageData(null)
     setCropArea(null)
     setWarnings([])
@@ -408,48 +447,6 @@ export function MainWorkflow() {
     setUploadedImageUrl(null)
   }
 
-  const handleDownload = () => {
-    if (!imageData || !cropArea) return
-    
-    // Create a canvas for the cropped image
-    const canvas = document.createElement('canvas')
-    
-    // Set canvas size to match the crop area
-    canvas.width = cropArea.width
-    canvas.height = cropArea.height
-    
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    
-    // Apply background color
-    ctx.fillStyle = backgroundColor
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // Draw the transparent image on top, cropped to the selected area
-    ctx.drawImage(
-      imageData.transparentCanvas,
-      cropArea.x, cropArea.y, cropArea.width, cropArea.height, // Source rectangle
-      0, 0, cropArea.width, cropArea.height // Destination rectangle
-    )
-    
-    // Convert to blob and download
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      
-      // Create download link
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `id-photo-${selectedSize.id}-${Date.now()}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-      // Clean up
-      setTimeout(() => URL.revokeObjectURL(url), 100)
-    }, 'image/png')
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white shadow-sm flex-shrink-0">
@@ -459,149 +456,157 @@ export function MainWorkflow() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-4 px-4 flex-1 w-full flex flex-col">{/* Step 1: Upload */}
-        {currentStep === 1 && (
-          <div data-testid="upload-step" className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg shadow p-8">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">Upload Your Photo</h2>
-              
-              {isLoadingU2Net && (
-                <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
-                  Loading AI model...
-                </div>
-              )}
-              
-              {warnings.length > 0 && (
-                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
-                  {warnings.map((warning, i) => <div key={i}>{warning}</div>)}
-                </div>
-              )}
-              
-              {errors.length > 0 && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
-                  {errors.map((error, i) => <div key={i}>{error}</div>)}
-                </div>
-              )}
-              
-              {/* Compact Grid Selector for Size, DPI, and Color */}
-              <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {/* Size Selector */}
-                <div data-testid="size-selector-step1">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
-                  <div className="space-y-1.5">
-                    {SIZE_OPTIONS.map((size) => (
-                      <button
-                        key={size.id}
-                        onClick={() => handleSizeChange(size)}
-                        className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                          selectedSize.id === size.id
-                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                        }`}
-                      >
-                        <div className="font-semibold text-xs">{size.label}</div>
-                        <div className="text-[10px] text-gray-600">{size.dimensions}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* DPI Selector */}
-                <div data-testid="dpi-selector-step1">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-800">DPI</h3>
-                  <div className="space-y-1.5">
+      <main className="max-w-7xl mx-auto py-4 px-4 flex-1 w-full flex flex-col" data-testid="main-workflow-container">
+        {/* Single Page Workflow */}
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Upload Your Photo</h2>
+            
+            {isLoadingU2Net && (
+              <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
+                Loading AI model...
+              </div>
+            )}
+            
+            {warnings.length > 0 && (
+              <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
+                {warnings.map((warning, i) => <div key={i}>{warning}</div>)}
+              </div>
+            )}
+            
+            {errors.length > 0 && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
+                {errors.map((error, i) => <div key={i}>{error}</div>)}
+              </div>
+            )}
+            
+            {/* Compact Grid Selector for Size, DPI, and Color */}
+            <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Size Selector */}
+              <div data-testid="size-selector-step1">
+                <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
+                <div className="space-y-1.5">
+                  {SIZE_OPTIONS.map((size) => (
                     <button
-                      onClick={() => handleDPIChange(300)}
+                      key={size.id}
+                      onClick={() => handleSizeChange(size)}
                       className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                        requiredDPI === 300
+                        selectedSize.id === size.id
                           ? 'border-blue-600 bg-blue-50 text-blue-900'
                           : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                       }`}
                     >
-                      <div className="font-semibold text-xs">300 DPI</div>
-                      <div className="text-[10px] text-gray-600">For print</div>
+                      <div className="font-semibold text-xs">{size.label}</div>
+                      <div className="text-[10px] text-gray-600">{size.dimensions}</div>
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* DPI Selector */}
+              <div data-testid="dpi-selector-step1">
+                <h3 className="text-sm font-semibold mb-2 text-gray-800">DPI</h3>
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => handleDPIChange(300)}
+                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                      requiredDPI === 300
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold text-xs">300 DPI</div>
+                    <div className="text-[10px] text-gray-600">For print</div>
+                  </button>
+                  <button
+                    onClick={() => handleDPIChange(null)}
+                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                      requiredDPI === null
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold text-xs">None</div>
+                    <div className="text-[10px] text-gray-600">No requirement</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Color Selector */}
+              <div data-testid="color-selector-step1">
+                <h3 className="text-sm font-semibold mb-2 text-gray-800">Background</h3>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PRESET_COLORS.map((color) => (
                     <button
-                      onClick={() => handleDPIChange(null)}
-                      className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                        requiredDPI === null
-                          ? 'border-blue-600 bg-blue-50 text-blue-900'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      key={color.value}
+                      data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
+                      onClick={() => handleBackgroundChange(color.value)}
+                      className={`px-1.5 py-1.5 rounded border transition-all ${
+                        backgroundColor === color.value
+                          ? 'border-blue-600 ring-4 ring-blue-200'
+                          : 'border-gray-300 hover:border-gray-400'
                       }`}
                     >
-                      <div className="font-semibold text-xs">None</div>
-                      <div className="text-[10px] text-gray-600">No requirement</div>
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-6 h-6 rounded border border-gray-400"
+                          style={{ backgroundColor: color.value }}
+                        />
+                        <span className="font-semibold text-[10px] text-center leading-tight">{color.name}</span>
+                      </div>
                     </button>
-                  </div>
-                </div>
-
-                {/* Color Selector */}
-                <div data-testid="color-selector-step1">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-800">Background</h3>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color.value}
-                        data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
-                        onClick={() => handleBackgroundChange(color.value)}
-                        className={`px-1.5 py-1.5 rounded border transition-all ${
-                          backgroundColor === color.value
-                            ? 'border-blue-600 ring-4 ring-blue-200'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <div
-                            className="w-6 h-6 rounded border border-gray-400"
-                            style={{ backgroundColor: color.value }}
-                          />
-                          <span className="font-semibold text-[10px] text-center leading-tight">{color.name}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
-              
-              {/* Image Placeholder */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Photo Preview
-                </label>
-                <div 
-                  className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
-                  data-testid="image-placeholder"
-                >
-                  {uploadedImageUrl ? (
-                    <img 
-                      src={uploadedImageUrl} 
-                      alt="Uploaded preview" 
-                      className="max-w-full max-h-full object-contain"
-                      data-testid="uploaded-image"
-                    />
-                  ) : (
-                    <div className="text-center text-gray-400">
-                      <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm">No image uploaded</p>
-                    </div>
-                  )}
-                </div>
+            </div>
+            
+            {/* Image Placeholder */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Photo Preview
+              </label>
+              <div 
+                className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
+                data-testid="image-placeholder"
+              >
+                {imageData && imageData.croppedPreviewUrl ? (
+                  <img 
+                    src={imageData.croppedPreviewUrl} 
+                    alt="Cropped preview" 
+                    className="max-w-full max-h-full object-contain"
+                    data-testid="cropped-preview-image"
+                  />
+                ) : uploadedImageUrl ? (
+                  <img 
+                    src={uploadedImageUrl} 
+                    alt="Uploaded preview" 
+                    className="max-w-full max-h-full object-contain"
+                    data-testid="uploaded-image"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">No image uploaded</p>
+                  </div>
+                )}
               </div>
-              
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                disabled={isProcessing || isLoadingU2Net}
-                data-testid="file-input"
-                className="hidden"
-              />
-              
-              {/* Upload Image / Generate Preview Button */}
+            </div>
+            
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+              disabled={isProcessing || isLoadingU2Net}
+              data-testid="file-input"
+              className="hidden"
+            />
+            
+            {/* Upload Image / Generate Preview Button - Only show when no preview */}
+            {!imageData && (
               <button
                 onClick={uploadedFile ? handleGeneratePreview : handleUploadButtonClick}
                 disabled={isProcessing || isLoadingU2Net}
@@ -610,57 +615,50 @@ export function MainWorkflow() {
               >
                 {uploadedFile ? 'Generate Preview' : 'Upload Image'}
               </button>
-              
-              {isProcessing && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
-                    <p className="text-sm text-blue-700">Processing your image...</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Step 2: Edit & Download */}
-        {currentStep === 2 && imageData && (
-          <div data-testid="edit-step" className="flex flex-col h-full">
-            {/* Full width crop editor */}
-            <div className="flex-1 min-h-0 mb-4">
-              <div data-testid="processed-image-with-crop" className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
-                <h3 className="text-base font-semibold mb-3 text-gray-800">Preview & Adjust Crop</h3>
-                <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
-                  <CropEditor
-                    processedImageUrl={imageData.processedUrl}
-                    initialCropArea={cropArea}
-                    onCropAreaChange={handleCropAreaChange}
-                    selectedSize={selectedSize}
-                  />
+            {/* Action Buttons - Show after preview is generated */}
+            {imageData && (
+              <div className="space-y-3">
+                <button
+                  onClick={handleGeneratePreview}
+                  disabled={isProcessing}
+                  data-testid="regenerate-preview-button"
+                  className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+                >
+                  Regenerate Preview
+                </button>
+
+                <button
+                  onClick={handleDownload}
+                  disabled={isProcessing}
+                  data-testid="download-button"
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                >
+                  Download Image
+                </button>
+
+                <button
+                  onClick={handleReupload}
+                  disabled={isProcessing}
+                  data-testid="reupload-button"
+                  className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
+                >
+                  Re-upload Image
+                </button>
+              </div>
+            )}
+            
+            {isProcessing && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                  <p className="text-sm text-blue-700">Processing your image...</p>
                 </div>
               </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex justify-center gap-4">
-              <button
-                data-testid="go-back-button"
-                onClick={handleGoBack}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                ← Go Back
-              </button>
-              <button
-                data-testid="download-button"
-                onClick={handleDownload}
-                disabled={!imageData || isProcessing}
-                className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-              >
-                Download ID Photo
-              </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   )

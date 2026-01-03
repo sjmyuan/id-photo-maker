@@ -85,7 +85,7 @@ const uploadAndGeneratePreview = async (fileInput: HTMLInputElement, file: File,
   await user.click(button)
 }
 
-describe('MainWorkflow - Two-Step Wizard', () => {
+describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single page)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -476,7 +476,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     expect(dpi300Button).not.toHaveClass('border-blue-600', 'bg-blue-50')
   })
 
-  it('should show size and DPI selectors above file input in step 1', () => {
+  it.skip('should show size and DPI selectors above file input in step 1 (OBSOLETE - upload-step removed)', () => {
     render(<MainWorkflow />)
     
     const sizeSelector = screen.getByTestId('size-selector-step1')
@@ -546,7 +546,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 })
 
-describe('MainWorkflow - Face Detection and DPI Validation Tests', () => {
+describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE - Step 2 removed)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -715,7 +715,7 @@ describe('MainWorkflow - Face Detection and DPI Validation Tests', () => {
   })
 })
 
-describe('MainWorkflow - Step 2 Layout Tests', () => {
+describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -815,7 +815,7 @@ describe('MainWorkflow - Step 2 Layout Tests', () => {
   })
 })
 
-describe('MainWorkflow - Refactored Upload Flow with Placeholder', () => {
+describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE - Further refactored to single page)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -1036,5 +1036,226 @@ describe('MainWorkflow - Refactored Upload Flow with Placeholder', () => {
     
     // Should no longer show step 1
     expect(screen.queryByTestId('upload-step')).not.toBeInTheDocument()
+  })
+})
+
+describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show single page without step navigation', () => {
+    render(<MainWorkflow />)
+    
+    // Should not have step indicators or navigation between steps
+    expect(screen.queryByTestId('upload-step')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
+    
+    // Should show the main content container
+    expect(screen.getByTestId('main-workflow-container')).toBeInTheDocument()
+  })
+
+  it('should show upload controls and selectors initially', () => {
+    render(<MainWorkflow />)
+    
+    // Should show size, DPI, background selectors
+    expect(screen.getByTestId('selector-grid-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
+    
+    // Should show image placeholder
+    expect(screen.getByTestId('image-placeholder')).toBeInTheDocument()
+    
+    // Should show upload button
+    expect(screen.getByTestId('upload-or-preview-button')).toBeInTheDocument()
+    expect(screen.getByTestId('upload-or-preview-button')).toHaveTextContent('Upload Image')
+  })
+
+  it('should not show Step 2 edit-step or go-back button after processing', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should not show Step 2 UI elements
+    expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('go-back-button')).not.toBeInTheDocument()
+  })
+
+  it('should show preview in placeholder area after processing', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete and preview to show
+    await waitFor(() => {
+      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should still show the same placeholder container with preview inside
+    expect(screen.getByTestId('image-placeholder')).toBeInTheDocument()
+  })
+
+  it('should remain on the same page throughout the workflow', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    // Check main container exists initially
+    expect(screen.getByTestId('main-workflow-container')).toBeInTheDocument()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should still have the same main container (no page change)
+    expect(screen.getByTestId('main-workflow-container')).toBeInTheDocument()
+    
+    // Selectors should still be visible
+    expect(screen.getByTestId('selector-grid-step1')).toBeInTheDocument()
+  })
+
+  it('should show regenerate, download, and re-upload buttons after processing', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should show the three action buttons
+    expect(screen.getByTestId('regenerate-preview-button')).toBeInTheDocument()
+    expect(screen.getByTestId('download-button')).toBeInTheDocument()
+    expect(screen.getByTestId('reupload-button')).toBeInTheDocument()
+    
+    // Should not show upload button
+    expect(screen.queryByTestId('upload-or-preview-button')).not.toBeInTheDocument()
+  })
+
+  it('should regenerate preview with current settings when regenerate button is clicked', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    const mockProcessWithU2Net = vi.mocked(processWithU2Net)
+    mockProcessWithU2Net.mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for first processing to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Record initial call count
+    const initialCallCount = mockProcessWithU2Net.mock.calls.length
+    
+    // Click regenerate button
+    const regenerateButton = screen.getByTestId('regenerate-preview-button')
+    await user.click(regenerateButton)
+    
+    // Wait for reprocessing to complete
+    await waitFor(() => {
+      expect(mockProcessWithU2Net.mock.calls.length).toBe(initialCallCount + 1)
+    }, { timeout: 3000 })
+  })
+
+  it('should clear preview and return to upload state when re-upload button is clicked', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Click re-upload button
+    const reuploadButton = screen.getByTestId('reupload-button')
+    await user.click(reuploadButton)
+    
+    // Should return to upload state
+    await waitFor(() => {
+      expect(screen.queryByTestId('cropped-preview-image')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('reupload-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('upload-or-preview-button')).toBeInTheDocument()
+      expect(screen.getByTestId('upload-or-preview-button')).toHaveTextContent('Upload Image')
+    })
   })
 })
