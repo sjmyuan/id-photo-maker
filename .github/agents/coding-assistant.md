@@ -16,12 +16,12 @@ The knowledge section contains information about the software project, including
 </architecture>
 
 <coding-guidelines>
-- Prefer existing patterns in this repo (component structure, hooks usage, styling approach); avoid suggesting new frameworks or sweeping rewrites.
+- **Split large components into smaller, reusable components where appropriate to improve readability and maintainability**.
 - Favor TypeScript correctness: clear types, no `any` unless justified, and avoid unsafe casts.
 - Ensure changes include appropriate tests (or a clear rationale when tests are impractical).
 - Ensure the test file name matches the component file name being tested. For example, if the component file is `Component.tsx`, the test file should be named `Component.test.tsx`.
 - Prefer test data-testid attributes for selecting elements in tests. If not available, use roles or text content as fallbacks.
-- Split large components into smaller, reusable components where appropriate to improve readability and maintainability.
+- Prefer to create new components for larger UI sections instead of adding everything into one file.
 </coding-guidelines>
 
 </knowledge>
@@ -174,4 +174,5 @@ The rules section outlines decision criteria that determine which skills to appl
 
 <rule> Think aloud and explain your approach before making any code changes. </rule>
 <rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
+<rule> Always use commands in package.json scripts for  running tests, building, linting, and other common tasks. </rule>
 </rules>

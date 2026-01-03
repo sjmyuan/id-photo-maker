@@ -1,11 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import { PrintLayout } from './PrintLayout'
 import type { SizeOption } from '../size/CropEditor'
 
 describe('PrintLayout', () => {
   const mockCroppedImageUrl = 'blob:http://localhost/mock-image'
-  const mockOnDownloadLayout = vi.fn()
   
   const oneInchSize: SizeOption = {
     id: '1-inch',
@@ -16,6 +15,21 @@ describe('PrintLayout', () => {
     physicalHeight: 35,
   }
 
+  describe('ID Photo Preview', () => {
+    it('should render single ID photo preview image', () => {
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+        />
+      )
+      
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toHaveAttribute('src', mockCroppedImageUrl)
+    })
+  })
+
   describe('Layout Preview', () => {
     it('should render layout preview canvas', () => {
       render(
@@ -23,7 +37,6 @@ describe('PrintLayout', () => {
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
@@ -36,7 +49,6 @@ describe('PrintLayout', () => {
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
@@ -51,33 +63,61 @@ describe('PrintLayout', () => {
   })
 
   describe('Download Functionality', () => {
-    it('should render download button', () => {
+    it('should not render download button internally', () => {
       render(
         <PrintLayout
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
-      expect(screen.getByRole('button', { name: /download print layout/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /download print layout/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Component Interface', () => {
+    it('should accept croppedImageUrl prop without onDownloadLayout', () => {
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+        />
+      )
+      
+      // Should render without errors
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
     })
 
-    it('should call onDownloadLayout when download button is clicked', () => {
+    it('should accept printLayoutPreviewUrl prop and display it', () => {
+      const mockPrintLayoutUrl = 'blob:http://localhost/mock-print-layout'
       render(
         <PrintLayout
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
+          printLayoutPreviewUrl={mockPrintLayoutUrl}
         />
       )
       
-      const downloadButton = screen.getByRole('button', { name: /download print layout/i })
-      fireEvent.click(downloadButton)
+      // Should display print layout preview image
+      const layoutPreviewImg = screen.getByTestId('print-layout-preview-image')
+      expect(layoutPreviewImg).toBeInTheDocument()
+      expect(layoutPreviewImg).toHaveAttribute('src', mockPrintLayoutUrl)
+    })
+
+    it('should work without printLayoutPreviewUrl prop for backward compatibility', () => {
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+        />
+      )
       
-      expect(mockOnDownloadLayout).toHaveBeenCalledTimes(1)
+      // Should render without errors even without printLayoutPreviewUrl
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
     })
   })
 
@@ -88,7 +128,6 @@ describe('PrintLayout', () => {
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
@@ -102,7 +141,6 @@ describe('PrintLayout', () => {
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
@@ -115,6 +153,43 @@ describe('PrintLayout', () => {
       expect(canvas.width).toBeGreaterThan(0)
       expect(canvas.height).toBeGreaterThan(0)
     })
+
+    it('should display images vertically without grid layout', () => {
+      const mockPrintLayoutUrl = 'blob:http://localhost/mock-print-layout'
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+          printLayoutPreviewUrl={mockPrintLayoutUrl}
+        />
+      )
+      
+      // Should not have grid layout (md:grid-cols-2)
+      const container = screen.getByTestId('print-layout')
+      const gridElement = container.querySelector('.grid')
+      
+      // If grid exists, it should not have md:grid-cols-2
+      if (gridElement) {
+        expect(gridElement.className).not.toContain('md:grid-cols-2')
+      }
+    })
+
+    it('should not display separate labels for single photo and layout preview', () => {
+      const mockPrintLayoutUrl = 'blob:http://localhost/mock-print-layout'
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+          printLayoutPreviewUrl={mockPrintLayoutUrl}
+        />
+      )
+      
+      // Should not have individual labels
+      expect(screen.queryByText('Single ID Photo')).not.toBeInTheDocument()
+      expect(screen.queryByText('Print Layout Preview')).not.toBeInTheDocument()
+    })
   })
 
   describe('Title Styling', () => {
@@ -124,11 +199,10 @@ describe('PrintLayout', () => {
           croppedImageUrl={mockCroppedImageUrl}
           selectedSize={oneInchSize}
           paperType="6-inch"
-          onDownloadLayout={mockOnDownloadLayout}
         />
       )
       
-      const title = screen.getByText(/Print Layout Preview/i)
+      const title = screen.getByText(/ID Photo Preview/i)
       expect(title).toBeInTheDocument()
       expect(title).toHaveClass('text-sm')
       expect(title).toHaveClass('font-semibold')

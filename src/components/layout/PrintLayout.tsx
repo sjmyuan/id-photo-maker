@@ -1,6 +1,6 @@
 /**
  * PrintLayout Component
- * Displays paper type selection, layout preview, and download for print-ready ID photo sheets
+ * Displays single ID photo preview and paper type selection with layout preview for print-ready ID photo sheets
  */
 
 import { useEffect, useRef } from 'react'
@@ -11,15 +11,16 @@ export interface PrintLayoutProps {
   croppedImageUrl: string // URL of the cropped ID photo
   selectedSize: SizeOption // Selected ID photo size
   paperType: '6-inch' | 'a4' // Selected paper type (now controlled by parent)
-  onDownloadLayout: () => void // Callback for download action (no parameter needed)
+  printLayoutPreviewUrl?: string // Optional URL of pre-generated print layout preview
 }
 
 export function PrintLayout({
   croppedImageUrl,
   selectedSize,
   paperType,
-  onDownloadLayout,
+  printLayoutPreviewUrl,
 }: PrintLayoutProps) {
+  // Keep refs and layout calculation for backward compatibility (fallback to canvas rendering)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
 
@@ -29,25 +30,7 @@ export function PrintLayout({
     heightMm: selectedSize.physicalHeight,
   })
 
-  // Load the cropped image
-  useEffect(() => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.src = croppedImageUrl
-    img.onload = () => {
-      imageRef.current = img
-      if (canvasRef.current) {
-        drawPreview()
-      }
-    }
-
-    return () => {
-      imageRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [croppedImageUrl])
-
-  // Draw preview function
+  // Draw preview function (only used when printLayoutPreviewUrl is not provided)
   const drawPreview = () => {
     const canvas = canvasRef.current
     const img = imageRef.current
@@ -91,40 +74,70 @@ export function PrintLayout({
     }
   }
 
-  // Redraw preview when layout changes
+  // Load the cropped image only if we need to draw canvas (backward compatibility)
   useEffect(() => {
+    if (printLayoutPreviewUrl) return // Skip if URL is provided
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = croppedImageUrl
+    img.onload = () => {
+      imageRef.current = img
+      if (canvasRef.current) {
+        drawPreview()
+      }
+    }
+
+    return () => {
+      imageRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [croppedImageUrl, printLayoutPreviewUrl])
+
+  // Redraw preview when layout changes (only if using canvas fallback)
+  useEffect(() => {
+    if (printLayoutPreviewUrl) return // Skip if URL is provided
+    
     if (imageRef.current) {
       drawPreview()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, paperType])
-
-  const handleDownload = () => {
-    onDownloadLayout()
-  }
+  }, [layout, paperType, printLayoutPreviewUrl])
 
   return (
     <div className="mt-6 border-t pt-6" data-testid="print-layout">
-      <h3 className="text-sm font-semibold mb-4 text-gray-900">Print Layout Preview</h3>
+      <h3 className="text-sm font-semibold mb-4 text-gray-900">ID Photo Preview</h3>
 
-      {/* Layout Preview Canvas */}
-      <div className="mb-4">
-        <div className="bg-gray-100 p-4 rounded-lg flex justify-center">
-          <canvas
-            ref={canvasRef}
-            data-testid="layout-preview"
-            className="border border-gray-300 shadow-sm"
+      {/* Vertical container for both previews */}
+      <div className="space-y-4 mb-4">
+        {/* Single ID Photo Preview */}
+        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
+          <img 
+            src={croppedImageUrl} 
+            alt="ID photo preview" 
+            className="max-w-full max-h-64 object-contain border border-gray-300 shadow-sm"
+            data-testid="id-photo-preview"
           />
         </div>
-      </div>
 
-      {/* Download Button */}
-      <button
-        onClick={handleDownload}
-        className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
-      >
-        Download Print Layout
-      </button>
+        {/* Print Layout Preview */}
+        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
+          {printLayoutPreviewUrl ? (
+            <img
+              src={printLayoutPreviewUrl}
+              alt="Print layout preview"
+              className="max-w-full max-h-64 object-contain border border-gray-300 shadow-sm"
+              data-testid="print-layout-preview-image"
+            />
+          ) : (
+            <canvas
+              ref={canvasRef}
+              data-testid="layout-preview"
+              className="border border-gray-300 shadow-sm"
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

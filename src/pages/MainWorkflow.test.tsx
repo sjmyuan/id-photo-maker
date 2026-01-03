@@ -1140,12 +1140,12 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     const fileInput = screen.getByTestId('file-input') as HTMLInputElement
     await uploadAndGeneratePreview(fileInput, file, user)
     
-    // Wait for processing to complete and preview to show
+    // Wait for processing to complete and preview to show in PrintLayout
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should still show the same placeholder container with preview inside
+    // Should still show the same placeholder container (now with uploaded image)
     expect(screen.getByTestId('image-placeholder')).toBeInTheDocument()
   })
 
@@ -1203,8 +1203,9 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
       expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should show download and re-upload buttons (no regenerate button - auto-regeneration now)
-    expect(screen.getByTestId('download-button')).toBeInTheDocument()
+    // Should show download buttons and re-upload button (no regenerate button - auto-regeneration now)
+    expect(screen.getByTestId('download-image-button')).toBeInTheDocument()
+    expect(screen.getByTestId('download-layout-button')).toBeInTheDocument()
     expect(screen.getByTestId('reupload-button')).toBeInTheDocument()
     expect(screen.queryByTestId('regenerate-preview-button')).not.toBeInTheDocument()
     
@@ -1231,7 +1232,7 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Click re-upload button
@@ -1240,7 +1241,7 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     
     // Should return to upload state
     await waitFor(() => {
-      expect(screen.queryByTestId('cropped-preview-image')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('id-photo-preview')).not.toBeInTheDocument()
       expect(screen.queryByTestId('reupload-button')).not.toBeInTheDocument()
       expect(screen.getByTestId('upload-or-preview-button')).toBeInTheDocument()
       expect(screen.getByTestId('upload-or-preview-button')).toHaveTextContent('Upload Image')
@@ -1272,7 +1273,7 @@ describe('MainWorkflow - Print Layout Integration', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // PrintLayout should be visible
@@ -1312,13 +1313,13 @@ describe('MainWorkflow - Print Layout Integration', () => {
       expect(screen.getByTestId('print-layout')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // PrintLayout should be displayed with A4 paper type (info display removed)
-    expect(screen.getByTestId('layout-preview')).toBeInTheDocument()
+    // PrintLayout should be displayed with print layout preview image
+    expect(screen.getByTestId('print-layout-preview-image')).toBeInTheDocument()
   })
 
 
 
-  it('should display layout preview canvas', async () => {
+  it('should display layout preview image', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -1339,10 +1340,10 @@ describe('MainWorkflow - Print Layout Integration', () => {
       expect(screen.getByTestId('print-layout')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should show layout preview canvas
-    const preview = screen.getByTestId('layout-preview')
+    // Should show print layout preview image
+    const preview = screen.getByTestId('print-layout-preview-image')
     expect(preview).toBeInTheDocument()
-    expect(preview.tagName).toBe('CANVAS')
+    expect(preview.tagName).toBe('IMG')
   })
 
   it('should display download print layout button', async () => {
@@ -1388,25 +1389,29 @@ describe('MainWorkflow - Print Layout Integration', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Verify elements exist
     const imagePlaceholder = screen.getByTestId('image-placeholder')
-    const downloadButton = screen.getByTestId('download-button')
     const printLayout = screen.getByTestId('print-layout')
+    const downloadImageButton = screen.getByTestId('download-image-button')
+    const downloadLayoutButton = screen.getByTestId('download-layout-button')
     
     expect(imagePlaceholder).toBeInTheDocument()
-    expect(downloadButton).toBeInTheDocument()
     expect(printLayout).toBeInTheDocument()
+    expect(downloadImageButton).toBeInTheDocument()
+    expect(downloadLayoutButton).toBeInTheDocument()
     
     // Use compareDocumentPosition to verify order in DOM
     // DOCUMENT_POSITION_FOLLOWING (4) means the node comes after
-    const downloadFollowsImage = imagePlaceholder.compareDocumentPosition(downloadButton) & Node.DOCUMENT_POSITION_FOLLOWING
-    const printFollowsDownload = downloadButton.compareDocumentPosition(printLayout) & Node.DOCUMENT_POSITION_FOLLOWING
+    const printFollowsImage = imagePlaceholder.compareDocumentPosition(printLayout) & Node.DOCUMENT_POSITION_FOLLOWING
+    const downloadImageFollowsPrint = printLayout.compareDocumentPosition(downloadImageButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    const downloadLayoutFollowsPrint = printLayout.compareDocumentPosition(downloadLayoutButton) & Node.DOCUMENT_POSITION_FOLLOWING
     
-    expect(downloadFollowsImage).toBeTruthy() // Download button comes after image
-    expect(printFollowsDownload).toBeTruthy() // Print layout comes after download button
+    expect(printFollowsImage).toBeTruthy() // Print layout comes after image placeholder
+    expect(downloadImageFollowsPrint).toBeTruthy() // Download buttons come after print layout
+    expect(downloadLayoutFollowsPrint).toBeTruthy() // Download buttons come after print layout
   })
 })
 
@@ -1437,7 +1442,7 @@ describe('MainWorkflow - No Auto-Regeneration on Settings Change', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Clear the mock call count after initial generation
@@ -1476,7 +1481,7 @@ describe('MainWorkflow - No Auto-Regeneration on Settings Change', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Clear the mock call count after initial generation
@@ -1515,7 +1520,7 @@ describe('MainWorkflow - No Auto-Regeneration on Settings Change', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Clear the mock call count after initial generation
@@ -1552,7 +1557,7 @@ describe('MainWorkflow - No Auto-Regeneration on Settings Change', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Change multiple settings
@@ -1612,14 +1617,14 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     const fileInput = screen.getByTestId('file-input') as HTMLInputElement
     await uploadAndGeneratePreview(fileInput, file, user)
     
-    // After processing completes, should show "ID Photo Preview"
+    // After processing completes, should show ID Photo Preview in PrintLayout
     await waitFor(() => {
       expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
-      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should NOT show "Photo Preview" anymore
-    expect(screen.queryByText('Photo Preview')).not.toBeInTheDocument()
+    // Placeholder should still show "Photo Preview" label
+    expect(screen.getByText('Photo Preview')).toBeInTheDocument()
   })
 
   it('should revert to "Photo Preview" label after re-upload', async () => {
@@ -1639,9 +1644,9 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     const fileInput = screen.getByTestId('file-input') as HTMLInputElement
     await uploadAndGeneratePreview(fileInput, file, user)
     
-    // After processing, should show "ID Photo Preview"
+    // After processing, should show id photo preview in PrintLayout
     await waitFor(() => {
-      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
+      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Click re-upload button
@@ -1654,5 +1659,84 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
       expect(screen.getByText('Photo Preview')).toBeInTheDocument()
     })
   })
-})
 
+  it('should not show cropped image in image placeholder after processing', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Image placeholder should NOT show cropped-preview-image
+    const imagePlaceholder = screen.getByTestId('image-placeholder')
+    expect(imagePlaceholder.querySelector('[data-testid="cropped-preview-image"]')).not.toBeInTheDocument()
+  })
+
+  it('should show both download buttons together under PrintLayout component', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Both buttons should be present
+    expect(screen.getByTestId('download-image-button')).toBeInTheDocument()
+    expect(screen.getByTestId('download-layout-button')).toBeInTheDocument()
+  })
+
+  it('should show PrintLayout with single ID photo preview inside', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // PrintLayout should contain the single ID photo preview
+    expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+  })
+})

@@ -58,6 +58,65 @@ export async function generatePrintLayout(
 }
 
 /**
+ * Generate a preview-sized layout canvas for display purposes
+ * Creates a scaled-down version of the print layout (400px wide)
+ * 
+ * @param sourceImage - Image element containing the cropped ID photo
+ * @param photoSize - Physical dimensions of the ID photo in millimeters
+ * @param paperType - Paper type identifier ('6-inch' or 'a4')
+ * @returns Preview-sized canvas (400px wide, maintaining aspect ratio)
+ */
+export function generatePrintLayoutPreview(
+  sourceImage: HTMLImageElement,
+  photoSize: PhotoSize,
+  paperType: '6-inch' | 'a4'
+): HTMLCanvasElement {
+  // Calculate layout at a standard DPI for layout dimensions
+  const layout = calculateLayout(paperType, photoSize, 300)
+
+  // Create preview canvas with fixed width
+  const previewWidth = 400
+  const paperAspectRatio = layout.paperWidthPx / layout.paperHeightPx
+  const previewHeight = previewWidth / paperAspectRatio
+
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = previewWidth
+  outputCanvas.height = previewHeight
+
+  const ctx = outputCanvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Failed to get canvas context')
+  }
+
+  // Fill with white background
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
+
+  // Calculate scaling factor from layout dimensions to preview dimensions
+  const scale = previewWidth / layout.paperWidthPx
+
+  // Draw photo grid
+  for (let row = 0; row < layout.photosPerColumn; row++) {
+    for (let col = 0; col < layout.photosPerRow; col++) {
+      const x = (layout.marginLeftPx + col * (layout.photoWidthPx + layout.horizontalSpacingPx)) * scale
+      const y = (layout.marginTopPx + row * (layout.photoHeightPx + layout.verticalSpacingPx)) * scale
+      const w = layout.photoWidthPx * scale
+      const h = layout.photoHeightPx * scale
+
+      // Draw the image
+      ctx.drawImage(sourceImage, x, y, w, h)
+
+      // Draw border around each photo
+      ctx.strokeStyle = '#E5E7EB'
+      ctx.lineWidth = 1
+      ctx.strokeRect(x, y, w, h)
+    }
+  }
+
+  return outputCanvas
+}
+
+/**
  * Convert canvas to blob for download
  * 
  * @param canvas - Canvas to convert

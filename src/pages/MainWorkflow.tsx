@@ -10,7 +10,7 @@ import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
 import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
 import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
-import { generatePrintLayout, downloadCanvas } from '../services/printLayoutService'
+import { generatePrintLayout, generatePrintLayoutPreview, downloadCanvas } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { calculateDPI } from '../utils/dpiCalculation'
 import { generateExactCrop } from '../services/exactCropService'
@@ -29,6 +29,7 @@ interface ImageData {
   transparentCanvas: HTMLCanvasElement // Canvas with transparent background (matting result)
   cropArea: CropArea // Crop area from face detection
   croppedPreviewUrl: string // URL of the final cropped preview image with exact pixels
+  printLayoutPreviewUrl: string // URL of print layout preview image
 }
 
 
@@ -361,6 +362,33 @@ export function MainWorkflow() {
         const originalUrl = URL.createObjectURL(file)
         const croppedPreviewUrl = URL.createObjectURL(croppedBlob)
         
+        // Generate print layout preview (scaled-down preview for display)
+        // Load cropped image to create preview
+        const croppedImg = new Image()
+        croppedImg.src = croppedPreviewUrl
+        await new Promise<void>((resolve, reject) => {
+          croppedImg.onload = () => resolve()
+          croppedImg.onerror = reject
+        })
+        
+        const printLayoutPreviewCanvas = generatePrintLayoutPreview(
+          croppedImg,
+          {
+            widthMm: selectedSize.physicalWidth,
+            heightMm: selectedSize.physicalHeight,
+          },
+          paperType
+        )
+        
+        const printLayoutBlob = await new Promise<Blob>((resolve, reject) => {
+          printLayoutPreviewCanvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create print layout blob'))
+          }, 'image/png')
+        })
+        
+        const printLayoutPreviewUrl = URL.createObjectURL(printLayoutBlob)
+        
         // Clean up temporary URL
         URL.revokeObjectURL(transparentUrl)
         
@@ -370,6 +398,7 @@ export function MainWorkflow() {
           transparentCanvas,
           cropArea: initialCropArea!,
           croppedPreviewUrl,
+          printLayoutPreviewUrl,
         })
 
         stop()
@@ -380,7 +409,7 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
+    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI, paperType]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {
@@ -531,20 +560,13 @@ export function MainWorkflow() {
             {/* Image Placeholder */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {imageData && imageData.croppedPreviewUrl ? 'ID Photo Preview' : 'Photo Preview'}
+                Photo Preview
               </label>
               <div 
                 className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
                 data-testid="image-placeholder"
               >
-                {imageData && imageData.croppedPreviewUrl ? (
-                  <img 
-                    src={imageData.croppedPreviewUrl} 
-                    alt="Cropped preview" 
-                    className="max-w-full max-h-full object-contain"
-                    data-testid="cropped-preview-image"
-                  />
-                ) : uploadedImageUrl ? (
+                {uploadedImageUrl ? (
                   <img 
                     src={uploadedImageUrl} 
                     alt="Uploaded preview" 
@@ -561,28 +583,36 @@ export function MainWorkflow() {
                 )}
               </div>
 
-              {/* Download Image Button - directly under photo preview */}
+              {/* Print Layout and Download Buttons - shown after preview is generated */}
               {imageData && imageData.croppedPreviewUrl && (
-                <div className="mt-4">
-                  <button
-                    onClick={handleDownload}
-                    disabled={isProcessing}
-                    data-testid="download-button"
-                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                  >
-                    Download Image
-                  </button>
-                </div>
-              )}
+                <>
+                  <PrintLayout
+                    croppedImageUrl={imageData.croppedPreviewUrl}
+                    selectedSize={selectedSize}
+                    paperType={paperType}
+                    printLayoutPreviewUrl={imageData.printLayoutPreviewUrl}
+                  />
 
-              {/* Print Layout - shown after preview is generated */}
-              {imageData && imageData.croppedPreviewUrl && (
-                <PrintLayout
-                  croppedImageUrl={imageData.croppedPreviewUrl}
-                  selectedSize={selectedSize}
-                  paperType={paperType}
-                  onDownloadLayout={handleDownloadLayout}
-                />
+                  {/* Download Buttons */}
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      onClick={handleDownload}
+                      disabled={isProcessing}
+                      data-testid="download-image-button"
+                      className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                    >
+                      Download Image
+                    </button>
+                    <button
+                      onClick={handleDownloadLayout}
+                      disabled={isProcessing}
+                      data-testid="download-layout-button"
+                      className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+                    >
+                      Download Print Layout
+                    </button>
+                  </div>
+                </>
               )}
             </div>
             
