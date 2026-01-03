@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
-import { PRESET_COLORS } from '../components/background/BackgroundSelector'
+import { SizeSelector } from '../components/size/SizeSelector'
+import { DPISelector } from '../components/size/DPISelector'
+import { ColorSelector } from '../components/background/ColorSelector'
+import { PaperTypeSelector, type PaperType } from '../components/layout/PaperTypeSelector'
 import { PrintLayout } from '../components/layout/PrintLayout'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
@@ -124,7 +127,7 @@ export function MainWorkflow() {
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
   const [requiredDPI, setRequiredDPI] = useState<300 | null>(300) // 300 DPI or null for "None"
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
-  const [paperType, setPaperType] = useState<'6-inch' | 'a4'>('6-inch') // 6-inch paper
+  const [paperType, setPaperType] = useState<PaperType>('6-inch') // 6-inch paper
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
@@ -392,7 +395,7 @@ export function MainWorkflow() {
     setRequiredDPI(dpi)
   }
 
-  const handlePaperTypeChange = (paper: '6-inch' | 'a4') => {
+  const handlePaperTypeChange = (paper: PaperType) => {
     setPaperType(paper)
   }
 
@@ -503,113 +506,26 @@ export function MainWorkflow() {
             
             {/* Compact Grid Selector for Size, DPI, Color, and Paper */}
             <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {/* Size Selector */}
-              <div data-testid="size-selector-step1">
-                <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
-                <div className="space-y-1.5">
-                  {SIZE_OPTIONS.map((size) => (
-                    <button
-                      key={size.id}
-                      onClick={() => handleSizeChange(size)}
-                      className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                        selectedSize.id === size.id
-                          ? 'border-blue-600 bg-blue-50 text-blue-900'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="font-semibold text-xs">{size.label}</div>
-                      <div className="text-[10px] text-gray-600">{size.dimensions}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* DPI Selector */}
-              <div data-testid="dpi-selector-step1">
-                <h3 className="text-sm font-semibold mb-2 text-gray-800">DPI</h3>
-                <div className="space-y-1.5">
-                  <button
-                    onClick={() => handleDPIChange(300)}
-                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                      requiredDPI === 300
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-semibold text-xs">300 DPI</div>
-                    <div className="text-[10px] text-gray-600">For print</div>
-                  </button>
-                  <button
-                    onClick={() => handleDPIChange(null)}
-                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                      requiredDPI === null
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-semibold text-xs">None</div>
-                    <div className="text-[10px] text-gray-600">No requirement</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Color Selector */}
-              <div data-testid="color-selector-step1">
-                <h3 className="text-sm font-semibold mb-2 text-gray-800">Background</h3>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color.value}
-                      data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
-                      onClick={() => handleBackgroundChange(color.value)}
-                      className={`px-1.5 py-1.5 rounded border transition-all ${
-                        backgroundColor === color.value
-                          ? 'border-blue-600 ring-4 ring-blue-200'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <div
-                          className="w-6 h-6 rounded border border-gray-400"
-                          style={{ backgroundColor: color.value }}
-                        />
-                        <span className="font-semibold text-[10px] text-center leading-tight">{color.name}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Paper Type Selector */}
-              <div data-testid="paper-type-selector-step1">
-                <h3 className="text-sm font-semibold mb-2 text-gray-800">Paper Type</h3>
-                <div className="space-y-1.5">
-                  <button
-                    onClick={() => handlePaperTypeChange('6-inch')}
-                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                      paperType === '6-inch'
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                    data-testid="paper-6-inch-button"
-                  >
-                    <div className="font-semibold text-xs">6-inch</div>
-                    <div className="text-[10px] text-gray-600">4×6 in</div>
-                  </button>
-                  <button
-                    onClick={() => handlePaperTypeChange('a4')}
-                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
-                      paperType === 'a4'
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                    data-testid="paper-a4-button"
-                  >
-                    <div className="font-semibold text-xs">A4</div>
-                    <div className="text-[10px] text-gray-600">210×297 mm</div>
-                  </button>
-                </div>
-              </div>
+              <SizeSelector 
+                selectedSize={selectedSize} 
+                onSizeChange={handleSizeChange} 
+                testId="size-selector-step1"
+              />
+              <DPISelector 
+                requiredDPI={requiredDPI} 
+                onDPIChange={handleDPIChange} 
+                testId="dpi-selector-step1"
+              />
+              <ColorSelector 
+                backgroundColor={backgroundColor} 
+                onColorChange={handleBackgroundChange} 
+                testId="color-selector-step1"
+              />
+              <PaperTypeSelector 
+                paperType={paperType} 
+                onPaperTypeChange={handlePaperTypeChange} 
+                testId="paper-type-selector-step1"
+              />
             </div>
             
             {/* Image Placeholder */}

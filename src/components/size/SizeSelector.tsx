@@ -1,0 +1,35 @@
+import { SIZE_OPTIONS, type SizeOption } from './CropEditor'
+
+export interface SizeSelectorProps {
+  selectedSize: SizeOption
+  onSizeChange: (size: SizeOption) => void
+  testId?: string
+}
+
+/**
+ * SizeSelector component for selecting photo size in compact grid format
+ * Displays 1-inch, 2-inch, and 3-inch size options with dimensions
+ */
+export function SizeSelector({ selectedSize, onSizeChange, testId = 'size-selector' }: SizeSelectorProps) {
+  return (
+    <div data-testid={testId}>
+      <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
+      <div className="space-y-1.5">
+        {SIZE_OPTIONS.map((size) => (
+          <button
+            key={size.id}
+            onClick={() => onSizeChange(size)}
+            className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+              selectedSize.id === size.id
+                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+            }`}
+          >
+            <div className="font-semibold text-xs">{size.label}</div>
+            <div className="text-[10px] text-gray-600">{size.dimensions}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
