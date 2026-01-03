@@ -513,8 +513,6 @@ export function MainWorkflow() {
         {/* Single Page Workflow */}
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-lg shadow p-8">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Upload Your Photo</h2>
-            
             {isLoadingU2Net && (
               <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
                 Loading AI model...
@@ -533,55 +531,60 @@ export function MainWorkflow() {
               </div>
             )}
             
-            {/* Compact Grid Selector for Size, DPI, Color, and Paper */}
-            <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <SizeSelector 
-                selectedSize={selectedSize} 
-                onSizeChange={handleSizeChange} 
-                testId="size-selector-step1"
-              />
-              <DPISelector 
-                requiredDPI={requiredDPI} 
-                onDPIChange={handleDPIChange} 
-                testId="dpi-selector-step1"
-              />
-              <ColorSelector 
-                backgroundColor={backgroundColor} 
-                onColorChange={handleBackgroundChange} 
-                testId="color-selector-step1"
-              />
-              <PaperTypeSelector 
-                paperType={paperType} 
-                onPaperTypeChange={handlePaperTypeChange} 
-                testId="paper-type-selector-step1"
-              />
-            </div>
-            
-            {/* Image Placeholder */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photo Preview
-              </label>
-              <div 
-                className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
-                data-testid="image-placeholder"
-              >
-                {uploadedImageUrl ? (
-                  <img 
-                    src={uploadedImageUrl} 
-                    alt="Uploaded preview" 
-                    className="max-w-full max-h-full object-contain"
-                    data-testid="uploaded-image"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-sm">No image uploaded</p>
-                  </div>
-                )}
+            {/* Compact Grid Selector for Size, DPI, Color, and Paper - Hidden after preview */}
+            {!imageData && (
+              <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <SizeSelector 
+                  selectedSize={selectedSize} 
+                  onSizeChange={handleSizeChange} 
+                  testId="size-selector-step1"
+                />
+                <DPISelector 
+                  requiredDPI={requiredDPI} 
+                  onDPIChange={handleDPIChange} 
+                  testId="dpi-selector-step1"
+                />
+                <ColorSelector 
+                  backgroundColor={backgroundColor} 
+                  onColorChange={handleBackgroundChange} 
+                  testId="color-selector-step1"
+                />
+                <PaperTypeSelector 
+                  paperType={paperType} 
+                  onPaperTypeChange={handlePaperTypeChange} 
+                  testId="paper-type-selector-step1"
+                />
               </div>
+            )}
+            
+            {/* Image Placeholder - Hidden after preview */}
+            {!imageData && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Photo Preview
+                </label>
+                <div 
+                  className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
+                  data-testid="image-placeholder"
+                >
+                  {uploadedImageUrl ? (
+                    <img 
+                      src={uploadedImageUrl} 
+                      alt="Uploaded preview" 
+                      className="max-w-full max-h-full object-contain"
+                      data-testid="uploaded-image"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">No image uploaded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
               {/* Print Layout and Download Buttons - shown after preview is generated */}
               {imageData && imageData.croppedPreviewUrl && (
@@ -614,7 +617,6 @@ export function MainWorkflow() {
                   </div>
                 </>
               )}
-            </div>
             
             {/* Hidden file input */}
             <input
