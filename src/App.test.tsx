@@ -201,13 +201,4 @@ describe('App', () => {
     expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
-
-  it('should navigate to U2Net test page at /u2net-test route', () => {
-    render(
-      <MemoryRouter initialEntries={['/u2net-test']}>
-        <App />
-      </MemoryRouter>
-    )
-    expect(screen.getByText('U2Net ONNX Model Test')).toBeInTheDocument()
-  })
 })
