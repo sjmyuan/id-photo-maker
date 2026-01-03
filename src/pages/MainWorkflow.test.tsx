@@ -1365,5 +1365,44 @@ describe('MainWorkflow - Print Layout Integration', () => {
     // Should show download print layout button
     expect(screen.getByRole('button', { name: /download print layout/i })).toBeInTheDocument()
   })
+
+  it('should display download image button directly under photo preview and before print layout', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Verify elements exist
+    const imagePlaceholder = screen.getByTestId('image-placeholder')
+    const downloadButton = screen.getByTestId('download-button')
+    const printLayout = screen.getByTestId('print-layout')
+    
+    expect(imagePlaceholder).toBeInTheDocument()
+    expect(downloadButton).toBeInTheDocument()
+    expect(printLayout).toBeInTheDocument()
+    
+    // Use compareDocumentPosition to verify order in DOM
+    // DOCUMENT_POSITION_FOLLOWING (4) means the node comes after
+    const downloadFollowsImage = imagePlaceholder.compareDocumentPosition(downloadButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    const printFollowsDownload = downloadButton.compareDocumentPosition(printLayout) & Node.DOCUMENT_POSITION_FOLLOWING
+    
+    expect(downloadFollowsImage).toBeTruthy() // Download button comes after image
+    expect(printFollowsDownload).toBeTruthy() // Print layout comes after download button
+  })
 })
 

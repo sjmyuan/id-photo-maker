@@ -105,7 +105,7 @@ export function PrintLayout({
 
   return (
     <div className="mt-6 border-t pt-6" data-testid="print-layout">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">Print Layout Preview</h3>
+      <h3 className="text-sm font-semibold mb-4 text-gray-900">Print Layout Preview</h3>
 
       {/* Layout Preview Canvas */}
       <div className="mb-4">

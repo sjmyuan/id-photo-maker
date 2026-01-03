@@ -3,8 +3,29 @@
  * Tests embedding DPI metadata into PNG image blobs
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { embedDPIMetadata } from './dpiMetadata'
+
+// Mock Image to work in test environment
+class MockImage {
+  onload: (() => void) | null = null
+  onerror: (() => void) | null = null
+  src = ''
+  naturalWidth = 100
+  naturalHeight = 100
+
+  constructor() {
+    // Trigger onload asynchronously
+    setTimeout(() => {
+      if (this.onload) this.onload()
+    }, 10)
+  }
+}
+
+beforeAll(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).Image = MockImage
+})
 
 describe('embedDPIMetadata', () => {
   it('should embed DPI metadata into a PNG blob', async () => {

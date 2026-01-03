@@ -533,6 +533,9 @@ export function MainWorkflow() {
       // Apply background color to canvas before generating layout
       const coloredCanvas = applyBackgroundColor(imageData.transparentCanvas, backgroundColor)
       
+      // Use the same DPI as the photo (required DPI or default 300)
+      const dpi = requiredDPI || 300
+      
       // Generate high-resolution print layout with colored canvas
       const layoutCanvas = await generatePrintLayout(
         coloredCanvas,
@@ -541,16 +544,16 @@ export function MainWorkflow() {
           heightMm: selectedSize.physicalHeight,
         },
         paperType,
-        300
+        dpi
       )
       
-      // Download the layout
+      // Download the layout with DPI metadata
       const filename = `id-photo-layout-${selectedSize.id}-${paperType}-${Date.now()}.png`
-      await downloadCanvas(layoutCanvas, filename)
+      await downloadCanvas(layoutCanvas, filename, 'image/png', dpi)
     } catch (error) {
       console.error('Failed to generate print layout:', error)
     }
-  }, [imageData, selectedSize, backgroundColor, paperType])
+  }, [imageData, selectedSize, backgroundColor, paperType, requiredDPI])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -729,16 +732,6 @@ export function MainWorkflow() {
                 )}
               </div>
 
-              {/* Print Layout - shown after preview is generated */}
-              {imageData && imageData.croppedPreviewUrl && (
-                <PrintLayout
-                  croppedImageUrl={imageData.croppedPreviewUrl}
-                  selectedSize={selectedSize}
-                  paperType={paperType}
-                  onDownloadLayout={handleDownloadLayout}
-                />
-              )}
-
               {/* Download Image Button - directly under photo preview */}
               {imageData && imageData.croppedPreviewUrl && (
                 <div className="mt-4">
@@ -751,6 +744,16 @@ export function MainWorkflow() {
                     Download Image
                   </button>
                 </div>
+              )}
+
+              {/* Print Layout - shown after preview is generated */}
+              {imageData && imageData.croppedPreviewUrl && (
+                <PrintLayout
+                  croppedImageUrl={imageData.croppedPreviewUrl}
+                  selectedSize={selectedSize}
+                  paperType={paperType}
+                  onDownloadLayout={handleDownloadLayout}
+                />
               )}
             </div>
             

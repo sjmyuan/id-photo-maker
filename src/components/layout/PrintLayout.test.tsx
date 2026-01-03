@@ -116,4 +116,23 @@ describe('PrintLayout', () => {
       expect(canvas.height).toBeGreaterThan(0)
     })
   })
+
+  describe('Title Styling', () => {
+    it('should have consistent title style with other sections (text-sm font-semibold)', () => {
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+          onDownloadLayout={mockOnDownloadLayout}
+        />
+      )
+      
+      const title = screen.getByText(/Print Layout Preview/i)
+      expect(title).toBeInTheDocument()
+      expect(title).toHaveClass('text-sm')
+      expect(title).toHaveClass('font-semibold')
+      expect(title).not.toHaveClass('text-lg')
+    })
+  })
 })

@@ -173,5 +173,5 @@ The rules section outlines decision criteria that determine which skills to appl
 <rule> **DO NOT MODIFY THE TODO LIST AFTER CREATING IT** </rule>
 
 <rule> Think aloud and explain your approach before making any code changes. </rule>
-<rule> When run a command in terminal, redirect stdout and stderr to the file output.log, then read the file to get the output. </rule>
+<rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
 </rules>

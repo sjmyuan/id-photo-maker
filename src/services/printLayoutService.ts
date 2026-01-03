@@ -91,14 +91,24 @@ export function canvasToBlob(
  * @param canvas - Canvas to download
  * @param filename - Filename for download
  * @param mimeType - MIME type for output (default 'image/png')
+ * @param dpi - DPI value to embed in metadata (default 300)
  */
 export async function downloadCanvas(
   canvas: HTMLCanvasElement,
   filename: string,
-  mimeType: string = 'image/png'
+  mimeType: string = 'image/png',
+  dpi: number = 300
 ): Promise<void> {
   const blob = await canvasToBlob(canvas, mimeType)
-  const url = URL.createObjectURL(blob)
+  
+  // Embed DPI metadata for PNG files
+  let finalBlob = blob
+  if (mimeType === 'image/png') {
+    const { embedDPIMetadata } = await import('../utils/dpiMetadata')
+    finalBlob = await embedDPIMetadata(blob, dpi)
+  }
+  
+  const url = URL.createObjectURL(finalBlob)
 
   const link = document.createElement('a')
   link.href = url

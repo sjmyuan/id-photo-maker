@@ -1,6 +1,18 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// Polyfill Blob.arrayBuffer for testing environment
+if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = async function() {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as ArrayBuffer)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsArrayBuffer(this)
+    })
+  }
+}
+
 // Polyfill ImageData for testing environment
 if (typeof ImageData === 'undefined') {
   // @ts-expect-error - Polyfilling ImageData for tests
