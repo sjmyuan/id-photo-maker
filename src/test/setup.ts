@@ -39,6 +39,13 @@ class MockCanvasRenderingContext2D {
     // Mock implementation
   }
 
+  strokeRect() {
+    // Mock implementation for drawing rectangle borders
+  }
+
+  strokeStyle: string | CanvasGradient | CanvasPattern = '#000000'
+  lineWidth = 1
+
   getImageData(_sx: number, _sy: number, sw: number, sh: number): ImageData {
     // If we already have imageData stored (from putImageData), return that
     if (this.imageData && this.imageData.width === sw && this.imageData.height === sh) {

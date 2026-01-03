@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { PRESET_COLORS } from '../components/background/BackgroundSelector'
+import { PrintLayout } from '../components/layout/PrintLayout'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
 import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
 import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
+import { generatePrintLayout, downloadCanvas } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { calculateDPI } from '../utils/dpiCalculation'
 
@@ -116,10 +118,11 @@ function calculateInitialCropArea(
 }
 
 export function MainWorkflow() {
-  // Default values: 1-inch size, 300 DPI, Blue background
+  // Default values: 1-inch size, 300 DPI, Blue background, 6-inch paper
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
   const [requiredDPI, setRequiredDPI] = useState<300 | null>(300) // 300 DPI or null for "None"
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
+  const [paperType, setPaperType] = useState<'6-inch' | 'a4'>('6-inch') // 6-inch paper
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
@@ -127,6 +130,7 @@ export function MainWorkflow() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [cropArea, setCropArea] = useState<CropArea | null>(null) // Used during processing, not exposed in UI
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false) // New state for auto-regeneration
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   
@@ -420,6 +424,31 @@ export function MainWorkflow() {
     setRequiredDPI(dpi)
   }
 
+  const handlePaperTypeChange = (paper: '6-inch' | 'a4') => {
+    setPaperType(paper)
+  }
+
+  // Auto-regenerate preview when settings change
+  useEffect(() => {
+    // Only auto-regenerate if we have image data already (not first upload)
+    // and we're not currently processing the initial generation
+    if (!imageData || isProcessing) return
+    
+    // Regenerate when size, DPI, background, or paper type changes
+    const regenerate = async () => {
+      setIsRegenerating(true)
+      
+      // Simply trigger the generation again with the same uploaded file
+      // but with new settings
+      await handleGeneratePreview()
+      
+      setIsRegenerating(false)
+    }
+    
+    regenerate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSize, requiredDPI, backgroundColor, paperType])
+
   const handleDownload = () => {
     if (!imageData || !imageData.croppedPreviewUrl) return
     
@@ -446,6 +475,32 @@ export function MainWorkflow() {
     setUploadedFile(null)
     setUploadedImageUrl(null)
   }
+
+  const handleDownloadLayout = useCallback(async () => {
+    if (!imageData || !imageData.transparentCanvas) return
+    
+    try {
+      // Apply background color to canvas before generating layout
+      const coloredCanvas = applyBackgroundColor(imageData.transparentCanvas, backgroundColor)
+      
+      // Generate high-resolution print layout with colored canvas
+      const layoutCanvas = await generatePrintLayout(
+        coloredCanvas,
+        {
+          widthMm: selectedSize.physicalWidth,
+          heightMm: selectedSize.physicalHeight,
+        },
+        paperType,
+        300
+      )
+      
+      // Download the layout
+      const filename = `id-photo-layout-${selectedSize.id}-${paperType}-${Date.now()}.png`
+      await downloadCanvas(layoutCanvas, filename)
+    } catch (error) {
+      console.error('Failed to generate print layout:', error)
+    }
+  }, [imageData, selectedSize, backgroundColor, paperType])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -480,8 +535,8 @@ export function MainWorkflow() {
               </div>
             )}
             
-            {/* Compact Grid Selector for Size, DPI, and Color */}
-            <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Compact Grid Selector for Size, DPI, Color, and Paper */}
+            <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {/* Size Selector */}
               <div data-testid="size-selector-step1">
                 <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
@@ -558,6 +613,37 @@ export function MainWorkflow() {
                   ))}
                 </div>
               </div>
+
+              {/* Paper Type Selector */}
+              <div data-testid="paper-type-selector-step1">
+                <h3 className="text-sm font-semibold mb-2 text-gray-800">Paper Type</h3>
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => handlePaperTypeChange('6-inch')}
+                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                      paperType === '6-inch'
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                    data-testid="paper-6-inch-button"
+                  >
+                    <div className="font-semibold text-xs">6-inch</div>
+                    <div className="text-[10px] text-gray-600">4×6 in</div>
+                  </button>
+                  <button
+                    onClick={() => handlePaperTypeChange('a4')}
+                    className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                      paperType === 'a4'
+                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                    data-testid="paper-a4-button"
+                  >
+                    <div className="font-semibold text-xs">A4</div>
+                    <div className="text-[10px] text-gray-600">210×297 mm</div>
+                  </button>
+                </div>
+              </div>
             </div>
             
             {/* Image Placeholder */}
@@ -592,6 +678,30 @@ export function MainWorkflow() {
                   </div>
                 )}
               </div>
+
+              {/* Print Layout - shown after preview is generated */}
+              {imageData && imageData.croppedPreviewUrl && (
+                <PrintLayout
+                  croppedImageUrl={imageData.croppedPreviewUrl}
+                  selectedSize={selectedSize}
+                  paperType={paperType}
+                  onDownloadLayout={handleDownloadLayout}
+                />
+              )}
+
+              {/* Download Image Button - directly under photo preview */}
+              {imageData && imageData.croppedPreviewUrl && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleDownload}
+                    disabled={isProcessing || isRegenerating}
+                    data-testid="download-button"
+                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                  >
+                    Download Image
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* Hidden file input */}
@@ -617,30 +727,12 @@ export function MainWorkflow() {
               </button>
             )}
 
-            {/* Action Buttons - Show after preview is generated */}
+            {/* Re-upload Button - At the bottom, shown after preview */}
             {imageData && (
-              <div className="space-y-3">
-                <button
-                  onClick={handleGeneratePreview}
-                  disabled={isProcessing}
-                  data-testid="regenerate-preview-button"
-                  className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
-                >
-                  Regenerate Preview
-                </button>
-
-                <button
-                  onClick={handleDownload}
-                  disabled={isProcessing}
-                  data-testid="download-button"
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                >
-                  Download Image
-                </button>
-
+              <div className="mt-6 pt-6 border-t">
                 <button
                   onClick={handleReupload}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isRegenerating}
                   data-testid="reupload-button"
                   className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
                 >
@@ -649,11 +741,21 @@ export function MainWorkflow() {
               </div>
             )}
             
+            {/* Processing/Regeneration Indicator */}
             {isProcessing && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
                   <p className="text-sm text-blue-700">Processing your image...</p>
+                </div>
+              </div>
+            )}
+            
+            {isRegenerating && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-3"></div>
+                  <p className="text-sm text-green-700">Regenerating preview with new settings...</p>
                 </div>
               </div>
             )}

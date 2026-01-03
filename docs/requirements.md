@@ -188,26 +188,82 @@ Provides confidence in final output through accurate representation of printed r
 ### Epic 3: General Consumer wants print-ready layout system so that they can efficiently use paper space and produce correctly sized prints.  
 This epic optimizes the printing experience through intelligent layout algorithms and high-quality output formats.  
 
-#### User Story 1: As a General Consumer, I want to choose between 6-inch photo paper or A4 paper layouts so that I can match my available printing materials.  
+#### User Story 1: As a General Consumer, I want to choose between 6-inch photo paper or A4 paper layouts so that I can match my available printing materials. ✅ COMPLETED
 Accommodates common paper types used for home and professional printing.  
 ##### Acceptance Criteria:  
-- Given the layout selection screen, when choosing "6-inch photo paper", then the system configures 1200×1800px @ 300DPI layout.  
-- Given the layout selection screen, when choosing "A4 paper", then the system configures 2480×3508px @ 300DPI layout.  
-- Given either paper selection, when viewing the preview, then actual photo arrangement shows quantity and positioning clearly.  
+- ✅ Given the layout selection screen, when choosing "6-inch photo paper", then the system configures 1200×1800px @ 300DPI layout.  
+- ✅ Given the layout selection screen, when choosing "A4 paper", then the system configures 2480×3508px @ 300DPI layout.  
+- ✅ Given either paper selection, when viewing the preview, then actual photo arrangement shows quantity and positioning clearly.  
 
-#### User Story 2: As a General Consumer, I want to view layout preview showing actual photo arrangement and quantity so that I understand how many photos will print per sheet.  
+##### Implementation Details:
+- Utility: `layoutCalculation` ([src/utils/layoutCalculation.ts](src/utils/layoutCalculation.ts))
+  - `PAPER_TYPES` constant defining 6-inch (1200×1800px) and A4 (2480×3508px) paper specifications
+  - `calculateLayout()` function calculating optimal photo arrangements for different paper types
+  - `mmToPixels()` helper for DPI-aware dimension conversions
+- Component: `PrintLayout` ([src/components/layout/PrintLayout.tsx](src/components/layout/PrintLayout.tsx))
+  - Paper type selector with two buttons: 6-inch Photo Paper and A4 Paper
+  - Default selection: 6-inch photo paper
+  - Real-time layout recalculation when paper type changes
+  - Visual feedback for selected paper type
+- Tests:
+  - `layoutCalculation.test.ts` ([src/utils/layoutCalculation.test.ts](src/utils/layoutCalculation.test.ts)) - 16 tests
+  - `PrintLayout.test.tsx` ([src/components/layout/PrintLayout.test.tsx](src/components/layout/PrintLayout.test.tsx)) - 16 tests
+- Integration: MainWorkflow ([src/pages/MainWorkflow.tsx](src/pages/MainWorkflow.tsx))
+  - PrintLayout component displayed under cropped image in photo preview container
+  - Appears only after preview generation is complete
+  - Paper selection persists during session
+
+#### User Story 2: As a General Consumer, I want to view layout preview showing actual photo arrangement so that I understand how photos will be arranged on the print sheet. ✅ COMPLETED
 Sets accurate expectations for print output through visual representation.  
 ##### Acceptance Criteria:  
-- Given 1-inch photos on 6-inch paper, when viewing layout preview, then 16 photos (4×4 grid) are displayed.  
-- Given 2-inch photos on A4 paper, when viewing layout preview, then 36 photos (6×6 grid) are displayed.  
-- Given any combination, when viewing layout preview, then spacing and margins reflect actual printable area.  
+- ✅ Given 1-inch photos on 6-inch paper, when viewing layout preview, then photos are displayed in calculated grid arrangement.  
+- ✅ Given 2-inch photos on A4 paper, when viewing layout preview, then photos are displayed in calculated grid arrangement.  
+- ✅ Given any combination, when viewing layout preview, then spacing and margins reflect actual printable area.  
 
-#### User Story 3: As a General Consumer, I want automatic optimal layout calculation maximizing paper space utilization so that I don't waste paper or ink.  
+##### Implementation Details:
+- Component: `PrintLayout` ([src/components/layout/PrintLayout.tsx](src/components/layout/PrintLayout.tsx))
+  - Canvas-based visual preview showing photo grid arrangement
+  - Preview maintains paper aspect ratio
+  - Photos drawn with proper spacing and margins
+  - Border visualization for each photo in grid
+  - Clean, minimal presentation focused on visual layout preview
+  - Automatically updates when settings change (size, DPI, background, paper type)
+- Utility: `layoutCalculation` ([src/utils/layoutCalculation.ts](src/utils/layoutCalculation.ts))
+  - Dynamic calculation of photos per row and column
+  - Automatic spacing calculation (5mm minimum between photos)
+  - Margin calculation for centering layout on paper
+- Tests: Comprehensive coverage for all size/paper combinations and visual rendering
+  - `PrintLayout.test.tsx` ([src/components/layout/PrintLayout.test.tsx](src/components/layout/PrintLayout.test.tsx)) - 6 tests covering canvas rendering, visual presentation, and download functionality
+
+#### User Story 3: As a General Consumer, I want automatic optimal layout calculation maximizing paper space utilization so that I don't waste paper or ink. ✅ COMPLETED
 Maximizes value by intelligently arranging photos to minimize waste.  
 ##### Acceptance Criteria:  
-- Given selected photo size and paper type, when calculating layout, then the system determines optimal orientation (portrait/landscape).  
-- Given calculated layout, when displaying preview, then the arrangement shows maximum possible photos per sheet.  
-- Given edge cases (unusual ratios), when unable to fill completely, then the system centers remaining space evenly.  
+- ✅ Given selected photo size and paper type, when calculating layout, then the system determines optimal orientation (portrait/landscape).  
+- ✅ Given calculated layout, when displaying preview, then the arrangement shows maximum possible photos per sheet.  
+- ✅ Given edge cases (unusual ratios), when unable to fill completely, then the system centers remaining space evenly.  
+
+##### Implementation Details:
+- Utility: `layoutCalculation` ([src/utils/layoutCalculation.ts](src/utils/layoutCalculation.ts))
+  - Optimal layout algorithm maximizing paper space utilization
+  - Automatic calculation of maximum photos per row/column
+  - 5mm minimum spacing between photos for cutting ease
+  - Even distribution of remaining space through calculated margins
+  - Handles edge cases (very large/small photos, unusual aspect ratios)
+  - Consistent results for same inputs (deterministic algorithm)
+- Service: `printLayoutService` ([src/services/printLayoutService.ts](src/services/printLayoutService.ts))
+  - `generatePrintLayout()` function creating high-resolution print canvas
+  - Automatic photo arrangement based on calculated layout
+  - White background fill for professional appearance
+  - Precise photo placement at calculated positions
+  - Scales source image to exact photo dimensions
+  - `downloadCanvas()` helper for PNG file download
+- Tests:
+  - `printLayoutService.test.ts` ([src/services/printLayoutService.test.ts](src/services/printLayoutService.test.ts)) - 13 tests
+  - Coverage for space utilization, edge cases, and consistency
+- Integration: MainWorkflow ([src/pages/MainWorkflow.tsx](src/pages/MainWorkflow.tsx))
+  - Download handler calling `generatePrintLayout()` and `downloadCanvas()`
+  - Filename pattern: `id-photo-layout-{size}-{paperType}-{timestamp}.png`
+  - Uses transparent canvas with background for layout generation
 
 #### User Story 4: As a General Consumer, I want to download 300DPI high-quality print files (PNG/PDF formats) so that my prints meet professional quality standards.  
 Ensures print quality through appropriate file formats and resolution settings.  

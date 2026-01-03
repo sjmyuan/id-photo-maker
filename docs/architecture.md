@@ -1287,101 +1287,51 @@ id-photo-maker/
 │   │       ├── main.css
 │   │       └── variables.css
 │   ├── components/                 # Reusable UI components
-│   │   ├── common/                 # Generic components
-│   │   │   ├── Button.tsx
-│   │   │   ├── Card.tsx
-│   │   │   └── Modal.tsx
-│   │   ├── upload/                 # Upload step components
-│   │   │   ├── UploadScreen.tsx
-│   │   │   ├── CameraButton.tsx
-│   │   │   └── FileInput.tsx
-│   │   ├── matting/                # Matting step components
-│   │   │   ├── MattingScreen.tsx
+│   │   ├── background/             # Background color selection
 │   │   │   ├── BackgroundSelector.tsx
-│   │   │   ├── PreviewPanel.tsx
-│   │   │   └── UndoRedoControls.tsx
-│   │   ├── sizing/                 # Sizing step components
-│   │   │   ├── SizingScreen.tsx
-│   │   │   ├── SizeSelector.tsx
-│   │   │   └── CropOverlay.tsx
-│   │   ├── layout/                 # Layout step components
-│   │   │   ├── LayoutScreen.tsx
-│   │   │   ├── PaperSelector.tsx
-│   │   │   └── LayoutPreview.tsx
-│   │   └── download/               # Download step components
-│   │       ├── DownloadScreen.tsx
-│   │       └── PrintInstructions.tsx
+│   │   │   └── BackgroundSelector.test.tsx
+│   │   ├── layout/                 # Print layout components (Epic 3 Stories 1-3) ✅
+│   │   │   ├── PrintLayout.tsx     # Layout preview canvas and download
+│   │   │   └── PrintLayout.test.tsx
+│   │   ├── size/                   # Size selection and cropping
+│   │   │   ├── CropEditor.tsx
+│   │   │   └── CropEditor.test.tsx
+│   │   └── upload/                 # Upload step components
+│   │       ├── ImageUpload.tsx
+│   │       └── ImageUpload.test.tsx
 │   ├── hooks/                      # Custom React hooks
-│   │   ├── useDeviceDetection.ts
-│   │   ├── useImageProcessing.ts
-│   │   ├── useAIMatting.ts
-│   │   ├── useInternationalization.ts
-│   │   └── usePrivacyAssurance.ts
-│   ├── lib/                        # Core libraries and utilities
-│   │   ├── ai/                     # AI processing logic
-│   │   │   ├── U2NetProcessor.ts
-│   │   │   ├── ChromaKeyProcessor.ts
-│   │   │   └── DeviceCapabilityDetector.ts
-│   │   ├── image/                  # Image processing utilities
-│   │   │   ├── ImageValidator.ts
-│   │   │   ├── EXIFHandler.ts
-│   │   │   ├── CanvasUtils.ts
-│   │   │   └── HighDPIGenerator.ts
-│   │   ├── i18n/                   # Internationalization utilities
-│   │   │   ├── TranslationManager.ts
-│   │   │   ├── RTLHelper.ts
-│   │   │   └── FormatHelper.ts
-│   │   ├── privacy/                # Privacy utilities
-│   │   │   ├── PrivacyService.ts
-│   │   │   └── NetworkMonitor.ts
-│   │   └── utils/                  # General utilities
-│   │       ├── validation.ts
-│   │       ├── memory.ts
-│   │       └── storage.ts
+│   │   ├── usePerformanceMeasure.ts
+│   │   └── usePerformanceMeasure.test.ts
+│   ├── pages/                      # Main application pages
+│   │   ├── MainWorkflow.tsx        # Single-page workflow with print layout ✅
+│   │   └── MainWorkflow.test.tsx
 │   ├── services/                   # Application services
-│   │   ├── ImageProcessingService.ts
-│   │   ├── AIMattingService.ts
-│   │   ├── I18nService.ts
-│   │   ├── MediaService.ts
-│   │   └── StorageService.ts
-│   ├── store/                      # State management
-│   │   ├── appStore.ts             # Main Zustand store
-│   │   └── types.ts                # Store types and interfaces
-│   ├── types/                      # TypeScript type definitions
-│   │   ├── index.ts
-│   │   ├── app.ts
-│   │   ├── image.ts
-│   │   ├── ai.ts
-│   │   └── i18n.ts
-│   ├── views/                      # Main application views
-│   │   ├── App.tsx                 # Root component
-│   │   ├── UploadView.tsx
-│   │   ├── MattingView.tsx
-│   │   ├── SizingView.tsx
-│   │   ├── LayoutView.tsx
-│   │   └── DownloadView.tsx
-│   ├── workers/                    # Web Workers
-│   │   └── aiProcessor.worker.ts
-│   ├── config/                     # Configuration files
-│   │   ├── constants.ts            # App constants
-│   │   ├── sizes.ts                # ID photo size configurations
-│   │   ├── paper.ts                # Paper layout configurations
-│   │   └── languages.ts            # Language configurations
-│   ├── sw/                         # Service Worker
-│   │   └── sw.ts
+│   │   ├── faceDetectionService.ts # Face detection with UltraFace-320
+│   │   ├── faceDetectionService.test.ts
+│   │   ├── imageScaling.ts         # Image scaling utilities
+│   │   ├── imageScaling.test.ts
+│   │   ├── imageValidation.ts      # Image validation logic
+│   │   ├── imageValidation.test.ts
+│   │   ├── mattingService.ts       # U²-Net matting and background application
+│   │   ├── mattingService.test.ts
+│   │   ├── printLayoutService.ts   # Print layout generation (Epic 3 Story 3) ✅
+│   │   ├── printLayoutService.test.ts
+│   │   ├── u2netService.ts         # U²-Net model loading
+│   │   └── u2netService.test.ts
+│   ├── utils/                      # Utility functions
+│   │   ├── deviceCapability.ts     # Device capability detection
+│   │   ├── deviceCapability.test.ts
+│   │   ├── dpiCalculation.ts       # DPI calculation for print quality
+│   │   ├── dpiCalculation.test.ts
+│   │   ├── layoutCalculation.ts    # Layout calculation (Epic 3 Stories 1-3) ✅
+│   │   └── layoutCalculation.test.ts
+│   ├── test/                       # Test setup and utilities
+│   │   └── setup.ts                # Vitest setup with canvas mocks
 │   └── main.tsx                    # Application entry point
 ├── tests/
-│   ├── unit/                       # Unit tests
-│   │   ├── lib/
-│   │   ├── services/
-│   │   └── hooks/
+│   ├── unit/                       # Unit tests (co-located with source)
 │   ├── integration/                # Integration tests
-│   │   └── workflow/
 │   └── e2e/                        # End-to-end tests
-│       ├── upload.spec.ts
-│       ├── matting.spec.ts
-│       ├── sizing.spec.ts
-│       └── layout.spec.ts
 ├── terraform/                      # Infrastructure as Code
 │   ├── main.tf
 │   ├── variables.tf
@@ -1752,9 +1702,70 @@ interface ImageData {
   - Moderate kernel intensity (5/-1 pattern) to avoid artifacts
   - Sharpening applied after resizing to 320x320, before tensor normalization
 
+### Print Layout System (Epic 3 Stories 1-3) ✅
+
+**Completed Features**:
+- Paper type selection (6-inch photo paper and A4)
+- Layout preview with visual photo grid arrangement
+- Automatic optimal layout calculation maximizing paper space
+- High-resolution print-ready canvas generation at 300 DPI
+- Download functionality for PNG print layouts
+
+**Architecture**:
+```
+PrintLayout Component (UI)
+  ├─> layoutCalculation utility (business logic)
+  │   ├─> calculateLayout() - optimal grid arrangement
+  │   ├─> mmToPixels() - DPI-aware conversions
+  │   └─> PAPER_TYPES - paper specifications
+  └─> printLayoutService (canvas generation)
+      ├─> generatePrintLayout() - high-res canvas
+      ├─> canvasToBlob() - format conversion
+      └─> downloadCanvas() - file download
+```
+
+**Key Implementation Details**:
+- **Layout Calculation** ([src/utils/layoutCalculation.ts](src/utils/layoutCalculation.ts)):
+  - Dynamic photo grid calculation (rows × columns)
+  - 5mm minimum spacing between photos for cutting ease
+  - Automatic margin calculation for centering
+  - Handles edge cases (very large/small photos, unusual aspect ratios)
+  - Deterministic algorithm producing consistent results
+
+- **Print Layout Component** ([src/components/layout/PrintLayout.tsx](src/components/layout/PrintLayout.tsx)):
+  - Canvas-based visual preview maintaining paper aspect ratio
+  - Clean, minimal presentation focused on the layout visualization
+  - Shows only the canvas preview and download button
+  - No information text display (photo count, dimensions, grid info removed for simplicity)
+  - Automatically redraws when layout or paper type changes
+  - Integrated download button for print layouts
+
+- **Print Layout Service** ([src/services/printLayoutService.ts](src/services/printLayoutService.ts)):
+  - Generates high-resolution print canvas at exact paper dimensions
+  - Arranges photos in calculated grid pattern
+  - White background fill for professional appearance
+  - Scales source canvas to exact photo dimensions
+  - PNG export with proper dimensions for printing
+
+- **Integration in MainWorkflow** ([src/pages/MainWorkflow.tsx](src/pages/MainWorkflow.tsx)):
+  - PrintLayout displayed below cropped image preview
+  - Appears only after preview generation is complete
+  - Auto-regenerates print layout when settings change (size, DPI, background, paper type)
+  - Shows loading indicator during regeneration
+  - Button layout:
+    - "Download Image" button positioned directly under photo preview
+    - "Download Print Layout" button positioned in PrintLayout component
+    - "Re-upload Image" button positioned at bottom with border separator
+  - Download handler generates and saves print layout files
+  - Filename pattern: `id-photo-layout-{size}-{paperType}-{timestamp}.png`
+
+**Test Coverage**:
+- layoutCalculation.test.ts: 16 tests covering all paper/size combinations
+- PrintLayout.test.tsx: 6 tests for canvas rendering, visual presentation, and download
+- printLayoutService.test.ts: 13 tests for canvas generation and edge cases
+- MainWorkflow.test.tsx: Integration tests including print layout and auto-regeneration
+
 **Next Steps**:
-- Implement print layout system (Epic 3)
+- Implement PDF export with 300 DPI metadata (Epic 3 Story 4)
 - Implement PWA capabilities (Epic 4)
 - Add internationalization (Epic 5)
-- Update App.test.tsx to reflect unified single-view workflow (tests currently expect old multi-step flow)
-

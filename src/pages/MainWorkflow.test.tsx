@@ -539,10 +539,30 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     // Check that the grid uses compact layout classes
     expect(selectorGrid).toHaveClass('grid')
     
-    // All three selectors should be present
+    // All four selectors should be present
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('paper-type-selector-step1')).toBeInTheDocument()
+  })
+
+  it('should have 6-inch paper type selected by default in step 1', () => {
+    render(<MainWorkflow />)
+    
+    const sixInchButton = screen.getByTestId('paper-6-inch-button')
+    expect(sixInchButton).toHaveClass('border-blue-600')
+  })
+
+  it('should allow selecting A4 paper type in step 1', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const user = userEvent.setup()
+    
+    render(<MainWorkflow />)
+    
+    const a4Button = screen.getByTestId('paper-a4-button')
+    await user.click(a4Button)
+    
+    expect(a4Button).toHaveClass('border-blue-600')
   })
 })
 
@@ -1157,7 +1177,7 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     expect(screen.getByTestId('selector-grid-step1')).toBeInTheDocument()
   })
 
-  it('should show regenerate, download, and re-upload buttons after processing', async () => {
+  it('should show download and re-upload buttons after processing', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -1179,49 +1199,13 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
       expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should show the three action buttons
-    expect(screen.getByTestId('regenerate-preview-button')).toBeInTheDocument()
+    // Should show download and re-upload buttons (no regenerate button - auto-regeneration now)
     expect(screen.getByTestId('download-button')).toBeInTheDocument()
     expect(screen.getByTestId('reupload-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('regenerate-preview-button')).not.toBeInTheDocument()
     
     // Should not show upload button
     expect(screen.queryByTestId('upload-or-preview-button')).not.toBeInTheDocument()
-  })
-
-  it('should regenerate preview with current settings when regenerate button is clicked', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
-    const mockProcessWithU2Net = vi.mocked(processWithU2Net)
-    mockProcessWithU2Net.mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
-
-    render(<MainWorkflow />)
-    const user = userEvent.setup()
-    
-    await waitFor(() => {
-      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
-      expect(fileInput).not.toBeDisabled()
-    })
-
-    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
-    await uploadAndGeneratePreview(fileInput, file, user)
-    
-    // Wait for first processing to complete
-    await waitFor(() => {
-      expect(screen.queryByText(/Processing your image/i)).not.toBeInTheDocument()
-    }, { timeout: 3000 })
-    
-    // Record initial call count
-    const initialCallCount = mockProcessWithU2Net.mock.calls.length
-    
-    // Click regenerate button
-    const regenerateButton = screen.getByTestId('regenerate-preview-button')
-    await user.click(regenerateButton)
-    
-    // Wait for reprocessing to complete
-    await waitFor(() => {
-      expect(mockProcessWithU2Net.mock.calls.length).toBe(initialCallCount + 1)
-    }, { timeout: 3000 })
   })
 
   it('should clear preview and return to upload state when re-upload button is clicked', async () => {
@@ -1259,3 +1243,127 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     })
   })
 })
+
+describe('MainWorkflow - Print Layout Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should display PrintLayout component after preview is generated', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('cropped-preview-image')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // PrintLayout should be visible
+    expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+  })
+
+  it('should not display PrintLayout before preview is generated', () => {
+    render(<MainWorkflow />)
+    
+    // PrintLayout should not be visible initially
+    expect(screen.queryByTestId('print-layout')).not.toBeInTheDocument()
+  })
+
+  it('should pass paper type from configuration to PrintLayout', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    // Select A4 paper type in step 1 configuration
+    const a4Button = screen.getByTestId('paper-a4-button')
+    await user.click(a4Button)
+    expect(a4Button).toHaveClass('border-blue-600')
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // PrintLayout should be displayed with A4 paper type (info display removed)
+    expect(screen.getByTestId('layout-preview')).toBeInTheDocument()
+  })
+
+
+
+  it('should display layout preview canvas', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should show layout preview canvas
+    const preview = screen.getByTestId('layout-preview')
+    expect(preview).toBeInTheDocument()
+    expect(preview.tagName).toBe('CANVAS')
+  })
+
+  it('should display download print layout button', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const { processWithU2Net } = await import('../services/mattingService')
+    vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
+
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      expect(fileInput).not.toBeDisabled()
+    })
+
+    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+    await uploadAndGeneratePreview(fileInput, file, user)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    
+    // Should show download print layout button
+    expect(screen.getByRole('button', { name: /download print layout/i })).toBeInTheDocument()
+  })
+})
+
