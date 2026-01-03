@@ -130,7 +130,6 @@ export function MainWorkflow() {
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
   const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isUpdatingPreview, setIsUpdatingPreview] = useState(false) // New state for preview updates
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   
@@ -381,51 +380,6 @@ export function MainWorkflow() {
     [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
   )
 
-  // Helper function to regenerate cropped preview without full re-processing
-  const regenerateCroppedPreview = useCallback(async (
-    transparentCanvas: HTMLCanvasElement,
-    cropArea: CropArea,
-    size: SizeOption,
-    dpi: number | null,
-    bgColor: string
-  ) => {
-    try {
-      // Use exact crop service to generate output with precise pixel dimensions
-      const targetDPI = dpi || 300
-      const croppedCanvas = await generateExactCrop(
-        transparentCanvas,
-        cropArea,
-        size.physicalWidth,
-        size.physicalHeight,
-        targetDPI
-      )
-      
-      // Apply background color
-      const croppedWithBgCanvas = document.createElement('canvas')
-      croppedWithBgCanvas.width = croppedCanvas.width
-      croppedWithBgCanvas.height = croppedCanvas.height
-      const croppedWithBgCtx = croppedWithBgCanvas.getContext('2d')
-      if (!croppedWithBgCtx) throw new Error('Failed to get canvas context')
-      
-      croppedWithBgCtx.fillStyle = bgColor
-      croppedWithBgCtx.fillRect(0, 0, croppedWithBgCanvas.width, croppedWithBgCanvas.height)
-      croppedWithBgCtx.drawImage(croppedCanvas, 0, 0)
-      
-      // Convert to blob and create URL
-      const croppedBlob = await new Promise<Blob>((resolve, reject) => {
-        croppedWithBgCanvas.toBlob((blob) => {
-          if (blob) resolve(blob)
-          else reject(new Error('Failed to create cropped blob'))
-        }, 'image/png')
-      })
-      
-      return URL.createObjectURL(croppedBlob)
-    } catch (error) {
-      console.error('Failed to regenerate preview:', error)
-      throw error
-    }
-  }, [])
-
   const handleBackgroundChange = useCallback((color: string) => {
     setBackgroundColor(color)
   }, [])
@@ -441,47 +395,6 @@ export function MainWorkflow() {
   const handlePaperTypeChange = (paper: '6-inch' | 'a4') => {
     setPaperType(paper)
   }
-
-  // Auto-regenerate preview when settings change (optimized: only re-crops, no re-processing)
-  useEffect(() => {
-    // Only auto-regenerate if we have image data already (not first upload)
-    // and we're not currently processing the initial generation
-    if (!imageData || isProcessing) return
-    
-    // Regenerate preview when size, DPI, or background changes
-    // This only re-crops the existing transparent canvas, not re-running matting or face detection
-    const regenerate = async () => {
-      setIsUpdatingPreview(true)
-      
-      try {
-        // Revoke old preview URL
-        URL.revokeObjectURL(imageData.croppedPreviewUrl)
-        
-        // Generate new preview with updated settings
-        const newPreviewUrl = await regenerateCroppedPreview(
-          imageData.transparentCanvas,
-          imageData.cropArea,
-          selectedSize,
-          requiredDPI,
-          backgroundColor
-        )
-        
-        // Update image data with new preview
-        setImageData({
-          ...imageData,
-          croppedPreviewUrl: newPreviewUrl,
-        })
-      } catch (error) {
-        console.error('Failed to regenerate preview:', error)
-        setErrors([error instanceof Error ? error.message : 'Failed to update preview'])
-      }
-      
-      setIsUpdatingPreview(false)
-    }
-    
-    regenerate()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSize, requiredDPI, backgroundColor])
 
   const handleDownload = async () => {
     if (!imageData || !imageData.croppedPreviewUrl) return
@@ -702,7 +615,7 @@ export function MainWorkflow() {
             {/* Image Placeholder */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photo Preview
+                {imageData && imageData.croppedPreviewUrl ? 'ID Photo Preview' : 'Photo Preview'}
               </label>
               <div 
                 className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
@@ -737,7 +650,7 @@ export function MainWorkflow() {
                 <div className="mt-4">
                   <button
                     onClick={handleDownload}
-                    disabled={isProcessing || isUpdatingPreview}
+                    disabled={isProcessing}
                     data-testid="download-button"
                     className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
                   >
@@ -785,7 +698,7 @@ export function MainWorkflow() {
               <div className="mt-6 pt-6 border-t">
                 <button
                   onClick={handleReupload}
-                  disabled={isProcessing || isUpdatingPreview}
+                  disabled={isProcessing}
                   data-testid="reupload-button"
                   className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
                 >
@@ -794,21 +707,12 @@ export function MainWorkflow() {
               </div>
             )}
             
-            {/* Processing/Regeneration Indicator */}
+            {/* Processing Indicator */}
             {isProcessing && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
                   <p className="text-sm text-blue-700">Processing your image...</p>
-                </div>
-              </div>
-            )}
-            
-            {isUpdatingPreview && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-3"></div>
-                  <p className="text-sm text-green-700">Updating preview with new settings...</p>
                 </div>
               </div>
             )}
