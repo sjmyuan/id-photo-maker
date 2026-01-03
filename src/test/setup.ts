@@ -117,10 +117,52 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
   })
   
-  // Mock toBlob method for U2Net service tests
-  HTMLCanvasElement.prototype.toBlob = vi.fn(function(callback: BlobCallback) {
-    // Create a simple PNG blob
-    const pngData = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...new Array(100).fill(0)])
+  // Mock toBlob method - creates a valid minimal PNG
+  HTMLCanvasElement.prototype.toBlob = vi.fn(function(this: HTMLCanvasElement, callback: BlobCallback) {
+    // Create a minimal valid PNG file structure
+    // PNG signature + IHDR chunk + IEND chunk
+    const width = this.width || 1
+    const height = this.height || 1
+    
+    // PNG signature
+    const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+    
+    // IHDR chunk (image header)
+    const ihdr = new Uint8Array([
+      0, 0, 0, 13, // Chunk length (13 bytes)
+      73, 72, 68, 82, // "IHDR"
+      0, 0, 0, width, // Width (4 bytes, big-endian)
+      0, 0, 0, height, // Height (4 bytes, big-endian)
+      8, // Bit depth
+      6, // Color type (RGBA)
+      0, 0, 0, // Compression, filter, interlace
+      // CRC (calculated for type + data)
+      0x5c, 0x11, 0xd4, 0x7c // Placeholder CRC
+    ])
+    
+    // IDAT chunk (image data - minimal compressed data)
+    const idat = new Uint8Array([
+      0, 0, 0, 14, // Chunk length
+      73, 68, 65, 84, // "IDAT"
+      0x78, 0x9c, // zlib header
+      0x62, 0x00, 0x01, 0x00, 0x00, 0xff, 0xff, 0x03, 0x00, 0x00, 0x06, // Minimal compressed data
+      0x57, 0xbf, 0xab, 0xd4 // Placeholder CRC
+    ])
+    
+    // IEND chunk (end)
+    const iend = new Uint8Array([
+      0, 0, 0, 0, // Chunk length (0 bytes)
+      73, 69, 78, 68, // "IEND"
+      0xae, 0x42, 0x60, 0x82 // CRC
+    ])
+    
+    // Combine all parts
+    const pngData = new Uint8Array(signature.length + ihdr.length + idat.length + iend.length)
+    pngData.set(signature, 0)
+    pngData.set(ihdr, signature.length)
+    pngData.set(idat, signature.length + ihdr.length)
+    pngData.set(iend, signature.length + ihdr.length + idat.length)
+    
     const blob = new Blob([pngData], { type: 'image/png' })
     setTimeout(() => callback(blob), 0)
   })
@@ -162,3 +204,37 @@ class LocalStorageMock {
 
 // @ts-expect-error - Mocking localStorage
 global.localStorage = new LocalStorageMock()
+
+// Mock Image loading
+if (typeof Image !== 'undefined') {
+  const OriginalImage = Image
+  
+  // @ts-expect-error - Overriding Image class
+  global.Image = class MockImage extends OriginalImage {
+    private _src = ''
+    
+    constructor(width?: number, height?: number) {
+      super(width, height)
+      // Set default dimensions
+      Object.defineProperty(this, 'naturalWidth', { writable: true, value: width || 100 })
+      Object.defineProperty(this, 'naturalHeight', { writable: true, value: height || 100 })
+    }
+    
+    get src(): string {
+      return this._src
+    }
+    
+    set src(value: string) {
+      this._src = value
+      // Automatically trigger onload for data URLs and blob URLs
+      setTimeout(() => {
+        if (this.onload) {
+          this.onload(new Event('load'))
+        }
+      }, 10)
+    }
+    
+    onload: ((this: GlobalEventHandlers, ev: Event) => unknown) | null = null
+    onerror: OnErrorEventHandler = null
+  }
+}

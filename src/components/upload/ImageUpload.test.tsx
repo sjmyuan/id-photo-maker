@@ -227,7 +227,7 @@ describe('ImageUpload', () => {
       isValid: false,
       fileSize: 0,
       needsScaling: false,
-      dimensions: null,
+      dimensions: { width: 100, height: 100 },
       errors: ['Invalid file type'],
       warnings: [],
     })

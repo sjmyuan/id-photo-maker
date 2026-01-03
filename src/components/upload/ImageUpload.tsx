@@ -1,4 +1,4 @@
-import { useState, useCallback, ChangeEvent } from 'react'
+import { useState, useCallback, type ChangeEvent } from 'react'
 import { validateImageFile } from '../../services/imageValidation'
 import { scaleImageToTarget } from '../../services/imageScaling'
 import { mockMattingService, processWithU2Net } from '../../services/mattingService'

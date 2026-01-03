@@ -10,6 +10,8 @@ import { processWithU2Net, applyBackgroundColor } from '../services/mattingServi
 import { generatePrintLayout, downloadCanvas } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { calculateDPI } from '../utils/dpiCalculation'
+import { generateExactCrop } from '../services/exactCropService'
+import { embedDPIMetadata } from '../utils/dpiMetadata'
 
 interface CropArea {
   x: number
@@ -21,11 +23,11 @@ interface CropArea {
 interface ImageData {
   originalFile: File
   originalUrl: string
-  transparentBlob: Blob // Transparent matted image
-  transparentCanvas: HTMLCanvasElement // Canvas with transparent background
-  processedUrl: string // URL with applied background color
-  croppedPreviewUrl: string // URL of the final cropped preview image
+  transparentCanvas: HTMLCanvasElement // Canvas with transparent background (matting result)
+  cropArea: CropArea // Crop area from face detection
+  croppedPreviewUrl: string // URL of the final cropped preview image with exact pixels
 }
+
 
 /**
  * Calculate initial crop area based on detected face
@@ -127,10 +129,8 @@ export function MainWorkflow() {
   const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
   const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
   const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [cropArea, setCropArea] = useState<CropArea | null>(null) // Used during processing, not exposed in UI
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isRegenerating, setIsRegenerating] = useState(false) // New state for auto-regeneration
+  const [isUpdatingPreview, setIsUpdatingPreview] = useState(false) // New state for preview updates
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   
@@ -296,9 +296,6 @@ export function MainWorkflow() {
             }
           }
           
-          // Store the calculated crop area
-          setCropArea(initialCropArea)
-          
           // Clean up temporary URL
           URL.revokeObjectURL(imgUrl)
         }
@@ -330,37 +327,29 @@ export function MainWorkflow() {
         if (!ctx) throw new Error('Failed to get canvas context')
         ctx.drawImage(transparentImg, 0, 0)
 
-        // Apply background color
-        const coloredCanvas = applyBackgroundColor(transparentCanvas, backgroundColor)
-        const coloredBlob = await new Promise<Blob>((resolve, reject) => {
-          coloredCanvas.toBlob((blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error('Failed to create blob'))
-          }, 'image/png')
-        })
-
-        // Create cropped preview canvas
-        const croppedCanvas = document.createElement('canvas')
-        if (initialCropArea) {
-          croppedCanvas.width = initialCropArea.width
-          croppedCanvas.height = initialCropArea.height
-          const croppedCtx = croppedCanvas.getContext('2d')
-          if (!croppedCtx) throw new Error('Failed to get canvas context')
-          
-          // Apply background color to cropped canvas
-          croppedCtx.fillStyle = backgroundColor
-          croppedCtx.fillRect(0, 0, croppedCanvas.width, croppedCanvas.height)
-          
-          // Draw the transparent image on top, cropped to the selected area
-          croppedCtx.drawImage(
-            transparentCanvas,
-            initialCropArea.x, initialCropArea.y, initialCropArea.width, initialCropArea.height, // Source rectangle
-            0, 0, initialCropArea.width, initialCropArea.height // Destination rectangle
-          )
-        }
+        // Use exact crop service to generate output with precise pixel dimensions
+        const dpi = requiredDPI || 300 // Use required DPI or default to 300
+        const croppedCanvas = await generateExactCrop(
+          transparentCanvas,
+          initialCropArea!,
+          selectedSize.physicalWidth,
+          selectedSize.physicalHeight,
+          dpi
+        )
+        
+        // Apply background color to the exact-sized canvas
+        const croppedWithBgCanvas = document.createElement('canvas')
+        croppedWithBgCanvas.width = croppedCanvas.width
+        croppedWithBgCanvas.height = croppedCanvas.height
+        const croppedWithBgCtx = croppedWithBgCanvas.getContext('2d')
+        if (!croppedWithBgCtx) throw new Error('Failed to get canvas context')
+        
+        croppedWithBgCtx.fillStyle = backgroundColor
+        croppedWithBgCtx.fillRect(0, 0, croppedWithBgCanvas.width, croppedWithBgCanvas.height)
+        croppedWithBgCtx.drawImage(croppedCanvas, 0, 0)
 
         const croppedBlob = await new Promise<Blob>((resolve, reject) => {
-          croppedCanvas.toBlob((blob) => {
+          croppedWithBgCanvas.toBlob((blob) => {
             if (blob) resolve(blob)
             else reject(new Error('Failed to create cropped blob'))
           }, 'image/png')
@@ -368,7 +357,6 @@ export function MainWorkflow() {
 
         // Create URLs for display
         const originalUrl = URL.createObjectURL(file)
-        const processedUrl = URL.createObjectURL(coloredBlob)
         const croppedPreviewUrl = URL.createObjectURL(croppedBlob)
         
         // Clean up temporary URL
@@ -377,9 +365,8 @@ export function MainWorkflow() {
         setImageData({
           originalFile: file,
           originalUrl,
-          transparentBlob: mattedBlob,
           transparentCanvas,
-          processedUrl,
+          cropArea: initialCropArea!,
           croppedPreviewUrl,
         })
 
@@ -394,27 +381,54 @@ export function MainWorkflow() {
     [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
   )
 
+  // Helper function to regenerate cropped preview without full re-processing
+  const regenerateCroppedPreview = useCallback(async (
+    transparentCanvas: HTMLCanvasElement,
+    cropArea: CropArea,
+    size: SizeOption,
+    dpi: number | null,
+    bgColor: string
+  ) => {
+    try {
+      // Use exact crop service to generate output with precise pixel dimensions
+      const targetDPI = dpi || 300
+      const croppedCanvas = await generateExactCrop(
+        transparentCanvas,
+        cropArea,
+        size.physicalWidth,
+        size.physicalHeight,
+        targetDPI
+      )
+      
+      // Apply background color
+      const croppedWithBgCanvas = document.createElement('canvas')
+      croppedWithBgCanvas.width = croppedCanvas.width
+      croppedWithBgCanvas.height = croppedCanvas.height
+      const croppedWithBgCtx = croppedWithBgCanvas.getContext('2d')
+      if (!croppedWithBgCtx) throw new Error('Failed to get canvas context')
+      
+      croppedWithBgCtx.fillStyle = bgColor
+      croppedWithBgCtx.fillRect(0, 0, croppedWithBgCanvas.width, croppedWithBgCanvas.height)
+      croppedWithBgCtx.drawImage(croppedCanvas, 0, 0)
+      
+      // Convert to blob and create URL
+      const croppedBlob = await new Promise<Blob>((resolve, reject) => {
+        croppedWithBgCanvas.toBlob((blob) => {
+          if (blob) resolve(blob)
+          else reject(new Error('Failed to create cropped blob'))
+        }, 'image/png')
+      })
+      
+      return URL.createObjectURL(croppedBlob)
+    } catch (error) {
+      console.error('Failed to regenerate preview:', error)
+      throw error
+    }
+  }, [])
+
   const handleBackgroundChange = useCallback((color: string) => {
     setBackgroundColor(color)
-    
-    // Re-apply background color to processed image in real-time
-    if (imageData && imageData.transparentCanvas) {
-      const coloredCanvas = applyBackgroundColor(imageData.transparentCanvas, color)
-      coloredCanvas.toBlob((blob) => {
-        if (blob) {
-          // Revoke old URL
-          URL.revokeObjectURL(imageData.processedUrl)
-          
-          // Create new URL with updated background
-          const newProcessedUrl = URL.createObjectURL(blob)
-          setImageData({
-            ...imageData,
-            processedUrl: newProcessedUrl,
-          })
-        }
-      }, 'image/png')
-    }
-  }, [imageData])
+  }, [])
 
   const handleSizeChange = (size: SizeOption) => {
     setSelectedSize(size)
@@ -428,43 +442,79 @@ export function MainWorkflow() {
     setPaperType(paper)
   }
 
-  // Auto-regenerate preview when settings change
+  // Auto-regenerate preview when settings change (optimized: only re-crops, no re-processing)
   useEffect(() => {
     // Only auto-regenerate if we have image data already (not first upload)
     // and we're not currently processing the initial generation
     if (!imageData || isProcessing) return
     
-    // Regenerate when size, DPI, background, or paper type changes
+    // Regenerate preview when size, DPI, or background changes
+    // This only re-crops the existing transparent canvas, not re-running matting or face detection
     const regenerate = async () => {
-      setIsRegenerating(true)
+      setIsUpdatingPreview(true)
       
-      // Simply trigger the generation again with the same uploaded file
-      // but with new settings
-      await handleGeneratePreview()
+      try {
+        // Revoke old preview URL
+        URL.revokeObjectURL(imageData.croppedPreviewUrl)
+        
+        // Generate new preview with updated settings
+        const newPreviewUrl = await regenerateCroppedPreview(
+          imageData.transparentCanvas,
+          imageData.cropArea,
+          selectedSize,
+          requiredDPI,
+          backgroundColor
+        )
+        
+        // Update image data with new preview
+        setImageData({
+          ...imageData,
+          croppedPreviewUrl: newPreviewUrl,
+        })
+      } catch (error) {
+        console.error('Failed to regenerate preview:', error)
+        setErrors([error instanceof Error ? error.message : 'Failed to update preview'])
+      }
       
-      setIsRegenerating(false)
+      setIsUpdatingPreview(false)
     }
     
     regenerate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSize, requiredDPI, backgroundColor, paperType])
+  }, [selectedSize, requiredDPI, backgroundColor])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!imageData || !imageData.croppedPreviewUrl) return
     
-    // Create download link directly from the cropped preview URL
-    const link = document.createElement('a')
-    link.href = imageData.croppedPreviewUrl
-    link.download = `id-photo-${selectedSize.id}-${Date.now()}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      // Fetch the cropped preview blob
+      const response = await fetch(imageData.croppedPreviewUrl)
+      const blob = await response.blob()
+      
+      // Embed DPI metadata
+      const dpi = requiredDPI || 300
+      const blobWithDPI = await embedDPIMetadata(blob, dpi)
+      
+      // Create download link with DPI-embedded image
+      const url = URL.createObjectURL(blobWithDPI)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `id-photo-${selectedSize.id}-${dpi}dpi-${Date.now()}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+    } catch (error) {
+      console.error('Failed to download image:', error)
+      setErrors([error instanceof Error ? error.message : 'Failed to download image'])
+    }
   }
 
   const handleReupload = () => {
     // Clear all state and return to upload view
     setImageData(null)
-    setCropArea(null)
     setWarnings([])
     setErrors([])
     
@@ -694,7 +744,7 @@ export function MainWorkflow() {
                 <div className="mt-4">
                   <button
                     onClick={handleDownload}
-                    disabled={isProcessing || isRegenerating}
+                    disabled={isProcessing || isUpdatingPreview}
                     data-testid="download-button"
                     className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
                   >
@@ -732,7 +782,7 @@ export function MainWorkflow() {
               <div className="mt-6 pt-6 border-t">
                 <button
                   onClick={handleReupload}
-                  disabled={isProcessing || isRegenerating}
+                  disabled={isProcessing || isUpdatingPreview}
                   data-testid="reupload-button"
                   className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
                 >
@@ -751,11 +801,11 @@ export function MainWorkflow() {
               </div>
             )}
             
-            {isRegenerating && (
+            {isUpdatingPreview && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-3"></div>
-                  <p className="text-sm text-green-700">Regenerating preview with new settings...</p>
+                  <p className="text-sm text-green-700">Updating preview with new settings...</p>
                 </div>
               </div>
             )}
