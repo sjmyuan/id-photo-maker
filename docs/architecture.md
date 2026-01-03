@@ -155,52 +155,90 @@ end note
 
 ```plantuml
 @startuml
-title ID Photo Maker - User Workflow
+title ID Photo Maker - Refactored User Workflow
 
-[*] --> Upload
-Upload --> ValidateImage
+[*] --> ConfigureSettings
+ConfigureSettings --> UploadImage : User clicks "Upload Image"
+UploadImage --> ShowPreview : File selected
+ShowPreview --> UserReview : Display uploaded image
+UserReview --> GeneratePreview : User clicks "Generate Preview"
+GeneratePreview --> ValidateImage
 ValidateImage --> ScaleImage : If >10MB
-ScaleImage --> DetectDevice
-DetectDevice --> EnableQuickMode : Low performance
-DetectDevice --> LoadAIModel : High performance
-LoadAIModel --> ProcessMatting
-EnableQuickMode --> ProcessChromaKey
-ProcessMatting --> PreviewResults
-ProcessChromaKey --> PreviewResults
-PreviewResults --> Reprocess : User clicks reprocess
-PreviewResults --> SelectSize : User continues
-SelectSize --> CropImage
-CropImage --> ValidateResolution
-ValidateResolution --> ShowWarning : Low resolution
-ValidateResolution --> SelectLayout : Good resolution
-ShowWarning --> ConfirmDownload : User acknowledges
-SelectLayout --> GenerateLayout
-GenerateLayout --> DownloadFile
-DownloadFile --> [*]
+ScaleImage --> DetectFace
+DetectFace --> ShowNoFaceError : No face detected
+DetectFace --> ShowMultiFaceError : Multiple faces detected
+DetectFace --> ValidateDPI : Single face detected
+ValidateDPI --> ShowDPIError : DPI too low (if 300 DPI required)
+ValidateDPI --> ProcessMatting : DPI sufficient or None selected
+ProcessMatting --> AdvanceToStep2 : Processing complete
+AdvanceToStep2 --> EditBackground
+EditBackground --> AdjustCrop
+AdjustCrop --> Download
+Download --> [*]
+ShowNoFaceError --> UserReview : Return to review
+ShowMultiFaceError --> UserReview : Return to review
+ShowDPIError --> UserReview : Return to review
 
-note right of Upload
-  **Step 1: Upload & Process**
-  - Camera or file upload
-  - Privacy assurance visible
-  - Device capability detection
+note right of ConfigureSettings
+  **Step 1: Configure Settings**
+  - Select photo size (1", 2", 3")
+  - Select DPI requirement (300 DPI or None)
+  - Settings configured before upload
 end note
 
-note right of SelectSize
-  **Step 2: Size & Crop**
-  - Standard size selection
-  - Real-time crop overlay
-  - Resolution validation
+note right of UploadImage
+  **Upload Process**
+  - User clicks "Upload Image" button
+  - File picker opens
+  - User selects image file
+  - NO automatic processing
 end note
 
-note right of SelectLayout
-  **Step 3: Layout & Download**
-  - Paper type selection
-  - Optimal arrangement
-  - 300DPI file generation
+note right of ShowPreview
+  **Image Preview**
+  - Uploaded image shown in placeholder
+  - Button changes to "Generate Preview"
+  - User can verify correct file selected
+  - Provides explicit control over processing
+end note
+
+note right of GeneratePreview
+  **Processing Trigger**
+  - User explicitly clicks "Generate Preview"
+  - Validates image file
+  - Detects face
+  - Validates DPI requirements
+  - Processes background removal
+  - Auto-advances to Step 2 on success
+end note
+
+note right of EditBackground
+  **Step 2: Edit & Download**
+  - Select background color (presets or custom RGB)
+  - Adjust crop area for framing
+  - Download final ID photo
+  - "Go Back" button returns to Step 1
 end note
 
 @enduml
 ```
+
+**Key Workflow Changes (Refactored Upload Flow):**
+
+1. **Separated Upload from Processing**: The original workflow automatically triggered processing upon file selection. The refactored workflow separates these actions:
+   - User clicks "Upload Image" button → file picker opens
+   - User selects file → image appears in placeholder
+   - Button changes to "Generate Preview"
+   - User clicks "Generate Preview" → processing starts
+   
+2. **Explicit User Control**: Users now have explicit control over when processing begins, allowing them to:
+   - Verify the correct file was selected before processing
+   - Review the uploaded image in the placeholder
+   - Make configuration changes (size, DPI) before processing
+   
+3. **Improved User Feedback**: The placeholder shows the uploaded image immediately, and the button label clearly indicates the next action ("Upload Image" vs "Generate Preview").
+
+4. **Same Processing Logic**: All validation (file size, face detection, DPI) still occurs, but is now triggered explicitly by the "Generate Preview" button instead of automatically after file selection.
 
 The architecture follows these key principles:
 

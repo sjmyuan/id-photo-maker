@@ -9,6 +9,25 @@ A privacy-first, client-side web application that enables users to create profes
 - **Internationalization**: i18next with offline support for all languages
 - **Offline Support**: PWA-enabled with service worker caching (Workbox)
 
+## User Workflow
+The application follows a two-step workflow with explicit user control over processing:
+
+### Step 1: Upload & Configuration
+1. User selects photo size (1-inch, 2-inch, or 3-inch) and DPI requirement (300 DPI or None)
+2. User clicks "Upload Image" button to select a photo file
+3. Selected image appears in a placeholder preview
+4. Button changes to "Generate Preview"
+5. User clicks "Generate Preview" to trigger processing (face detection, validation, and background removal)
+6. If validation passes, user automatically advances to Step 2
+
+### Step 2: Edit & Download
+1. User adjusts background color using preset options or custom RGB values
+2. User fine-tunes crop area to frame the face correctly
+3. User clicks "Download ID Photo" to save the final result
+4. User can click "Go Back" to return to Step 1 and start over
+
+**Key Design Decision**: Upload and processing are separated to give users explicit control. The user sees their uploaded image before triggering any processing, allowing them to verify the correct file was selected.
+
 ## Personas  
 ### Persona: General Consumer  
 Creates ID photos at home for official documents like passports, driver's licenses, or job applications.  

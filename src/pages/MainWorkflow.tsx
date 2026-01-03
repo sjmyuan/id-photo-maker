@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ChangeEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
 import { BackgroundSelector } from '../components/background/BackgroundSelector'
 import { CropEditor, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
@@ -123,8 +123,20 @@ export function MainWorkflow() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
+  
+  // New states for separated upload/processing flow
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+  
+  // Ref for hidden file input
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { start, stop } = usePerformanceMeasure()
+  
+  // Handler to trigger file input click
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click()
+  }
 
   // Load models on mount
   useEffect(() => {
@@ -154,11 +166,29 @@ export function MainWorkflow() {
     loadModels()
   }, [])
 
-  // Handle file upload
+  // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
+    (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
+
+      // Reset state
+      setWarnings([])
+      setErrors([])
+      setImageData(null)
+      
+      // Store uploaded file and create preview URL
+      setUploadedFile(file)
+      const imageUrl = URL.createObjectURL(file)
+      setUploadedImageUrl(imageUrl)
+    },
+    []
+  )
+
+  // Handle processing (triggered by "Generate Preview" button)
+  const handleGeneratePreview = useCallback(
+    async () => {
+      if (!uploadedFile) return
 
       // Reset state
       setWarnings([])
@@ -167,9 +197,11 @@ export function MainWorkflow() {
       setIsProcessing(true)
       start()
 
+      const file = uploadedFile
+
       try {
         // 1. Validate the file
-        const validation = await validateImageFile(file)
+        const validation = await validateImageFile(uploadedFile)
         
         if (!validation.isValid) {
           setErrors(validation.errors)
@@ -323,7 +355,7 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
+    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {
@@ -367,6 +399,13 @@ export function MainWorkflow() {
     setCropArea(null)
     setWarnings([])
     setErrors([])
+    
+    // Clear uploaded file and image URL
+    if (uploadedImageUrl) {
+      URL.revokeObjectURL(uploadedImageUrl)
+    }
+    setUploadedFile(null)
+    setUploadedImageUrl(null)
   }
 
   const handleDownload = () => {
@@ -494,19 +533,53 @@ export function MainWorkflow() {
                 </div>
               </div>
               
-              <div className="mb-4">
+              {/* Image Placeholder */}
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select an image file
+                  Photo Preview
                 </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileChange}
-                  disabled={isProcessing || isLoadingU2Net}
-                  data-testid="file-input"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed p-2"
-                />
+                <div 
+                  className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
+                  data-testid="image-placeholder"
+                >
+                  {uploadedImageUrl ? (
+                    <img 
+                      src={uploadedImageUrl} 
+                      alt="Uploaded preview" 
+                      className="max-w-full max-h-full object-contain"
+                      data-testid="uploaded-image"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">No image uploaded</p>
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                disabled={isProcessing || isLoadingU2Net}
+                data-testid="file-input"
+                className="hidden"
+              />
+              
+              {/* Upload Image / Generate Preview Button */}
+              <button
+                onClick={uploadedFile ? handleGeneratePreview : handleUploadButtonClick}
+                disabled={isProcessing || isLoadingU2Net}
+                data-testid="upload-or-preview-button"
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+              >
+                {uploadedFile ? 'Generate Preview' : 'Upload Image'}
+              </button>
               
               {isProcessing && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
