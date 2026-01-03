@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
-import { BackgroundSelector } from '../components/background/BackgroundSelector'
 import { CropEditor, type CropArea, type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
+import { PRESET_COLORS } from '../components/background/BackgroundSelector'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
 import { validateImageFile } from '../services/imageValidation'
@@ -483,53 +483,83 @@ export function MainWorkflow() {
                 </div>
               )}
               
-              {/* Size Selector */}
-              <div data-testid="size-selector-step1" className="mb-6">
-                <h3 className="text-base font-semibold mb-3 text-gray-800">Photo Size</h3>
-                <div className="space-y-2">
-                  {SIZE_OPTIONS.map((size) => (
+              {/* Compact Grid Selector for Size, DPI, and Color */}
+              <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Size Selector */}
+                <div data-testid="size-selector-step1">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
+                  <div className="space-y-1.5">
+                    {SIZE_OPTIONS.map((size) => (
+                      <button
+                        key={size.id}
+                        onClick={() => handleSizeChange(size)}
+                        className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                          selectedSize.id === size.id
+                            ? 'border-blue-600 bg-blue-50 text-blue-900'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="font-semibold text-xs">{size.label}</div>
+                        <div className="text-[10px] text-gray-600">{size.dimensions}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DPI Selector */}
+                <div data-testid="dpi-selector-step1">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-800">DPI</h3>
+                  <div className="space-y-1.5">
                     <button
-                      key={size.id}
-                      onClick={() => handleSizeChange(size)}
-                      className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
-                        selectedSize.id === size.id
+                      onClick={() => handleDPIChange(300)}
+                      className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                        requiredDPI === 300
                           ? 'border-blue-600 bg-blue-50 text-blue-900'
                           : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                       }`}
                     >
-                      <div className="font-semibold text-sm">{size.label}</div>
-                      <div className="text-xs text-gray-600">{size.dimensions}</div>
+                      <div className="font-semibold text-xs">300 DPI</div>
+                      <div className="text-[10px] text-gray-600">For print</div>
                     </button>
-                  ))}
+                    <button
+                      onClick={() => handleDPIChange(null)}
+                      className={`w-full px-2 py-1.5 text-left rounded border transition-colors ${
+                        requiredDPI === null
+                          ? 'border-blue-600 bg-blue-50 text-blue-900'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="font-semibold text-xs">None</div>
+                      <div className="text-[10px] text-gray-600">No requirement</div>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* DPI Selector */}
-              <div data-testid="dpi-selector-step1" className="mb-6">
-                <h3 className="text-base font-semibold mb-3 text-gray-800">DPI Requirement</h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleDPIChange(300)}
-                    className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
-                      requiredDPI === 300
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-semibold text-sm">300 DPI</div>
-                    <div className="text-xs text-gray-600">Recommended for printing</div>
-                  </button>
-                  <button
-                    onClick={() => handleDPIChange(null)}
-                    className={`w-full px-3 py-2 text-left rounded-lg border-2 transition-colors ${
-                      requiredDPI === null
-                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-semibold text-sm">None</div>
-                    <div className="text-xs text-gray-600">No DPI requirement</div>
-                  </button>
+                {/* Color Selector */}
+                <div data-testid="color-selector-step1">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-800">Background</h3>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color.value}
+                        data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
+                        onClick={() => handleBackgroundChange(color.value)}
+                        className={`px-1.5 py-1.5 rounded border transition-all ${
+                          backgroundColor === color.value
+                            ? 'border-blue-600 ring-4 ring-blue-200'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <div
+                            className="w-6 h-6 rounded border border-gray-400"
+                            style={{ backgroundColor: color.value }}
+                          />
+                          <span className="font-semibold text-[10px] text-center leading-tight">{color.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               
@@ -596,32 +626,17 @@ export function MainWorkflow() {
         {/* Step 2: Edit & Download */}
         {currentStep === 2 && imageData && (
           <div data-testid="edit-step" className="flex flex-col h-full">
-            {/* Two-column layout with equal heights and aligned */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 mb-4">
-              {/* Left Panel: Background selector */}
-              <div data-testid="left-panel" className="lg:col-span-1 flex flex-col gap-4">
-                {/* Background Selector */}
-                <div data-testid="background-selector" className="bg-white rounded-lg shadow p-4 flex-1 overflow-auto">
-                  <h3 className="text-base font-semibold mb-3 text-gray-800">Background Color</h3>
-                  <BackgroundSelector
-                    onColorChange={handleBackgroundChange}
-                    initialColor={backgroundColor}
+            {/* Full width crop editor */}
+            <div className="flex-1 min-h-0 mb-4">
+              <div data-testid="processed-image-with-crop" className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
+                <h3 className="text-base font-semibold mb-3 text-gray-800">Preview & Adjust Crop</h3>
+                <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
+                  <CropEditor
+                    processedImageUrl={imageData.processedUrl}
+                    initialCropArea={cropArea}
+                    onCropAreaChange={handleCropAreaChange}
+                    selectedSize={selectedSize}
                   />
-                </div>
-              </div>
-
-              {/* Right Panel: Processed image with crop */}
-              <div className="lg:col-span-2">
-                <div data-testid="processed-image-with-crop" className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
-                  <h3 className="text-base font-semibold mb-3 text-gray-800">Preview & Adjust</h3>
-                  <div className="bg-gray-100 rounded-lg p-3 flex-1 overflow-hidden flex items-center justify-center">
-                    <CropEditor
-                      processedImageUrl={imageData.processedUrl}
-                      initialCropArea={cropArea}
-                      onCropAreaChange={handleCropAreaChange}
-                      selectedSize={selectedSize}
-                    />
-                  </div>
                 </div>
               </div>
             </div>

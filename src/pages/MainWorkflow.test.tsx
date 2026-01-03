@@ -498,6 +498,52 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     expect(sizeSelectorIndex).toBeLessThan(fileInputIndex)
     expect(dpiSelectorIndex).toBeLessThan(fileInputIndex)
   })
+
+  it('should show color selector in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Step 1 should show color selection
+    expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
+  })
+
+  it('should have blue background color selected by default in step 1', () => {
+    render(<MainWorkflow />)
+    
+    // Check that blue is selected by default
+    const blueButton = screen.getByTestId('color-blue')
+    expect(blueButton).toHaveClass('ring-4')
+  })
+
+  it('should allow selecting different background colors in step 1', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    render(<MainWorkflow />)
+    const user = userEvent.setup()
+    
+    // Select red color
+    const redButton = screen.getByTestId('color-red')
+    await user.click(redButton)
+    
+    // Check that red button is now selected
+    expect(redButton).toHaveClass('ring-4')
+    
+    // Check that blue button is not selected
+    const blueButton = screen.getByTestId('color-blue')
+    expect(blueButton).not.toHaveClass('ring-4')
+  })
+
+  it('should display size, DPI, and color selectors in a compact grid layout', () => {
+    render(<MainWorkflow />)
+    
+    const selectorGrid = screen.getByTestId('selector-grid-step1')
+    
+    // Check that the grid uses compact layout classes
+    expect(selectorGrid).toHaveClass('grid')
+    
+    // All three selectors should be present
+    expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
+    expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
+  })
 })
 
 describe('MainWorkflow - Face Detection and DPI Validation Tests', () => {
@@ -696,7 +742,7 @@ describe('MainWorkflow - Step 2 Layout Tests', () => {
     }, { timeout: 3000 })
   })
 
-  it('should show size and background selectors on the left side in step 2', async () => {
+  it('should NOT show background selector in step 2 after refactor (moved to step 1)', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -714,10 +760,11 @@ describe('MainWorkflow - Step 2 Layout Tests', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('left-panel')).toBeInTheDocument()
-      // Size selector should NOT be in step 2 after refactor
-      expect(screen.queryByTestId('size-selector')).not.toBeInTheDocument()
-      expect(screen.getByTestId('background-selector')).toBeInTheDocument()
+      expect(screen.getByTestId('edit-step')).toBeInTheDocument()
+      // Background selector should NOT be in step 2 (it's in step 1)
+      expect(screen.queryByTestId('background-selector')).not.toBeInTheDocument()
+      // Left panel should NOT be present
+      expect(screen.queryByTestId('left-panel')).not.toBeInTheDocument()
     }, { timeout: 3000 })
   })
 

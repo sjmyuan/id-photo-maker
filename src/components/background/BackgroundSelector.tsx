@@ -7,7 +7,7 @@ export interface BackgroundSelectorProps {
   initialColor?: string
 }
 
-interface PresetColor {
+export interface PresetColor {
   name: string
   value: string
 }
@@ -18,7 +18,7 @@ interface RGBColor {
   b: number
 }
 
-const PRESET_COLORS: PresetColor[] = [
+export const PRESET_COLORS: PresetColor[] = [
   { name: 'Red', value: '#FF0000' },
   { name: 'Blue', value: '#0000FF' },
   { name: 'White', value: '#FFFFFF' },
