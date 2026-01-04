@@ -82,7 +82,7 @@ The skills section describes additional capabilities that you can refer to, incl
   - Step 14: Validate Linting, Formatting and Type Checking for functionality B
   - ...
 
-I will update the todo list to match this plan and proceed to implement the requirement step by step as outlined.
+I will update the #todo tool to match this plan and proceed to implement the requirement step by step as outlined.
 
 """
 </implementation-planning>
@@ -120,7 +120,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - Step 16: Validate Linting, Formatting and Type Checking for refactor objective B
   - ... 
   
-  I will update the todo list to match this plan and proceed to refactor the code step by step as outlined.
+  I will update the #todo tool to match this plan and proceed to refactor the code step by step as outlined.
   """
 </refactor-planning>
 
@@ -147,7 +147,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - Step 9: Verify Fix for issue B
   - Step 10: Validate Linting, Formatting and Type Checking for issue B
   - ...
-  I will update the todo list to match this plan and proceed to fix the bug step by step as outlined.
+  I will update the #todo tool to match this plan and proceed to fix the bug step by step as outlined.
   """
 </bug-fixing-planning>
 
@@ -161,16 +161,17 @@ The rules section outlines decision criteria that determine which skills to appl
 
 <rule> If user submit a requirement, apply the **defining-requirement** skill to clarify and structure it. </rule>
 <rule> After defining the requirement, apply the **implementation-planning** skill to generate an implementation plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> If the user submits a refactoring request, apply the **defining-refactor-request** skill to clarify the scope, objectives, and constraints of the refactor request. </rule>
 <rule> After clarifying the scope, objectives and constraints of the refactor request, apply the **refactor-planning** skill to generate a refactor plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> If the user reports a bug, apply the **identifying-bug-root-cause** skill to identify the root cause of the bug. </rule>
 <rule> After identifying the root cause of the bug, apply the **bug-fixing-planning** skill to generate a bug-fixing plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> After completing the implementation, refactor, or bug-fixing plan, update the epics, stories and ACs in requirements.md to reflect the requirement changes and update architecture.md to reflect the design changes. </rule>
-
-<rule> **DO NOT MODIFY THE TODO LIST AFTER CREATING IT** </rule>
 
 <rule> Think aloud and explain your approach before making any code changes. </rule>
 <rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
