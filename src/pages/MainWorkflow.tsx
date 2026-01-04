@@ -8,13 +8,13 @@ import { Step3Layout } from '../components/workflow/Step3Layout'
 import { detectFaces } from '../services/faceDetectionService'
 import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
-import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
-import { generatePrintLayout, generatePrintLayoutPreview, downloadCanvas } from '../services/printLayoutService'
+import { processWithU2Net } from '../services/mattingService'
+import { generatePrintLayoutPreview } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useModelLoading } from '../hooks/useModelLoading'
+import { useImageDownload } from '../hooks/useImageDownload'
 import { calculateDPI } from '../utils/dpiCalculation'
 import { generateExactCrop } from '../services/exactCropService'
-import { embedDPIMetadata } from '../utils/dpiMetadata'
 import { calculateInitialCropArea, type CropArea } from '../utils/cropAreaCalculation'
 
 interface ImageData {
@@ -48,6 +48,15 @@ export function MainWorkflow() {
   
   // Load AI models using custom hook
   const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
+
+  // Download functionality hook
+  const { downloadPhoto, downloadLayout } = useImageDownload({
+    selectedSize,
+    requiredDPI,
+    paperType,
+    backgroundColor,
+    onError: (errors) => setErrors(errors),
+  })
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -302,32 +311,7 @@ export function MainWorkflow() {
   }
 
   const handleDownload = async () => {
-    if (!imageData || !imageData.croppedPreviewUrl) return
-    
-    try {
-      // Fetch the cropped preview blob
-      const response = await fetch(imageData.croppedPreviewUrl)
-      const blob = await response.blob()
-      
-      // Embed DPI metadata
-      const dpi = requiredDPI || 300
-      const blobWithDPI = await embedDPIMetadata(blob, dpi)
-      
-      // Create download link with DPI-embedded image
-      const url = URL.createObjectURL(blobWithDPI)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `id-photo-${selectedSize.id}-${dpi}dpi-${Date.now()}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-      // Clean up
-      setTimeout(() => URL.revokeObjectURL(url), 100)
-    } catch (error) {
-      console.error('Failed to download image:', error)
-      setErrors([error instanceof Error ? error.message : 'Failed to download image'])
-    }
+    await downloadPhoto(imageData?.croppedPreviewUrl || null)
   }
 
   const handleReupload = () => {
@@ -348,33 +332,8 @@ export function MainWorkflow() {
   }
 
   const handleDownloadLayout = useCallback(async () => {
-    if (!imageData || !imageData.transparentCanvas) return
-    
-    try {
-      // Apply background color to canvas before generating layout
-      const coloredCanvas = applyBackgroundColor(imageData.transparentCanvas, backgroundColor)
-      
-      // Use the same DPI as the photo (required DPI or default 300)
-      const dpi = requiredDPI || 300
-      
-      // Generate high-resolution print layout with colored canvas
-      const layoutCanvas = await generatePrintLayout(
-        coloredCanvas,
-        {
-          widthMm: selectedSize.physicalWidth,
-          heightMm: selectedSize.physicalHeight,
-        },
-        paperType,
-        dpi
-      )
-      
-      // Download the layout with DPI metadata
-      const filename = `id-photo-layout-${selectedSize.id}-${paperType}-${Date.now()}.png`
-      await downloadCanvas(layoutCanvas, filename, 'image/png', dpi)
-    } catch (error) {
-      console.error('Failed to generate print layout:', error)
-    }
-  }, [imageData, selectedSize, backgroundColor, paperType, requiredDPI])
+    await downloadLayout(imageData?.transparentCanvas || null)
+  }, [imageData, downloadLayout])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
