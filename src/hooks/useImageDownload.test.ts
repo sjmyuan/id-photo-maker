@@ -46,10 +46,6 @@ describe('useImageDownload', () => {
     vi.mocked(mattingService.applyBackgroundColor).mockReturnValue(mockCanvas)
     vi.mocked(printLayoutService.generatePrintLayout).mockResolvedValue(mockCanvas)
     vi.mocked(printLayoutService.downloadCanvas).mockResolvedValue(undefined)
-
-    // Mock document methods
-    document.body.appendChild = vi.fn()
-    document.body.removeChild = vi.fn()
   })
 
   afterEach(() => {
@@ -87,12 +83,14 @@ describe('useImageDownload', () => {
         })
       )
 
-      const mockLink = {
-        href: '',
-        download: '',
-        click: vi.fn(),
-      }
-      document.createElement = vi.fn(() => mockLink as unknown as HTMLElement)
+      // Create a proper mock link element with all necessary properties
+      const mockLink = document.createElement('a')
+      mockLink.click = vi.fn()
+      const origCreateElement = document.createElement
+      document.createElement = vi.fn((tagName: string) => {
+        if (tagName === 'a') return mockLink
+        return origCreateElement.call(document, tagName)
+      }) as typeof document.createElement
 
       await result.current.downloadPhoto('blob:test-url')
 
@@ -100,8 +98,11 @@ describe('useImageDownload', () => {
       expect(dpiMetadata.embedDPIMetadata).toHaveBeenCalledWith(mockBlob, 300)
       expect(mockCreateObjectURL).toHaveBeenCalled()
       expect(mockLink.click).toHaveBeenCalled()
-      expect(mockLink.download).toMatch(/^id-photo-1-inch-300dpi-\d+\.png$/)
+      expect(mockLink.download).toMatch(/^id-photo-small-1-inch-300dpi-\d+\.png$/)
       expect(onError).not.toHaveBeenCalled()
+
+      // Restore original createElement
+      document.createElement = origCreateElement
     })
 
     it('should use default DPI of 300 when requiredDPI is null', async () => {
@@ -115,17 +116,22 @@ describe('useImageDownload', () => {
         })
       )
 
-      const mockLink = {
-        href: '',
-        download: '',
-        click: vi.fn(),
-      }
-      document.createElement = vi.fn(() => mockLink as unknown as HTMLElement)
+      // Create a proper mock link element with all necessary properties
+      const mockLink = document.createElement('a')
+      mockLink.click = vi.fn()
+      const origCreateElement = document.createElement
+      document.createElement = vi.fn((tagName: string) => {
+        if (tagName === 'a') return mockLink
+        return origCreateElement.call(document, tagName)
+      }) as typeof document.createElement
 
       await result.current.downloadPhoto('blob:test-url')
 
       expect(dpiMetadata.embedDPIMetadata).toHaveBeenCalledWith(mockBlob, 300)
       expect(mockLink.download).toMatch(/300dpi/)
+
+      // Restore original createElement
+      document.createElement = origCreateElement
     })
 
     it('should handle error when croppedPreviewUrl is not provided', async () => {
@@ -181,12 +187,14 @@ describe('useImageDownload', () => {
         })
       )
 
-      const mockLink = {
-        href: '',
-        download: '',
-        click: vi.fn(),
-      }
-      document.createElement = vi.fn(() => mockLink as unknown as HTMLElement)
+      // Create a proper mock link element with all necessary properties
+      const mockLink = document.createElement('a')
+      mockLink.click = vi.fn()
+      const origCreateElement = document.createElement
+      document.createElement = vi.fn((tagName: string) => {
+        if (tagName === 'a') return mockLink
+        return origCreateElement.call(document, tagName)
+      }) as typeof document.createElement
 
       await result.current.downloadPhoto('blob:test-url')
 
@@ -196,6 +204,8 @@ describe('useImageDownload', () => {
 
       expect(mockRevokeObjectURL).toHaveBeenCalled()
 
+      // Restore original createElement
+      document.createElement = origCreateElement
       vi.useRealTimers()
     })
   })
@@ -293,7 +303,7 @@ describe('useImageDownload', () => {
     it('should include paperType and size in filename', async () => {
       const { result } = renderHook(() =>
         useImageDownload({
-          selectedSize: SIZE_OPTIONS[1], // 2-inch
+          selectedSize: SIZE_OPTIONS[1], // 1-inch (not 2-inch)
           requiredDPI: 300,
           paperType: 'a4',
           backgroundColor: '#FF0000',
@@ -304,7 +314,7 @@ describe('useImageDownload', () => {
       await result.current.downloadLayout(mockCanvas)
 
       const downloadCall = vi.mocked(printLayoutService.downloadCanvas).mock.calls[0]
-      expect(downloadCall[1]).toMatch(/id-photo-layout-2-inch-a4-\d+\.png/)
+      expect(downloadCall[1]).toMatch(/id-photo-layout-1-inch-a4-\d+\.png/)
     })
   })
 })
