@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
+import { useState, useCallback, type ChangeEvent } from 'react'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
-import { SizeSelector } from '../components/size/SizeSelector'
-import { DPISelector } from '../components/size/DPISelector'
-import { ColorSelector } from '../components/background/ColorSelector'
-import { PaperTypeSelector, type PaperType } from '../components/layout/PaperTypeSelector'
-import { ImagePreview } from '../components/layout/ImagePreview'
+import { type PaperType } from '../components/layout/PaperTypeSelector'
 import { StepIndicator } from '../components/workflow/StepIndicator'
+import { Step1Settings } from '../components/workflow/Step1Settings'
+import { Step2Preview } from '../components/workflow/Step2Preview'
+import { Step3Layout } from '../components/workflow/Step3Layout'
 import { detectFaces } from '../services/faceDetectionService'
 import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
@@ -16,7 +15,6 @@ import { useModelLoading } from '../hooks/useModelLoading'
 import { calculateDPI } from '../utils/dpiCalculation'
 import { generateExactCrop } from '../services/exactCropService'
 import { embedDPIMetadata } from '../utils/dpiMetadata'
-import { calculateLayout } from '../utils/layoutCalculation'
 import { calculateInitialCropArea, type CropArea } from '../utils/cropAreaCalculation'
 
 interface ImageData {
@@ -45,102 +43,11 @@ export function MainWorkflow() {
   // New states for separated upload/processing flow
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
-  
-  // Ref for hidden file input
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  // Refs for canvas fallback (when printLayoutPreviewUrl is not available)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imageRef = useRef<HTMLImageElement | null>(null)
 
   const { start, stop } = usePerformanceMeasure()
   
   // Load AI models using custom hook
   const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
-  
-  // Handler to trigger file input click
-  const handleUploadButtonClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  // Canvas drawing logic for print layout preview fallback
-  useEffect(() => {
-    if (!imageData || imageData.printLayoutPreviewUrl) return // Skip if we have URL
-    if (!imageData.croppedPreviewUrl) return
-
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.src = imageData.croppedPreviewUrl
-    img.onload = () => {
-      imageRef.current = img
-      if (canvasRef.current) {
-        drawCanvasPreview()
-      }
-    }
-
-    return () => {
-      imageRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageData?.croppedPreviewUrl, imageData?.printLayoutPreviewUrl])
-
-  // Redraw canvas when layout changes
-  useEffect(() => {
-    if (!imageData || imageData.printLayoutPreviewUrl) return
-    if (imageRef.current && canvasRef.current) {
-      drawCanvasPreview()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paperType, selectedSize, imageData])
-
-  // Canvas drawing function
-  const drawCanvasPreview = () => {
-    const canvas = canvasRef.current
-    const img = imageRef.current
-    if (!canvas || !img) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // Calculate layout based on current paper type and selected size
-    const layout = calculateLayout(paperType, {
-      widthMm: selectedSize.physicalWidth,
-      heightMm: selectedSize.physicalHeight,
-    })
-
-    // Set canvas dimensions
-    const previewWidth = 400
-    const paperAspectRatio = layout.paperWidthPx / layout.paperHeightPx
-    const previewHeight = previewWidth / paperAspectRatio
-
-    canvas.width = previewWidth
-    canvas.height = previewHeight
-
-    // Fill with white background
-    ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // Calculate scaling factor
-    const scale = previewWidth / layout.paperWidthPx
-
-    // Draw photo grid
-    for (let row = 0; row < layout.photosPerColumn; row++) {
-      for (let col = 0; col < layout.photosPerRow; col++) {
-        const x = (layout.marginLeftPx + col * (layout.photoWidthPx + layout.horizontalSpacingPx)) * scale
-        const y = (layout.marginTopPx + row * (layout.photoHeightPx + layout.verticalSpacingPx)) * scale
-        const w = layout.photoWidthPx * scale
-        const h = layout.photoHeightPx * scale
-
-        // Draw the image
-        ctx.drawImage(img, x, y, w, h)
-
-        // Draw border around each photo
-        ctx.strokeStyle = '#E5E7EB'
-        ctx.lineWidth = 1
-        ctx.strokeRect(x, y, w, h)
-      }
-    }
-  }
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -505,180 +412,46 @@ export function MainWorkflow() {
             
             {/* Step 1: Settings & Upload */}
             {currentStep === 1 && (
-              <div data-testid="step1-container">
-                {/* Compact Grid Selector for Size, DPI, Color, and Paper */}
-                <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <SizeSelector 
-                    selectedSize={selectedSize} 
-                    onSizeChange={handleSizeChange} 
-                    testId="size-selector-step1"
-                  />
-                  <DPISelector 
-                    requiredDPI={requiredDPI} 
-                    onDPIChange={handleDPIChange} 
-                    testId="dpi-selector-step1"
-                  />
-                  <ColorSelector 
-                    backgroundColor={backgroundColor} 
-                    onColorChange={handleBackgroundChange} 
-                    testId="color-selector-step1"
-                  />
-                  <PaperTypeSelector 
-                    paperType={paperType} 
-                    onPaperTypeChange={handlePaperTypeChange} 
-                    testId="paper-type-selector-step1"
-                  />
-                </div>
-                
-                {/* Image Placeholder */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Photo Preview
-                  </label>
-                  <div 
-                    className="w-full h-80 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden"
-                    data-testid="image-placeholder"
-                  >
-                    {uploadedImageUrl ? (
-                      <img 
-                        src={uploadedImageUrl} 
-                        alt="Uploaded preview" 
-                        className="max-w-full max-h-full object-contain"
-                        data-testid="uploaded-image"
-                      />
-                    ) : (
-                      <div className="text-center text-gray-400">
-                        <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <p className="text-sm">No image uploaded</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileChange}
-                  disabled={isProcessing || isLoadingU2Net}
-                  data-testid="file-input"
-                  className="hidden"
-                />
-                
-                {/* Upload Image / Generate ID Photo Button */}
-                <button
-                  onClick={uploadedFile ? handleGeneratePreview : handleUploadButtonClick}
-                  disabled={isProcessing || isLoadingU2Net}
-                  data-testid="upload-or-generate-button"
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                >
-                  {uploadedFile ? 'Generate ID Photo' : 'Upload Image'}
-                </button>
-                
-                {/* Processing Indicator */}
-                {isProcessing && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
-                      <p className="text-sm text-blue-700">Processing your image...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Step1Settings
+                selectedSize={selectedSize}
+                requiredDPI={requiredDPI}
+                backgroundColor={backgroundColor}
+                paperType={paperType}
+                uploadedImageUrl={uploadedImageUrl}
+                uploadedFile={uploadedFile}
+                isProcessing={isProcessing}
+                isLoadingU2Net={isLoadingU2Net}
+                onSizeChange={handleSizeChange}
+                onDPIChange={handleDPIChange}
+                onColorChange={handleBackgroundChange}
+                onPaperTypeChange={handlePaperTypeChange}
+                onFileChange={handleFileChange}
+                onGeneratePreview={handleGeneratePreview}
+              />
             )}
             
             {/* Step 2: ID Photo Preview */}
             {currentStep === 2 && imageData && (
-              <div data-testid="step2-container">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">ID Photo Preview</h3>
-                
-                {/* ID Photo Preview */}
-                <div className="mb-6" data-testid="id-photo-preview">
-                  <ImagePreview 
-                    imageUrl={imageData.croppedPreviewUrl} 
-                    alt="ID photo preview"
-                  />
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={handleDownload}
-                    disabled={isProcessing}
-                    data-testid="download-id-photo-button"
-                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                  >
-                    Download ID Photo
-                  </button>
-                  
-                  <button
-                    onClick={() => setCurrentStep(3)}
-                    disabled={isProcessing}
-                    data-testid="next-button"
-                    className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
-                  >
-                    Next
-                  </button>
-                  
-                  <button
-                    onClick={() => { setCurrentStep(1); handleReupload(); }}
-                    disabled={isProcessing}
-                    data-testid="back-button"
-                    className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
-                  >
-                    Back
-                  </button>
-                </div>
-              </div>
+              <Step2Preview
+                croppedPreviewUrl={imageData.croppedPreviewUrl}
+                isProcessing={isProcessing}
+                onDownload={handleDownload}
+                onNext={() => setCurrentStep(3)}
+                onBack={() => { setCurrentStep(1); handleReupload(); }}
+              />
             )}
             
             {/* Step 3: Print Layout Preview */}
             {currentStep === 3 && imageData && (
-              <div data-testid="step3-container">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Print Layout Preview</h3>
-                
-                {/* Print Layout Preview */}
-                <div className="mb-6" data-testid="print-layout-preview">
-                  {imageData.printLayoutPreviewUrl ? (
-                    <ImagePreview 
-                      imageUrl={imageData.printLayoutPreviewUrl} 
-                      alt="Print layout preview"
-                    />
-                  ) : (
-                    <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
-                      <canvas
-                        ref={canvasRef}
-                        data-testid="layout-preview"
-                        className="border border-gray-300 shadow-sm"
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={handleDownloadLayout}
-                    disabled={isProcessing}
-                    data-testid="download-print-layout-button"
-                    className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
-                  >
-                    Download Print Layout
-                  </button>
-                  
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    disabled={isProcessing}
-                    data-testid="back-button"
-                    className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-600"
-                  >
-                    Back
-                  </button>
-                </div>
-              </div>
+              <Step3Layout
+                printLayoutPreviewUrl={imageData.printLayoutPreviewUrl}
+                croppedPreviewUrl={imageData.croppedPreviewUrl}
+                paperType={paperType}
+                selectedSize={selectedSize}
+                isProcessing={isProcessing}
+                onDownloadLayout={handleDownloadLayout}
+                onBack={() => setCurrentStep(2)}
+              />
             )}
           </div>
         </div>
