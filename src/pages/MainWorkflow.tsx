@@ -4,7 +4,7 @@ import { SizeSelector } from '../components/size/SizeSelector'
 import { DPISelector } from '../components/size/DPISelector'
 import { ColorSelector } from '../components/background/ColorSelector'
 import { PaperTypeSelector, type PaperType } from '../components/layout/PaperTypeSelector'
-import { PrintLayout } from '../components/layout/PrintLayout'
+import { ImagePreview } from '../components/layout/ImagePreview'
 import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
 import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
 import { validateImageFile } from '../services/imageValidation'
@@ -15,6 +15,7 @@ import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { calculateDPI } from '../utils/dpiCalculation'
 import { generateExactCrop } from '../services/exactCropService'
 import { embedDPIMetadata } from '../utils/dpiMetadata'
+import { calculateLayout } from '../utils/layoutCalculation'
 
 interface CropArea {
   x: number
@@ -143,6 +144,10 @@ export function MainWorkflow() {
   
   // Ref for hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Refs for canvas fallback (when printLayoutPreviewUrl is not available)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
 
   const { start, stop } = usePerformanceMeasure()
   
@@ -178,6 +183,85 @@ export function MainWorkflow() {
     }
     loadModels()
   }, [])
+
+  // Canvas drawing logic for print layout preview fallback
+  useEffect(() => {
+    if (!imageData || imageData.printLayoutPreviewUrl) return // Skip if we have URL
+    if (!imageData.croppedPreviewUrl) return
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = imageData.croppedPreviewUrl
+    img.onload = () => {
+      imageRef.current = img
+      if (canvasRef.current) {
+        drawCanvasPreview()
+      }
+    }
+
+    return () => {
+      imageRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageData?.croppedPreviewUrl, imageData?.printLayoutPreviewUrl])
+
+  // Redraw canvas when layout changes
+  useEffect(() => {
+    if (!imageData || imageData.printLayoutPreviewUrl) return
+    if (imageRef.current && canvasRef.current) {
+      drawCanvasPreview()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paperType, selectedSize, imageData])
+
+  // Canvas drawing function
+  const drawCanvasPreview = () => {
+    const canvas = canvasRef.current
+    const img = imageRef.current
+    if (!canvas || !img) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Calculate layout based on current paper type and selected size
+    const layout = calculateLayout(paperType, {
+      widthMm: selectedSize.physicalWidth,
+      heightMm: selectedSize.physicalHeight,
+    })
+
+    // Set canvas dimensions
+    const previewWidth = 400
+    const paperAspectRatio = layout.paperWidthPx / layout.paperHeightPx
+    const previewHeight = previewWidth / paperAspectRatio
+
+    canvas.width = previewWidth
+    canvas.height = previewHeight
+
+    // Fill with white background
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // Calculate scaling factor
+    const scale = previewWidth / layout.paperWidthPx
+
+    // Draw photo grid
+    for (let row = 0; row < layout.photosPerColumn; row++) {
+      for (let col = 0; col < layout.photosPerRow; col++) {
+        const x = (layout.marginLeftPx + col * (layout.photoWidthPx + layout.horizontalSpacingPx)) * scale
+        const y = (layout.marginTopPx + row * (layout.photoHeightPx + layout.verticalSpacingPx)) * scale
+        const w = layout.photoWidthPx * scale
+        const h = layout.photoHeightPx * scale
+
+        // Draw the image
+        ctx.drawImage(img, x, y, w, h)
+
+        // Draw border around each photo
+        ctx.strokeStyle = '#E5E7EB'
+        ctx.lineWidth = 1
+        ctx.strokeRect(x, y, w, h)
+      }
+    }
+  }
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -586,15 +670,32 @@ export function MainWorkflow() {
               </div>
             )}
 
-              {/* Print Layout and Download Buttons - shown after preview is generated */}
+              {/* Image Previews and Download Buttons - shown after preview is generated */}
               {imageData && imageData.croppedPreviewUrl && (
                 <>
-                  <PrintLayout
-                    croppedImageUrl={imageData.croppedPreviewUrl}
-                    selectedSize={selectedSize}
-                    paperType={paperType}
-                    printLayoutPreviewUrl={imageData.printLayoutPreviewUrl}
-                  />
+                  {/* ID Photo Preview Section */}
+                  <div className="mt-6 border-t pt-6">
+                    <h3 className="text-sm font-semibold mb-4 text-gray-900">ID Photo Preview</h3>
+
+                    {/* Vertical container for both previews */}
+                    <div className="space-y-4 mb-4">
+                      {/* Single ID Photo Preview using ImagePreview */}
+                      <ImagePreview imageUrl={imageData.croppedPreviewUrl} alt="ID photo preview" />
+
+                      {/* Print Layout Preview using ImagePreview or Canvas */}
+                      {imageData.printLayoutPreviewUrl ? (
+                        <ImagePreview imageUrl={imageData.printLayoutPreviewUrl} alt="Print layout preview" />
+                      ) : (
+                        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
+                          <canvas
+                            ref={canvasRef}
+                            data-testid="layout-preview"
+                            className="border border-gray-300 shadow-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Download Buttons */}
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">

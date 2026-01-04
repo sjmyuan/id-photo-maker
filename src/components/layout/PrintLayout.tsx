@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react'
 import type { SizeOption } from '../size/CropEditor'
 import { calculateLayout } from '../../utils/layoutCalculation'
+import { ImagePreview } from './ImagePreview'
 
 export interface PrintLayoutProps {
   croppedImageUrl: string // URL of the cropped ID photo
@@ -110,33 +111,21 @@ export function PrintLayout({
 
       {/* Vertical container for both previews */}
       <div className="space-y-4 mb-4">
-        {/* Single ID Photo Preview */}
-        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
-          <img 
-            src={croppedImageUrl} 
-            alt="ID photo preview" 
-            className="max-w-full max-h-64 object-contain border border-gray-300 shadow-sm"
-            data-testid="id-photo-preview"
-          />
-        </div>
+        {/* Single ID Photo Preview using ImagePreview */}
+        <ImagePreview imageUrl={croppedImageUrl} alt="ID photo preview" />
 
-        {/* Print Layout Preview */}
-        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
-          {printLayoutPreviewUrl ? (
-            <img
-              src={printLayoutPreviewUrl}
-              alt="Print layout preview"
-              className="max-w-full max-h-64 object-contain border border-gray-300 shadow-sm"
-              data-testid="print-layout-preview-image"
-            />
-          ) : (
+        {/* Print Layout Preview using ImagePreview or Canvas */}
+        {printLayoutPreviewUrl ? (
+          <ImagePreview imageUrl={printLayoutPreviewUrl} alt="Print layout preview" />
+        ) : (
+          <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
             <canvas
               ref={canvasRef}
               data-testid="layout-preview"
               className="border border-gray-300 shadow-sm"
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

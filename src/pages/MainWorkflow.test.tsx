@@ -1232,7 +1232,7 @@ describe('MainWorkflow - Single Page Workflow (Refactored)', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+      expect(screen.getAllByTestId('image-preview-container').length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
     
     // Click re-upload button
@@ -1254,7 +1254,7 @@ describe('MainWorkflow - Print Layout Integration', () => {
     vi.clearAllMocks()
   })
 
-  it('should display PrintLayout component after preview is generated', async () => {
+  it('should display image previews after preview is generated', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -1273,21 +1273,21 @@ describe('MainWorkflow - Print Layout Integration', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+      expect(screen.getAllByTestId('image-preview-container').length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
     
-    // PrintLayout should be visible
-    expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+    // Image previews should be visible
+    expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
   })
 
-  it('should not display PrintLayout before preview is generated', () => {
+  it('should not display image previews before preview is generated', () => {
     render(<MainWorkflow />)
     
-    // PrintLayout should not be visible initially
-    expect(screen.queryByTestId('print-layout')).not.toBeInTheDocument()
+    // Image previews should not be visible initially
+    expect(screen.queryByText('ID Photo Preview')).not.toBeInTheDocument()
   })
 
-  it('should pass paper type from configuration to PrintLayout', async () => {
+  it('should pass paper type from configuration when rendering previews', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -1310,11 +1310,12 @@ describe('MainWorkflow - Print Layout Integration', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // PrintLayout should be displayed with print layout preview image
-    expect(screen.getByTestId('print-layout-preview-image')).toBeInTheDocument()
+    // Image previews should be displayed via ImagePreview
+    const images = screen.getAllByTestId('image-preview')
+    expect(images.length).toBeGreaterThanOrEqual(2) // Cropped and print layout
   })
 
 
@@ -1337,13 +1338,13 @@ describe('MainWorkflow - Print Layout Integration', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // Should show print layout preview image
-    const preview = screen.getByTestId('print-layout-preview-image')
-    expect(preview).toBeInTheDocument()
-    expect(preview.tagName).toBe('IMG')
+    // Should show print layout preview image via ImagePreview
+    const images = screen.getAllByTestId('image-preview')
+    expect(images.length).toBeGreaterThanOrEqual(2)
+    expect(images[1].tagName).toBe('IMG')
   })
 
   it('should display download print layout button', async () => {
@@ -1364,7 +1365,7 @@ describe('MainWorkflow - Print Layout Integration', () => {
     await uploadAndGeneratePreview(fileInput, file, user)
     
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Should show download print layout button
@@ -1394,24 +1395,24 @@ describe('MainWorkflow - Print Layout Integration', () => {
     
     // Verify elements exist
     const imagePlaceholder = screen.getByTestId('image-placeholder')
-    const printLayout = screen.getByTestId('print-layout')
+    const previewSection = screen.getByText('ID Photo Preview').closest('div')!
     const downloadImageButton = screen.getByTestId('download-image-button')
     const downloadLayoutButton = screen.getByTestId('download-layout-button')
     
     expect(imagePlaceholder).toBeInTheDocument()
-    expect(printLayout).toBeInTheDocument()
+    expect(previewSection).toBeInTheDocument()
     expect(downloadImageButton).toBeInTheDocument()
     expect(downloadLayoutButton).toBeInTheDocument()
     
     // Use compareDocumentPosition to verify order in DOM
     // DOCUMENT_POSITION_FOLLOWING (4) means the node comes after
-    const printFollowsImage = imagePlaceholder.compareDocumentPosition(printLayout) & Node.DOCUMENT_POSITION_FOLLOWING
-    const downloadImageFollowsPrint = printLayout.compareDocumentPosition(downloadImageButton) & Node.DOCUMENT_POSITION_FOLLOWING
-    const downloadLayoutFollowsPrint = printLayout.compareDocumentPosition(downloadLayoutButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    const printFollowsImage = imagePlaceholder.compareDocumentPosition(previewSection) & Node.DOCUMENT_POSITION_FOLLOWING
+    const downloadImageFollowsPrint = previewSection.compareDocumentPosition(downloadImageButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    const downloadLayoutFollowsPrint = previewSection.compareDocumentPosition(downloadLayoutButton) & Node.DOCUMENT_POSITION_FOLLOWING
     
-    expect(printFollowsImage).toBeTruthy() // Print layout comes after image placeholder
-    expect(downloadImageFollowsPrint).toBeTruthy() // Download buttons come after print layout
-    expect(downloadLayoutFollowsPrint).toBeTruthy() // Download buttons come after print layout
+    expect(printFollowsImage).toBeTruthy() // Preview section comes after image placeholder
+    expect(downloadImageFollowsPrint).toBeTruthy() // Download buttons come after preview section
+    expect(downloadLayoutFollowsPrint).toBeTruthy() // Download buttons come after preview section
   })
 })
 
@@ -1620,7 +1621,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     // After processing completes, should show ID Photo Preview in PrintLayout
     await waitFor(() => {
       expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
-      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+      expect(screen.getAllByTestId('image-preview-container').length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
     
     // Placeholder and its label should be hidden after processing
@@ -1646,7 +1647,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // After processing, should show id photo preview in PrintLayout
     await waitFor(() => {
-      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+      expect(screen.getAllByTestId('image-preview-container').length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
     
     // Click re-upload button
@@ -1679,7 +1680,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Image placeholder should NOT show cropped-preview-image
@@ -1706,7 +1707,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Both buttons should be present
@@ -1733,11 +1734,11 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    // PrintLayout should contain the single ID photo preview
-    expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
+    // Image previews should contain the ID photo preview via ImagePreview
+    expect(screen.getAllByTestId('image-preview-container').length).toBeGreaterThanOrEqual(1)
   })
 
   it('should hide settings selector grid after generating preview', async () => {
@@ -1762,7 +1763,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Settings should be hidden after preview generation
@@ -1791,7 +1792,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Image placeholder should be hidden after preview generation
@@ -1817,7 +1818,7 @@ describe('MainWorkflow - Dynamic Preview Label', () => {
     
     // Wait for processing to complete
     await waitFor(() => {
-      expect(screen.getByTestId('print-layout')).toBeInTheDocument()
+      expect(screen.getByText('ID Photo Preview')).toBeInTheDocument()
     }, { timeout: 3000 })
     
     // Settings and placeholder should be hidden

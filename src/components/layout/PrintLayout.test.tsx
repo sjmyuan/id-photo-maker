@@ -16,7 +16,7 @@ describe('PrintLayout', () => {
   }
 
   describe('ID Photo Preview', () => {
-    it('should render single ID photo preview image', () => {
+    it('should render single ID photo preview image using ImagePreview component', () => {
       render(
         <PrintLayout
           croppedImageUrl={mockCroppedImageUrl}
@@ -25,13 +25,37 @@ describe('PrintLayout', () => {
         />
       )
       
-      expect(screen.getByTestId('id-photo-preview')).toBeInTheDocument()
-      expect(screen.getByTestId('id-photo-preview')).toHaveAttribute('src', mockCroppedImageUrl)
+      // Should render ImagePreview component for cropped image
+      const previewContainers = screen.getAllByTestId('image-preview-container')
+      expect(previewContainers.length).toBeGreaterThanOrEqual(1) // At least one for cropped image
+      
+      // Check that cropped image is displayed
+      const images = screen.getAllByTestId('image-preview')
+      expect(images[0]).toHaveAttribute('src', mockCroppedImageUrl)
     })
   })
 
   describe('Layout Preview', () => {
-    it('should render layout preview canvas', () => {
+    it('should render layout preview using ImagePreview when printLayoutPreviewUrl is provided', () => {
+      const mockPrintLayoutUrl = 'blob:http://localhost/mock-print-layout'
+      render(
+        <PrintLayout
+          croppedImageUrl={mockCroppedImageUrl}
+          selectedSize={oneInchSize}
+          paperType="6-inch"
+          printLayoutPreviewUrl={mockPrintLayoutUrl}
+        />
+      )
+      
+      // Should render two ImagePreview components
+      const images = screen.getAllByTestId('image-preview')
+      expect(images).toHaveLength(2)
+      
+      // Second image should be the print layout preview
+      expect(images[1]).toHaveAttribute('src', mockPrintLayoutUrl)
+    })
+
+    it('should render layout preview canvas when printLayoutPreviewUrl is not provided', () => {
       render(
         <PrintLayout
           croppedImageUrl={mockCroppedImageUrl}
@@ -40,6 +64,7 @@ describe('PrintLayout', () => {
         />
       )
       
+      // Should still have canvas for backward compatibility
       expect(screen.getByTestId('layout-preview')).toBeInTheDocument()
     })
 
@@ -101,10 +126,10 @@ describe('PrintLayout', () => {
         />
       )
       
-      // Should display print layout preview image
-      const layoutPreviewImg = screen.getByTestId('print-layout-preview-image')
-      expect(layoutPreviewImg).toBeInTheDocument()
-      expect(layoutPreviewImg).toHaveAttribute('src', mockPrintLayoutUrl)
+      // Should display print layout preview image using ImagePreview
+      const images = screen.getAllByTestId('image-preview')
+      expect(images).toHaveLength(2) // Cropped image and print layout preview
+      expect(images[1]).toHaveAttribute('src', mockPrintLayoutUrl)
     })
 
     it('should work without printLayoutPreviewUrl prop for backward compatibility', () => {
