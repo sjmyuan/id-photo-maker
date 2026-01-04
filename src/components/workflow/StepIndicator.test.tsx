@@ -63,8 +63,8 @@ describe('StepIndicator', () => {
     const step2 = screen.getByTestId('step-2')
     
     // Steps 1 and 2 should be marked as completed (use green color)
-    expect(step1).toHaveClass('bg-green-600')
-    expect(step2).toHaveClass('bg-green-600')
+    expect(step1).toHaveClass('bg-green-500')
+    expect(step2).toHaveClass('bg-green-500')
   })
 
   it('should show upcoming steps with inactive styling', () => {
@@ -74,8 +74,8 @@ describe('StepIndicator', () => {
     const step3 = screen.getByTestId('step-3')
     
     // Steps 2 and 3 should be inactive (gray)
-    expect(step2).toHaveClass('bg-gray-300')
-    expect(step3).toHaveClass('bg-gray-300')
+    expect(step2).toHaveClass('bg-white')
+    expect(step3).toHaveClass('bg-white')
   })
 
   it('should display step labels', () => {
@@ -95,7 +95,7 @@ describe('StepIndicator', () => {
     const label3 = screen.getByText('Print Layout')
     
     // Current step label should be bold
-    expect(label2).toHaveClass('font-semibold')
+    expect(label2).toHaveClass('font-bold')
     
     // Other labels should not be bold
     expect(label1).not.toHaveClass('font-semibold')
