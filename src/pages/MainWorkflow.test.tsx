@@ -539,19 +539,23 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     expect(blueButton).not.toHaveClass('ring-4')
   })
 
-  it('should display size, DPI, and color selectors in a compact grid layout', () => {
+  it('should display size, DPI, and color selectors in a vertical stack layout', () => {
     render(<MainWorkflow />)
     
-    const selectorGrid = screen.getByTestId('selector-grid-step1')
+    const selectorsContainer = screen.getByTestId('selectors-container')
     
-    // Check that the grid uses compact layout classes
-    expect(selectorGrid).toHaveClass('grid')
+    // Check that the container uses vertical stack layout
+    expect(selectorsContainer).toHaveClass('space-y-4')
     
     // All four selectors should be present
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('paper-type-selector-step1')).toBeInTheDocument()
+    
+    // DPI and Paper Type should be in the same row
+    const dpiPaperRow = screen.getByTestId('dpi-paper-row')
+    expect(dpiPaperRow).toBeInTheDocument()
   })
 
   it('should have 6-inch paper type selected by default in step 1', () => {

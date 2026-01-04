@@ -7,14 +7,15 @@ export interface SizeSelectorProps {
 }
 
 /**
- * SizeSelector component for selecting photo size in compact grid format
+ * SizeSelector component for selecting photo size in grid flow format
  * Displays 1-inch, 2-inch, and 3-inch size options with dimensions
+ * Uses 2-column grid layout with auto-wrap for better space utilization
  */
 export function SizeSelector({ selectedSize, onSizeChange, testId = 'size-selector' }: SizeSelectorProps) {
   return (
     <div data-testid={testId}>
       <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
-      <div className="space-y-1.5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {SIZE_OPTIONS.map((size) => (
           <button
             key={size.id}

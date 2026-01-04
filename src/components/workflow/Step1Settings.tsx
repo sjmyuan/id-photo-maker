@@ -46,28 +46,31 @@ export function Step1Settings({
 
   return (
     <div data-testid="step1-container">
-      {/* Compact Grid Selector for Size, DPI, Color, and Paper */}
-      <div data-testid="selector-grid-step1" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Vertical Stack Selector Layout */}
+      <div data-testid="selectors-container" className="space-y-4 mb-6">
         <SizeSelector 
           selectedSize={selectedSize} 
           onSizeChange={onSizeChange} 
           testId="size-selector-step1"
-        />
-        <DPISelector 
-          requiredDPI={requiredDPI} 
-          onDPIChange={onDPIChange} 
-          testId="dpi-selector-step1"
         />
         <ColorSelector 
           backgroundColor={backgroundColor} 
           onColorChange={onColorChange} 
           testId="color-selector-step1"
         />
-        <PaperTypeSelector 
-          paperType={paperType} 
-          onPaperTypeChange={onPaperTypeChange} 
-          testId="paper-type-selector-step1"
-        />
+        {/* DPI and Paper Type in Same Row */}
+        <div data-testid="dpi-paper-row" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <DPISelector 
+            requiredDPI={requiredDPI} 
+            onDPIChange={onDPIChange} 
+            testId="dpi-selector-step1"
+          />
+          <PaperTypeSelector 
+            paperType={paperType} 
+            onPaperTypeChange={onPaperTypeChange} 
+            testId="paper-type-selector-step1"
+          />
+        </div>
       </div>
       
       {/* Image Placeholder */}

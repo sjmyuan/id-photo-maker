@@ -58,4 +58,14 @@ describe('SizeSelector', () => {
     expect(screen.getByText('35×52mm')).toBeInTheDocument()
     expect(screen.getByText('26×32mm')).toBeInTheDocument()
   })
+
+  it('renders size options in a grid layout with multiple columns', () => {
+    const onSizeChange = vi.fn()
+    const { container } = render(<SizeSelector selectedSize={SIZE_OPTIONS[0]} onSizeChange={onSizeChange} />)
+    
+    // Find the container with grid classes
+    const gridContainer = container.querySelector('.grid')
+    expect(gridContainer).toBeInTheDocument()
+    expect(gridContainer).toHaveClass('grid-cols-2')
+  })
 })

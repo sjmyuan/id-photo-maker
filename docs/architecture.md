@@ -1769,3 +1769,43 @@ PrintLayout Component (UI)
 - Implement PDF export with 300 DPI metadata (Epic 3 Story 4)
 - Implement PWA capabilities (Epic 4)
 - Add internationalization (Epic 5)
+### UI Layout Refactoring (January 2026) ✅
+
+**Objective**: Improve the Step 1 Settings selector layout to reduce visual crowding when displaying multiple color and size options.
+
+**Changes Implemented**:
+
+1. **Step1Settings Layout** ([src/components/workflow/Step1Settings.tsx](src/components/workflow/Step1Settings.tsx)):
+   - Changed from responsive multi-column grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`) to vertical stack layout
+   - Selectors now display in a single column on all screen sizes
+   - DPI and Paper Type selectors placed side-by-side on the same row
+   - Layout structure:
+     - Row 1: Size Selector (full width)
+     - Row 2: Color Selector (full width)
+     - Row 3: DPI Selector + Paper Type Selector (side-by-side)
+
+2. **SizeSelector Layout** ([src/components/size/SizeSelector.tsx](src/components/size/SizeSelector.tsx)):
+   - Changed from vertical stack (`space-y-1.5`) to grid layout
+   - Size options now display in 2 columns on mobile, 3 columns on tablet/desktop
+   - Grid uses `grid-cols-2 md:grid-cols-3` with auto-wrap
+   - Reduces vertical scrolling by utilizing horizontal space
+
+**Benefits**:
+- Less visual crowding with many options (9 colors, 7 sizes)
+- Better space utilization with flow layout
+- Improved readability and accessibility
+- Maintains responsive behavior
+- Consistent layout across screen sizes
+
+**Testing**:
+- Added focused tests for new layout structure in Step1Settings.test.tsx
+- Updated tests in SizeSelector.test.tsx to verify grid layout
+- Updated MainWorkflow.test.tsx to reflect new layout expectations
+- All 350+ tests pass successfully
+- Type checking and linting pass without errors
+
+**Implementation Approach**:
+- Followed TDD methodology with test-first development
+- Tests written to verify new layout before implementation
+- Incremental refactoring with verification at each step
+- No breaking changes to component APIs or functionality
