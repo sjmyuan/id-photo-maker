@@ -6,24 +6,18 @@ import { ColorSelector } from '../components/background/ColorSelector'
 import { PaperTypeSelector, type PaperType } from '../components/layout/PaperTypeSelector'
 import { ImagePreview } from '../components/layout/ImagePreview'
 import { StepIndicator } from '../components/workflow/StepIndicator'
-import { loadFaceDetectionModel, detectFaces, type FaceDetectionModel, type FaceBox } from '../services/faceDetectionService'
-import { loadU2NetModel, type U2NetModel } from '../services/u2netService'
+import { detectFaces } from '../services/faceDetectionService'
 import { validateImageFile } from '../services/imageValidation'
 import { scaleImageToTarget } from '../services/imageScaling'
 import { processWithU2Net, applyBackgroundColor } from '../services/mattingService'
 import { generatePrintLayout, generatePrintLayoutPreview, downloadCanvas } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
+import { useModelLoading } from '../hooks/useModelLoading'
 import { calculateDPI } from '../utils/dpiCalculation'
 import { generateExactCrop } from '../services/exactCropService'
 import { embedDPIMetadata } from '../utils/dpiMetadata'
 import { calculateLayout } from '../utils/layoutCalculation'
-
-interface CropArea {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+import { calculateInitialCropArea, type CropArea } from '../utils/cropAreaCalculation'
 
 interface ImageData {
   originalFile: File
@@ -34,97 +28,6 @@ interface ImageData {
   printLayoutPreviewUrl: string // URL of print layout preview image
 }
 
-
-/**
- * Calculate initial crop area based on detected face
- * Expands to include head and shoulders for professional ID photo framing
- * Always centers on face center, shrinks proportionally if exceeding bounds
- */
-function calculateInitialCropArea(
-  faceBox: FaceBox,
-  aspectRatio: number,
-  imageWidth: number,
-  imageHeight: number
-): CropArea {
-  // For ID photos, we need more space:
-  // - 150% expansion above the face (for head/hair)
-  // - 100% expansion below the face (for shoulders)
-  // - 80% expansion on each side (for natural portrait framing)
-  
-  const faceWidth = faceBox.width
-  const faceHeight = faceBox.height
-  
-  // Calculate face center - this is our anchor point
-  const faceCenterX = faceBox.x + faceBox.width / 2
-  const faceCenterY = faceBox.y + faceBox.height / 2
-  
-  // Clamp face center to image bounds (in case face is partially outside)
-  const clampedCenterX = Math.max(0, Math.min(faceCenterX, imageWidth))
-  const clampedCenterY = Math.max(0, Math.min(faceCenterY, imageHeight))
-  
-  // Calculate expanded dimensions
-  const horizontalExpansion = faceWidth * 0.8
-  const verticalExpansionAbove = faceHeight * 1.5
-  const verticalExpansionBelow = faceHeight * 1.0
-  
-  // Calculate target crop dimensions
-  const targetWidth = faceWidth + (2 * horizontalExpansion)
-  const targetHeight = faceHeight + verticalExpansionAbove + verticalExpansionBelow
-  
-  // Adjust to match the required aspect ratio
-  let cropWidth, cropHeight
-  const expandedAspectRatio = targetWidth / targetHeight
-  
-  if (expandedAspectRatio > aspectRatio) {
-    // Expanded area is wider - use width and adjust height
-    cropWidth = targetWidth
-    cropHeight = cropWidth / aspectRatio
-  } else {
-    // Expanded area is taller - use height and adjust width
-    cropHeight = targetHeight
-    cropWidth = cropHeight * aspectRatio
-  }
-  
-  // Calculate initial position centered on face
-  let cropX = clampedCenterX - cropWidth / 2
-  let cropY = clampedCenterY - cropHeight / 2
-  
-  // Check if crop area exceeds image bounds
-  // If it does, shrink proportionally while maintaining center and aspect ratio
-  const exceedsLeft = cropX < 0
-  const exceedsRight = cropX + cropWidth > imageWidth
-  const exceedsTop = cropY < 0
-  const exceedsBottom = cropY + cropHeight > imageHeight
-  
-  if (exceedsLeft || exceedsRight || exceedsTop || exceedsBottom) {
-    // Calculate maximum dimensions that fit within image bounds while centered on face
-    const maxWidthFromLeft = clampedCenterX * 2
-    const maxWidthFromRight = (imageWidth - clampedCenterX) * 2
-    const maxWidthFromCenter = Math.min(maxWidthFromLeft, maxWidthFromRight)
-    
-    const maxHeightFromTop = clampedCenterY * 2
-    const maxHeightFromBottom = (imageHeight - clampedCenterY) * 2
-    const maxHeightFromCenter = Math.min(maxHeightFromTop, maxHeightFromBottom)
-    
-    // Choose the dimension that fits while maintaining aspect ratio
-    if (maxWidthFromCenter / aspectRatio <= maxHeightFromCenter) {
-      // Width is the limiting factor
-      cropWidth = maxWidthFromCenter
-      cropHeight = maxWidthFromCenter / aspectRatio
-    } else {
-      // Height is the limiting factor
-      cropHeight = maxHeightFromCenter
-      cropWidth = maxHeightFromCenter * aspectRatio
-    }
-    
-    // Recalculate position to maintain center
-    cropX = clampedCenterX - cropWidth / 2
-    cropY = clampedCenterY - cropHeight / 2
-  }
-  
-  return { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
-}
-
 export function MainWorkflow() {
   // Default values: 1-inch size, 300 DPI, Blue background, 6-inch paper
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
@@ -132,9 +35,6 @@ export function MainWorkflow() {
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
   const [paperType, setPaperType] = useState<PaperType>('6-inch') // 6-inch paper
   const [imageData, setImageData] = useState<ImageData | null>(null)
-  const [u2netModel, setU2netModel] = useState<U2NetModel | null>(null)
-  const [isLoadingU2Net, setIsLoadingU2Net] = useState(true)
-  const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetectionModel | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [warnings, setWarnings] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
@@ -155,38 +55,13 @@ export function MainWorkflow() {
 
   const { start, stop } = usePerformanceMeasure()
   
+  // Load AI models using custom hook
+  const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
+  
   // Handler to trigger file input click
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click()
   }
-
-  // Load models on mount
-  useEffect(() => {
-    const loadModels = async () => {
-      // Load U2Net model
-      try {
-        const selectedModel = localStorage.getItem('selectedU2NetModel') || 'u2netp'
-        const modelUrl = `/${selectedModel}.onnx`
-        
-        setIsLoadingU2Net(true)
-        const model = await loadU2NetModel(modelUrl)
-        setU2netModel(model)
-      } catch (error) {
-        console.error('Failed to load U2Net model:', error)
-      } finally {
-        setIsLoadingU2Net(false)
-      }
-
-      // Load face detection model
-      try {
-        const faceModel = await loadFaceDetectionModel()
-        setFaceDetectionModel(faceModel)
-      } catch (error) {
-        console.error('Failed to load face detection model:', error)
-      }
-    }
-    loadModels()
-  }, [])
 
   // Canvas drawing logic for print layout preview fallback
   useEffect(() => {

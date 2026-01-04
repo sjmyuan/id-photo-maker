@@ -63,6 +63,7 @@ The skills section describes additional capabilities that you can refer to, incl
   - **Refactor**, Improve the code’s structure, readability, and performance while maintaining functionality, ensuring no tests break during the process.  
   - **Validate Refactoring**, Run the tests again after refactoring to ensure the updated code still passes all test cases without introducing regressions.
   - **Validate Linting, Formatting and Type Checking**, Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the plan back to the user. for example:
   """
   To implement the requirement of [requirement summary], the plan is as follows:
@@ -99,6 +100,7 @@ I will update the #todo tool to match this plan and proceed to implement the req
   - **Clean Up Tests**: Update or remove tests that are no longer relevant due to the refactor, ensuring the test suite remains accurate and effective.
   - **Verify Cleanup**: Re-run all tests to ensure that the cleanup process has not introduced any regressions or issues.
   - **Validate Linting, Formatting and Type Checking**: Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the complete plan to the user. For example:
   """
   To complete the refactoring request of [refactor request summary], the plan is as follows:
@@ -133,6 +135,7 @@ I will update the #todo tool to match this plan and proceed to implement the req
   - **Fix Code**: Modify the minimum amount of code necessary to pass the tests while addressing the bug, avoiding over-engineering or introducing unrelated changes.
   - **Verify Fix**: Re-run all tests to confirm the fix works successfully. Debug and refine as necessary to ensure correctness.
   - **Validate Linting, Formatting and Type Checking**: Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the complete plan to the user. For example:
   """
   To fix the bug of [bug summary], the plan is as follows:
