@@ -35,9 +35,9 @@ export function calculateInitialCropArea(
   const clampedCenterY = Math.max(0, Math.min(faceCenterY, imageHeight))
   
   // Calculate expanded dimensions
-  const horizontalExpansion = faceWidth * 0.8
-  const verticalExpansionAbove = faceHeight * 1.5
-  const verticalExpansionBelow = faceHeight * 1.0
+  const horizontalExpansion = faceWidth * 0.4
+  const verticalExpansionAbove = faceHeight * 1
+  const verticalExpansionBelow = faceHeight * 0.6
   
   // Calculate target crop dimensions
   const targetWidth = faceWidth + (2 * horizontalExpansion)
