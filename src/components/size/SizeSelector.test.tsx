@@ -10,16 +10,20 @@ describe('SizeSelector', () => {
     render(<SizeSelector selectedSize={SIZE_OPTIONS[0]} onSizeChange={onSizeChange} />)
     
     expect(screen.getByText('Photo Size')).toBeInTheDocument()
+    expect(screen.getByText('Small 1 Inch')).toBeInTheDocument()
     expect(screen.getByText('1 Inch')).toBeInTheDocument()
+    expect(screen.getByText('Large 1 Inch')).toBeInTheDocument()
+    expect(screen.getByText('Small 2 Inch')).toBeInTheDocument()
     expect(screen.getByText('2 Inch')).toBeInTheDocument()
     expect(screen.getByText('3 Inch')).toBeInTheDocument()
+    expect(screen.getByText('China ID Card')).toBeInTheDocument()
   })
 
   it('highlights the selected size', () => {
     const onSizeChange = vi.fn()
     render(<SizeSelector selectedSize={SIZE_OPTIONS[1]} onSizeChange={onSizeChange} />)
     
-    const button = screen.getByText('2 Inch').closest('button')
+    const button = screen.getByText('1 Inch').closest('button')
     expect(button).toHaveClass('border-blue-600')
     expect(button).toHaveClass('bg-blue-50')
   })
@@ -29,7 +33,7 @@ describe('SizeSelector', () => {
     const onSizeChange = vi.fn()
     render(<SizeSelector selectedSize={SIZE_OPTIONS[0]} onSizeChange={onSizeChange} />)
     
-    const button = screen.getByText('3 Inch').closest('button')
+    const button = screen.getByText('Large 1 Inch').closest('button')
     await user.click(button!)
     
     expect(onSizeChange).toHaveBeenCalledWith(SIZE_OPTIONS[2])
@@ -46,8 +50,12 @@ describe('SizeSelector', () => {
     const onSizeChange = vi.fn()
     render(<SizeSelector selectedSize={SIZE_OPTIONS[0]} onSizeChange={onSizeChange} />)
     
+    expect(screen.getByText('22×32mm')).toBeInTheDocument()
     expect(screen.getByText('25×35mm')).toBeInTheDocument()
-    expect(screen.getByText('35×49mm')).toBeInTheDocument()
+    expect(screen.getByText('33×48mm')).toBeInTheDocument()
+    expect(screen.getByText('35×45mm')).toBeInTheDocument()
+    expect(screen.getByText('35×53mm')).toBeInTheDocument()
     expect(screen.getByText('35×52mm')).toBeInTheDocument()
+    expect(screen.getByText('26×32mm')).toBeInTheDocument()
   })
 })

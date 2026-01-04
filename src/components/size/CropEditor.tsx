@@ -15,7 +15,7 @@ export interface CropArea {
 }
 
 export interface SizeOption {
-  id: '1-inch' | '2-inch' | '3-inch'
+  id: 'small-1-inch' | '1-inch' | 'large-1-inch' | 'small-2-inch' | '2-inch' | '3-inch' | 'id-card'
   label: string
   dimensions: string
   aspectRatio: number // width / height
@@ -24,9 +24,13 @@ export interface SizeOption {
 }
 
 const SIZE_OPTIONS: SizeOption[] = [
+  { id: 'small-1-inch', label: 'Small 1 Inch', dimensions: '22×32mm', aspectRatio: 22 / 32, physicalWidth: 22, physicalHeight: 32 }, // 0.688
   { id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }, // 0.714
-  { id: '2-inch', label: '2 Inch', dimensions: '35×49mm', aspectRatio: 35 / 49, physicalWidth: 35, physicalHeight: 49 }, // 0.714
+  { id: 'large-1-inch', label: 'Large 1 Inch', dimensions: '33×48mm', aspectRatio: 33 / 48, physicalWidth: 33, physicalHeight: 48 }, // 0.688 - Passport/Travel
+  { id: 'small-2-inch', label: 'Small 2 Inch', dimensions: '35×45mm', aspectRatio: 35 / 45, physicalWidth: 35, physicalHeight: 45 }, // 0.778 - Passport/Visa/ID
+  { id: '2-inch', label: '2 Inch', dimensions: '35×53mm', aspectRatio: 35 / 53, physicalWidth: 35, physicalHeight: 53 }, // 0.660
   { id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }, // 0.673
+  { id: 'id-card', label: 'China ID Card', dimensions: '26×32mm', aspectRatio: 26 / 32, physicalWidth: 26, physicalHeight: 32 }, // 0.813 - 2nd Gen ID
 ]
 
 // Export SIZE_OPTIONS for external use

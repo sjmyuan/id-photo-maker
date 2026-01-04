@@ -8,7 +8,7 @@ import { CropEditor, SIZE_OPTIONS, type CropArea } from './CropEditor'
 
 describe('CropEditor', () => {
   const mockProcessedImageUrl = 'blob:http://localhost/processed-image'
-  const mockSelectedSize = SIZE_OPTIONS[0] // 1-inch by default
+  const mockSelectedSize = SIZE_OPTIONS[1] // 1-inch (standard) by default
   const mockInitialCropArea: CropArea = {
     x: 100,
     y: 80,

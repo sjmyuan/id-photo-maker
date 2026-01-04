@@ -413,18 +413,22 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     // Step 1 should show size selection
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
     
-    // Should show all three size options
-    expect(screen.getByRole('button', { name: /1 inch/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /2 inch/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /3 inch/i })).toBeInTheDocument()
+    // Should show all size options
+    expect(screen.getByText('Small 1 Inch')).toBeInTheDocument()
+    expect(screen.getByText('1 Inch')).toBeInTheDocument()
+    expect(screen.getByText('Large 1 Inch')).toBeInTheDocument()
+    expect(screen.getByText('Small 2 Inch')).toBeInTheDocument()
+    expect(screen.getByText('2 Inch')).toBeInTheDocument()
+    expect(screen.getByText('3 Inch')).toBeInTheDocument()
+    expect(screen.getByText('China ID Card')).toBeInTheDocument()
   })
 
   it('should have 1-inch size selected by default in step 1', () => {
     render(<MainWorkflow />)
     
-    // Check that 1-inch button has selected styling
-    const oneInchButton = screen.getByRole('button', { name: /1 inch/i })
-    expect(oneInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
+    // Check that Small 1-inch button has selected styling (first option, default)
+    const smallOneInchButton = screen.getByText('Small 1 Inch').closest('button')
+    expect(smallOneInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
   })
 
   it('should allow selecting different photo sizes in step 1', async () => {
@@ -432,16 +436,16 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     render(<MainWorkflow />)
     const user = userEvent.setup()
     
-    // Select 2-inch size
-    const twoInchButton = screen.getByRole('button', { name: /2 inch/i })
-    await user.click(twoInchButton)
+    // Select Large 1-inch size
+    const largeOneInchButton = screen.getByText('Large 1 Inch').closest('button')
+    await user.click(largeOneInchButton!)
     
-    // Check that 2-inch button is now selected
-    expect(twoInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
+    // Check that Large 1-inch button is now selected
+    expect(largeOneInchButton).toHaveClass('border-blue-600', 'bg-blue-50')
     
-    // Check that 1-inch button is not selected
-    const oneInchButton = screen.getByRole('button', { name: /1 inch/i })
-    expect(oneInchButton).not.toHaveClass('border-blue-600', 'bg-blue-50')
+    // Check that Small 1-inch button is not selected
+    const smallOneInchButton = screen.getByText('Small 1 Inch').closest('button')
+    expect(smallOneInchButton).not.toHaveClass('border-blue-600', 'bg-blue-50')
   })
 
   it('should show DPI selector in step 1', () => {
