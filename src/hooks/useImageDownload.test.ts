@@ -57,7 +57,6 @@ describe('useImageDownload', () => {
     const { result } = renderHook(() =>
       useImageDownload({
         selectedSize: SIZE_OPTIONS[0],
-        requiredDPI: 300,
         paperType: '6-inch',
         backgroundColor: '#0000FF',
         onError: vi.fn(),
@@ -76,7 +75,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -105,41 +103,11 @@ describe('useImageDownload', () => {
       document.createElement = origCreateElement
     })
 
-    it('should use default DPI of 300 when requiredDPI is null', async () => {
-      const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: null,
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          onError: vi.fn(),
-        })
-      )
-
-      // Create a proper mock link element with all necessary properties
-      const mockLink = document.createElement('a')
-      mockLink.click = vi.fn()
-      const origCreateElement = document.createElement
-      document.createElement = vi.fn((tagName: string) => {
-        if (tagName === 'a') return mockLink
-        return origCreateElement.call(document, tagName)
-      }) as typeof document.createElement
-
-      await result.current.downloadPhoto('blob:test-url')
-
-      expect(dpiMetadata.embedDPIMetadata).toHaveBeenCalledWith(mockBlob, 300)
-      expect(mockLink.download).toMatch(/300dpi/)
-
-      // Restore original createElement
-      document.createElement = origCreateElement
-    })
-
     it('should handle error when croppedPreviewUrl is not provided', async () => {
       const onError = vi.fn()
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -157,7 +125,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -180,7 +147,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError: vi.fn(),
@@ -216,7 +182,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -239,33 +204,11 @@ describe('useImageDownload', () => {
       expect(onError).not.toHaveBeenCalled()
     })
 
-    it('should use default DPI of 300 when requiredDPI is null', async () => {
-      const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: null,
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          onError: vi.fn(),
-        })
-      )
-
-      await result.current.downloadLayout(mockCanvas)
-
-      expect(printLayoutService.generatePrintLayout).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
-        300
-      )
-    })
-
     it('should handle error when transparentCanvas is not provided', async () => {
       const onError = vi.fn()
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -283,7 +226,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
-          requiredDPI: 300,
           paperType: '6-inch',
           backgroundColor: '#0000FF',
           onError,
@@ -304,7 +246,6 @@ describe('useImageDownload', () => {
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[1], // 1-inch (not 2-inch)
-          requiredDPI: 300,
           paperType: 'a4',
           backgroundColor: '#FF0000',
           onError: vi.fn(),

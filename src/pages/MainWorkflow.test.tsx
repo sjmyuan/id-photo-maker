@@ -448,65 +448,6 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     expect(smallOneInchButton).not.toHaveClass('border-blue-600', 'bg-blue-50')
   })
 
-  it('should show DPI selector in step 1', () => {
-    render(<MainWorkflow />)
-    
-    // Step 1 should show DPI selection
-    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
-    
-    // Should show both DPI options
-    expect(screen.getByRole('button', { name: /300 dpi/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /none/i })).toBeInTheDocument()
-  })
-
-  it('should have 300 DPI selected by default in step 1', () => {
-    render(<MainWorkflow />)
-    
-    // Check that 300 DPI button has selected styling
-    const dpi300Button = screen.getByRole('button', { name: /300 dpi/i })
-    expect(dpi300Button).toHaveClass('border-blue-600', 'bg-blue-50')
-  })
-
-  it('should allow selecting None DPI option in step 1', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default
-    render(<MainWorkflow />)
-    const user = userEvent.setup()
-    
-    // Select None DPI
-    const noneButton = screen.getByRole('button', { name: /none/i })
-    await user.click(noneButton)
-    
-    // Check that None button is now selected
-    expect(noneButton).toHaveClass('border-blue-600', 'bg-blue-50')
-    
-    // Check that 300 DPI button is not selected
-    const dpi300Button = screen.getByRole('button', { name: /300 dpi/i })
-    expect(dpi300Button).not.toHaveClass('border-blue-600', 'bg-blue-50')
-  })
-
-  it.skip('should show size and DPI selectors above file input in step 1 (OBSOLETE - upload-step removed)', () => {
-    render(<MainWorkflow />)
-    
-    const sizeSelector = screen.getByTestId('size-selector-step1')
-    const dpiSelector = screen.getByTestId('dpi-selector-step1')
-    const fileInput = screen.getByTestId('file-input')
-    
-    // Get their positions in the DOM
-    const uploadStep = screen.getByTestId('upload-step')
-    const children = Array.from(uploadStep.querySelectorAll('[data-testid]'))
-    
-    const sizeSelectorIndex = children.indexOf(sizeSelector)
-    const dpiSelectorIndex = children.indexOf(dpiSelector)
-    const fileInputIndex = children.findIndex(el => el.contains(fileInput))
-    
-    // Size and DPI selectors should appear before file input
-    expect(sizeSelectorIndex).toBeGreaterThan(-1)
-    expect(dpiSelectorIndex).toBeGreaterThan(-1)
-    expect(fileInputIndex).toBeGreaterThan(-1)
-    expect(sizeSelectorIndex).toBeLessThan(fileInputIndex)
-    expect(dpiSelectorIndex).toBeLessThan(fileInputIndex)
-  })
-
   it('should show color selector in step 1', () => {
     render(<MainWorkflow />)
     
@@ -539,7 +480,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     expect(blueButton).not.toHaveClass('ring-4')
   })
 
-  it('should display size, DPI, and color selectors in a vertical stack layout', () => {
+  it('should display size, color, and paper type selectors in a vertical stack layout', () => {
     render(<MainWorkflow />)
     
     const selectorsContainer = screen.getByTestId('selectors-container')
@@ -547,15 +488,10 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     // Check that the container uses vertical stack layout
     expect(selectorsContainer).toHaveClass('space-y-4')
     
-    // All four selectors should be present
+    // All selectors should be present
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
-    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('paper-type-selector-step1')).toBeInTheDocument()
-    
-    // DPI and Paper Type should be in the same row
-    const dpiPaperRow = screen.getByTestId('dpi-paper-row')
-    expect(dpiPaperRow).toBeInTheDocument()
   })
 
   it('should have 6-inch paper type selected by default in step 1', () => {
@@ -1094,7 +1030,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       expect(step1).toHaveClass('bg-blue-600')
     })
 
-    it('should show all settings (size, DPI, background, paper type)', async () => {
+    it('should show all settings (size, background, paper type)', async () => {
       render(<MainWorkflow />)
       
       await waitFor(() => {
@@ -1104,7 +1040,6 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       
       // Should show all selectors
       expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
-      expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
       expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
       expect(screen.getByTestId('paper-type-selector-step1')).toBeInTheDocument()
     })

@@ -6,7 +6,6 @@ import { SIZE_OPTIONS } from '../size/CropEditor'
 describe('Step1Settings', () => {
   const defaultProps = {
     selectedSize: SIZE_OPTIONS[0],
-    requiredDPI: 300 as const,
     backgroundColor: '#0000FF',
     paperType: '6-inch' as const,
     uploadedImageUrl: null,
@@ -14,7 +13,6 @@ describe('Step1Settings', () => {
     isProcessing: false,
     isLoadingU2Net: false,
     onSizeChange: vi.fn(),
-    onDPIChange: vi.fn(),
     onColorChange: vi.fn(),
     onPaperTypeChange: vi.fn(),
     onFileChange: vi.fn(),
@@ -29,7 +27,6 @@ describe('Step1Settings', () => {
   it('renders all selector components', () => {
     render(<Step1Settings {...defaultProps} />)
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
-    expect(screen.getByTestId('dpi-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
     expect(screen.getByTestId('paper-type-selector-step1')).toBeInTheDocument()
   })
@@ -146,18 +143,6 @@ describe('Step1Settings', () => {
     expect(screen.queryByText('Processing your image...')).not.toBeInTheDocument()
   })
 
-  it('renders DPI and Paper Type selectors in the same row', () => {
-    render(<Step1Settings {...defaultProps} />)
-    const dpiPaperRow = screen.getByTestId('dpi-paper-row')
-    expect(dpiPaperRow).toBeInTheDocument()
-    
-    // Both selectors should be children of the row container
-    const dpiSelector = screen.getByTestId('dpi-selector-step1')
-    const paperSelector = screen.getByTestId('paper-type-selector-step1')
-    expect(dpiPaperRow).toContainElement(dpiSelector)
-    expect(dpiPaperRow).toContainElement(paperSelector)
-  })
-
   it('renders selectors in vertical stack order', () => {
     render(<Step1Settings {...defaultProps} />)
     const container = screen.getByTestId('selectors-container')
@@ -166,10 +151,10 @@ describe('Step1Settings', () => {
     // Check that selectors appear in the correct order
     const sizeSelector = screen.getByTestId('size-selector-step1')
     const colorSelector = screen.getByTestId('color-selector-step1')
-    const dpiPaperRow = screen.getByTestId('dpi-paper-row')
+    const paperSelector = screen.getByTestId('paper-type-selector-step1')
     
     expect(container).toContainElement(sizeSelector)
     expect(container).toContainElement(colorSelector)
-    expect(container).toContainElement(dpiPaperRow)
+    expect(container).toContainElement(paperSelector)
   })
 })

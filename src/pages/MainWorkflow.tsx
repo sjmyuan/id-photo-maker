@@ -27,9 +27,8 @@ interface ImageData {
 }
 
 export function MainWorkflow() {
-  // Default values: 1-inch size, 300 DPI, Blue background, 6-inch paper
+  // Default values: 1-inch size, Blue background, 6-inch paper
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
-  const [requiredDPI, setRequiredDPI] = useState<300 | null>(300) // 300 DPI or null for "None"
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
   const [paperType, setPaperType] = useState<PaperType>('6-inch') // 6-inch paper
   const [imageData, setImageData] = useState<ImageData | null>(null)
@@ -52,7 +51,6 @@ export function MainWorkflow() {
   // Download functionality hook
   const { downloadPhoto, downloadLayout } = useImageDownload({
     selectedSize,
-    requiredDPI,
     paperType,
     backgroundColor,
     onError: (errors) => setErrors(errors),
@@ -156,26 +154,24 @@ export function MainWorkflow() {
             imgHeight
           )
           
-          // Validate DPI if requirement is set
-          if (requiredDPI !== null) {
-            const dpiResult = calculateDPI(
-              initialCropArea.width,
-              initialCropArea.height,
-              selectedSize.physicalWidth,
-              selectedSize.physicalHeight
-            )
-            
-            if (dpiResult.minDPI < requiredDPI) {
-              setErrors([
-                `DPI requirement (${requiredDPI} DPI) cannot be met. ` +
-                `The calculated DPI is ${Math.round(dpiResult.minDPI)} DPI. ` +
-                `Please upload a higher resolution image or select "None" for DPI requirement.`
-              ])
-              stop()
-              setIsProcessing(false)
-              URL.revokeObjectURL(imgUrl)
-              return
-            }
+          // Validate DPI - always require 300 DPI
+          const dpiResult = calculateDPI(
+            initialCropArea.width,
+            initialCropArea.height,
+            selectedSize.physicalWidth,
+            selectedSize.physicalHeight
+          )
+          
+          if (dpiResult.minDPI < 300) {
+            setErrors([
+              `DPI requirement (300 DPI) cannot be met. ` +
+              `The calculated DPI is ${Math.round(dpiResult.minDPI)} DPI. ` +
+              `Please upload a higher resolution image.`
+            ])
+            stop()
+            setIsProcessing(false)
+            URL.revokeObjectURL(imgUrl)
+            return
           }
           
           // Clean up temporary URL
@@ -210,13 +206,12 @@ export function MainWorkflow() {
         ctx.drawImage(transparentImg, 0, 0)
 
         // Use exact crop service to generate output with precise pixel dimensions
-        const dpi = requiredDPI || 300 // Use required DPI or default to 300
         const croppedCanvas = await generateExactCrop(
           transparentCanvas,
           initialCropArea!,
           selectedSize.physicalWidth,
           selectedSize.physicalHeight,
-          dpi
+          300 // Always use 300 DPI
         )
         
         // Apply background color to the exact-sized canvas
@@ -291,7 +286,7 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, requiredDPI, paperType]
+    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, paperType]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {
@@ -300,10 +295,6 @@ export function MainWorkflow() {
 
   const handleSizeChange = (size: SizeOption) => {
     setSelectedSize(size)
-  }
-
-  const handleDPIChange = (dpi: 300 | null) => {
-    setRequiredDPI(dpi)
   }
 
   const handlePaperTypeChange = (paper: PaperType) => {
@@ -373,7 +364,6 @@ export function MainWorkflow() {
             {currentStep === 1 && (
               <Step1Settings
                 selectedSize={selectedSize}
-                requiredDPI={requiredDPI}
                 backgroundColor={backgroundColor}
                 paperType={paperType}
                 uploadedImageUrl={uploadedImageUrl}
@@ -381,7 +371,6 @@ export function MainWorkflow() {
                 isProcessing={isProcessing}
                 isLoadingU2Net={isLoadingU2Net}
                 onSizeChange={handleSizeChange}
-                onDPIChange={handleDPIChange}
                 onColorChange={handleBackgroundChange}
                 onPaperTypeChange={handlePaperTypeChange}
                 onFileChange={handleFileChange}

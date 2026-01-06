@@ -7,7 +7,6 @@ import { generatePrintLayout, downloadCanvas } from '../services/printLayoutServ
 
 interface UseImageDownloadParams {
   selectedSize: SizeOption
-  requiredDPI: 300 | null
   paperType: PaperType
   backgroundColor: string
   onError: (errors: string[]) => void
@@ -15,7 +14,6 @@ interface UseImageDownloadParams {
 
 export function useImageDownload({
   selectedSize,
-  requiredDPI,
   paperType,
   backgroundColor,
   onError,
@@ -29,15 +27,14 @@ export function useImageDownload({
         const response = await fetch(croppedPreviewUrl)
         const blob = await response.blob()
 
-        // Embed DPI metadata
-        const dpi = requiredDPI || 300
-        const blobWithDPI = await embedDPIMetadata(blob, dpi)
+        // Embed DPI metadata (always use 300 DPI)
+        const blobWithDPI = await embedDPIMetadata(blob, 300)
 
         // Create download link with DPI-embedded image
         const url = URL.createObjectURL(blobWithDPI)
         const link = document.createElement('a')
         link.href = url
-        link.download = `id-photo-${selectedSize.id}-${dpi}dpi-${Date.now()}.png`
+        link.download = `id-photo-${selectedSize.id}-300dpi-${Date.now()}.png`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -49,7 +46,7 @@ export function useImageDownload({
         onError([error instanceof Error ? error.message : 'Failed to download image'])
       }
     },
-    [selectedSize, requiredDPI, onError]
+    [selectedSize, onError]
   )
 
   const downloadLayout = useCallback(
@@ -60,10 +57,7 @@ export function useImageDownload({
         // Apply background color to canvas before generating layout
         const coloredCanvas = applyBackgroundColor(transparentCanvas, backgroundColor)
 
-        // Use the same DPI as the photo (required DPI or default 300)
-        const dpi = requiredDPI || 300
-
-        // Generate high-resolution print layout with colored canvas
+        // Generate high-resolution print layout with colored canvas (always 300 DPI)
         const layoutCanvas = await generatePrintLayout(
           coloredCanvas,
           {
@@ -71,17 +65,17 @@ export function useImageDownload({
             heightMm: selectedSize.physicalHeight,
           },
           paperType,
-          dpi
+          300
         )
 
-        // Download the layout with DPI metadata
+        // Download the layout with DPI metadata (always 300 DPI)
         const filename = `id-photo-layout-${selectedSize.id}-${paperType}-${Date.now()}.png`
-        await downloadCanvas(layoutCanvas, filename, 'image/png', dpi)
+        await downloadCanvas(layoutCanvas, filename, 'image/png', 300)
       } catch (error) {
         console.error('Failed to generate print layout:', error)
       }
     },
-    [selectedSize, backgroundColor, paperType, requiredDPI]
+    [selectedSize, backgroundColor, paperType]
   )
 
   return {

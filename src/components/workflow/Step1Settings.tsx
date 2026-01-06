@@ -1,13 +1,11 @@
 import { useRef, type ChangeEvent } from 'react'
 import { type SizeOption } from '../size/CropEditor'
 import { SizeSelector } from '../size/SizeSelector'
-import { DPISelector } from '../size/DPISelector'
 import { ColorSelector } from '../background/ColorSelector'
 import { PaperTypeSelector, type PaperType } from '../layout/PaperTypeSelector'
 
 interface Step1SettingsProps {
   selectedSize: SizeOption
-  requiredDPI: 300 | null
   backgroundColor: string
   paperType: PaperType
   uploadedImageUrl: string | null
@@ -15,7 +13,6 @@ interface Step1SettingsProps {
   isProcessing: boolean
   isLoadingU2Net: boolean
   onSizeChange: (size: SizeOption) => void
-  onDPIChange: (dpi: 300 | null) => void
   onColorChange: (color: string) => void
   onPaperTypeChange: (paper: PaperType) => void
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
@@ -24,7 +21,6 @@ interface Step1SettingsProps {
 
 export function Step1Settings({
   selectedSize,
-  requiredDPI,
   backgroundColor,
   paperType,
   uploadedImageUrl,
@@ -32,7 +28,6 @@ export function Step1Settings({
   isProcessing,
   isLoadingU2Net,
   onSizeChange,
-  onDPIChange,
   onColorChange,
   onPaperTypeChange,
   onFileChange,
@@ -58,19 +53,11 @@ export function Step1Settings({
           onColorChange={onColorChange} 
           testId="color-selector-step1"
         />
-        {/* DPI and Paper Type in Same Row */}
-        <div data-testid="dpi-paper-row" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <DPISelector 
-            requiredDPI={requiredDPI} 
-            onDPIChange={onDPIChange} 
-            testId="dpi-selector-step1"
-          />
-          <PaperTypeSelector 
-            paperType={paperType} 
-            onPaperTypeChange={onPaperTypeChange} 
-            testId="paper-type-selector-step1"
-          />
-        </div>
+        <PaperTypeSelector 
+          paperType={paperType} 
+          onPaperTypeChange={onPaperTypeChange} 
+          testId="paper-type-selector-step1"
+        />
       </div>
       
       {/* Image Placeholder */}
