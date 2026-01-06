@@ -16,6 +16,7 @@ The knowledge section contains information about the software project, including
 </architecture>
 
 <coding-guidelines>
+- Follow the SOLID principles for component and function design.
 - **Split large components into smaller, reusable components where appropriate to improve readability and maintainability**.
 - Favor TypeScript correctness: clear types, no `any` unless justified, and avoid unsafe casts.
 - Ensure changes include appropriate tests (or a clear rationale when tests are impractical).

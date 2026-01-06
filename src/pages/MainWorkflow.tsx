@@ -1,59 +1,62 @@
-import { useState, useCallback, type ChangeEvent } from 'react'
+import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
 import { StepIndicator } from '../components/workflow/StepIndicator'
 import { Step1Settings } from '../components/workflow/Step1Settings'
 import { Step2Preview } from '../components/workflow/Step2Preview'
 import { Step3Layout } from '../components/workflow/Step3Layout'
-import { detectFaces } from '../services/faceDetectionService'
-import { validateImageFile } from '../services/imageValidation'
-import { processWithU2Net } from '../services/mattingService'
-import { generatePrintLayoutPreview } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useModelLoading } from '../hooks/useModelLoading'
 import { useImageDownload } from '../hooks/useImageDownload'
-import { calculateDPI } from '../utils/dpiCalculation'
-import { generateExactCrop } from '../services/exactCropService'
-import { calculateInitialCropArea, type CropArea } from '../utils/cropAreaCalculation'
+import { useNotificationState } from '../hooks/useNotificationState'
+import { useWorkflowSteps } from '../hooks/useWorkflowSteps'
+import { FileUploadService } from '../services/fileUploadService'
+import { ImageProcessingOrchestrator } from '../services/imageProcessingOrchestrator'
 
 interface ImageData {
   originalFile: File
   originalUrl: string
-  transparentCanvas: HTMLCanvasElement // Canvas with transparent background (matting result)
-  cropArea: CropArea // Crop area from face detection
-  croppedPreviewUrl: string // URL of the final cropped preview image with exact pixels
-  printLayoutPreviewUrl: string // URL of print layout preview image
+  transparentCanvas: HTMLCanvasElement
+  cropArea: { x: number; y: number; width: number; height: number }
+  croppedPreviewUrl: string
+  printLayoutPreviewUrl: string
 }
 
 export function MainWorkflow() {
-  // Default values: 1-inch size, Blue background, 6-inch paper
-  const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0]) // 1-inch
-  const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF') // Blue
-  const [paperType, setPaperType] = useState<PaperType>('6-inch') // 6-inch paper
+  // Settings state
+  const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
+  const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF')
+  const [paperType, setPaperType] = useState<PaperType>('6-inch')
+  
+  // Image state
   const [imageData, setImageData] = useState<ImageData | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [warnings, setWarnings] = useState<string[]>([])
-  const [errors, setErrors] = useState<string[]>([])
-  
-  // 3-Step workflow state
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
-  
-  // New states for separated upload/processing flow
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
-
-  const { start, stop } = usePerformanceMeasure()
+  const [isProcessing, setIsProcessing] = useState(false)
   
-  // Load AI models using custom hook
+  // Custom hooks for single responsibilities
+  const { errors, warnings, setErrors, setWarnings, clearNotifications } = useNotificationState()
+  const { currentStep, nextStep, resetToFirstStep, goToStep } = useWorkflowSteps(1)
+  const { start, stop } = usePerformanceMeasure()
   const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
-
-  // Download functionality hook
   const { downloadPhoto, downloadLayout } = useImageDownload({
     selectedSize,
     paperType,
     backgroundColor,
-    onError: (errors) => setErrors(errors),
+    onError: setErrors,
   })
+  
+  // Services (using refs to maintain instance across renders)
+  const fileUploadService = useRef(new FileUploadService())
+  const imageProcessor = useRef(new ImageProcessingOrchestrator())
+
+  // Cleanup URLs on unmount
+  useEffect(() => {
+    const service = fileUploadService.current
+    return () => {
+      service.cleanup()
+    }
+  }, [])
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -61,17 +64,16 @@ export function MainWorkflow() {
       const file = event.target.files?.[0]
       if (!file) return
 
-      // Reset state
-      setWarnings([])
-      setErrors([])
+      // Clear previous state
+      clearNotifications()
       setImageData(null)
-      
-      // Store uploaded file and create preview URL
-      setUploadedFile(file)
-      const imageUrl = URL.createObjectURL(file)
-      setUploadedImageUrl(imageUrl)
+
+      // Handle upload with service
+      const uploaded = fileUploadService.current.handleUpload(file)
+      setUploadedFile(uploaded.file)
+      setUploadedImageUrl(uploaded.url)
     },
-    []
+    [clearNotifications]
   )
 
   // Handle processing (triggered by "Generate Preview" button)
@@ -80,241 +82,40 @@ export function MainWorkflow() {
       if (!uploadedFile) return
 
       // Reset state
-      setWarnings([])
-      setErrors([])
+      clearNotifications()
       setImageData(null)
       setIsProcessing(true)
       start()
 
-      const file = uploadedFile
-
       try {
-        // 1. Validate the file
-        const validation = await validateImageFile(uploadedFile)
-        
-        if (!validation.isValid) {
-          setErrors(validation.errors)
+        // Use orchestrator to process the image
+        const result = await imageProcessor.current.processImage({
+          file: uploadedFile,
+          selectedSize,
+          backgroundColor,
+          paperType,
+          u2netModel,
+          faceDetectionModel,
+          requiredDPI: 300,
+        })
+
+        if (result.errors && result.errors.length > 0) {
+          setErrors(result.errors.map((e) => e.message))
           stop()
           setIsProcessing(false)
           return
         }
 
-        if (validation.warnings.length > 0) {
-          setWarnings(validation.warnings)
+        if (result.warnings && result.warnings.length > 0) {
+          setWarnings(result.warnings)
         }
 
-        // 2. Detect face on the original image (without scaling)
-        // This ensures we work with the highest quality source
-        let initialCropArea: CropArea | null = null
-        if (faceDetectionModel) {
-          const img = new Image()
-          const imgUrl = URL.createObjectURL(file)
-          img.src = imgUrl
-          
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-          })
-          
-          const result = await detectFaces(faceDetectionModel, img)
-          const imgWidth = img.naturalWidth
-          const imgHeight = img.naturalHeight
-          
-          // Validate: require exactly one face
-          if (result.faces.length === 0) {
-            setErrors(['No face detected in the image. Please upload an image with exactly one face.'])
-            stop()
-            setIsProcessing(false)
-            URL.revokeObjectURL(imgUrl)
-            return
-          } else if (result.faces.length > 1) {
-            setErrors(['Multiple faces detected in the image. Please upload an image with exactly one face.'])
-            stop()
-            setIsProcessing(false)
-            URL.revokeObjectURL(imgUrl)
-            return
-          }
-          
-          // Exactly one face detected - proceed
-          const face = result.faces[0]
-          
-          // Calculate initial crop area based on face and selected size
-          initialCropArea = calculateInitialCropArea(
-            face,
-            selectedSize.aspectRatio,
-            imgWidth,
-            imgHeight
-          )
-          
-          // Validate DPI on original image dimensions - always require 300 DPI
-          const dpiResult = calculateDPI(
-            initialCropArea.width,
-            initialCropArea.height,
-            selectedSize.physicalWidth,
-            selectedSize.physicalHeight
-          )
-          
-          if (dpiResult.minDPI < 300) {
-            setErrors([
-              `DPI requirement (300 DPI) cannot be met. ` +
-              `The calculated DPI is ${Math.round(dpiResult.minDPI)} DPI. ` +
-              `Please upload a higher resolution image.`
-            ])
-            stop()
-            setIsProcessing(false)
-            URL.revokeObjectURL(imgUrl)
-            return
-          }
-          
-          // Clean up temporary URL
-          URL.revokeObjectURL(imgUrl)
+        if (result.result) {
+          setImageData(result.result)
+          // Advance to Step 2
+          nextStep()
         }
 
-        // 3. Crop the original image first using the calculated crop area
-        // This improves performance by processing smaller images through U2Net
-        const img = new Image()
-        const imgUrl = URL.createObjectURL(file)
-        img.src = imgUrl
-        
-        await new Promise((resolve, reject) => {
-          img.onload = resolve
-          img.onerror = reject
-        })
-
-        // Create canvas with cropped area
-        const croppedCanvas = document.createElement('canvas')
-        croppedCanvas.width = initialCropArea!.width
-        croppedCanvas.height = initialCropArea!.height
-        const cropCtx = croppedCanvas.getContext('2d')
-        if (!cropCtx) throw new Error('Failed to get canvas context')
-
-        // Draw the cropped portion of the original image
-        cropCtx.drawImage(
-          img,
-          initialCropArea!.x,
-          initialCropArea!.y,
-          initialCropArea!.width,
-          initialCropArea!.height,
-          0,
-          0,
-          initialCropArea!.width,
-          initialCropArea!.height
-        )
-
-        // Convert cropped canvas to blob for matting
-        const croppedBlob = await new Promise<Blob>((resolve, reject) => {
-          croppedCanvas.toBlob((blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error('Failed to create cropped blob'))
-          }, 'image/png')
-        })
-
-        const croppedFile = new File([croppedBlob], 'cropped.png', { type: 'image/png' })
-
-        // Clean up image URL
-        URL.revokeObjectURL(imgUrl)
-
-        // 4. Apply matting to the cropped image only
-        if (!u2netModel) {
-          setErrors(['AI model not loaded yet. Please wait and try again.'])
-          setIsProcessing(false)
-          stop()
-          return
-        }
-
-        const mattedBlob = await processWithU2Net(croppedFile, u2netModel)
-
-        // Create transparent canvas from matted blob
-        const transparentImg = new Image()
-        const transparentUrl = URL.createObjectURL(mattedBlob)
-        transparentImg.src = transparentUrl
-        
-        await new Promise((resolve, reject) => {
-          transparentImg.onload = resolve
-          transparentImg.onerror = reject
-        })
-
-        const transparentCanvas = document.createElement('canvas')
-        transparentCanvas.width = transparentImg.naturalWidth
-        transparentCanvas.height = transparentImg.naturalHeight
-        const ctx = transparentCanvas.getContext('2d')
-        if (!ctx) throw new Error('Failed to get canvas context')
-        ctx.drawImage(transparentImg, 0, 0)
-
-        // 5. Use exact crop service to generate output with precise pixel dimensions
-        const finalCroppedCanvas = await generateExactCrop(
-          transparentCanvas,
-          // Use full canvas as crop area since we already cropped in step 3
-          { x: 0, y: 0, width: transparentCanvas.width, height: transparentCanvas.height },
-          selectedSize.physicalWidth,
-          selectedSize.physicalHeight,
-          300 // Always use 300 DPI
-        )
-        
-        // 6. Apply background color to the exact-sized canvas
-        const croppedWithBgCanvas = document.createElement('canvas')
-        croppedWithBgCanvas.width = finalCroppedCanvas.width
-        croppedWithBgCanvas.height = finalCroppedCanvas.height
-        const croppedWithBgCtx = croppedWithBgCanvas.getContext('2d')
-        if (!croppedWithBgCtx) throw new Error('Failed to get canvas context')
-        
-        croppedWithBgCtx.fillStyle = backgroundColor
-        croppedWithBgCtx.fillRect(0, 0, croppedWithBgCanvas.width, croppedWithBgCanvas.height)
-        croppedWithBgCtx.drawImage(finalCroppedCanvas, 0, 0)
-
-        const finalCroppedBlob = await new Promise<Blob>((resolve, reject) => {
-          croppedWithBgCanvas.toBlob((blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error('Failed to create cropped blob'))
-          }, 'image/png')
-        })
-
-        // Create URLs for display
-        const originalUrl = URL.createObjectURL(file)
-        const croppedPreviewUrl = URL.createObjectURL(finalCroppedBlob)
-        
-        // Generate print layout preview (scaled-down preview for display)
-        // Load cropped image to create preview
-        const croppedImg = new Image()
-        croppedImg.src = croppedPreviewUrl
-        await new Promise<void>((resolve, reject) => {
-          croppedImg.onload = () => resolve()
-          croppedImg.onerror = reject
-        })
-        
-        const printLayoutPreviewCanvas = generatePrintLayoutPreview(
-          croppedImg,
-          {
-            widthMm: selectedSize.physicalWidth,
-            heightMm: selectedSize.physicalHeight,
-          },
-          paperType
-        )
-        
-        const printLayoutBlob = await new Promise<Blob>((resolve, reject) => {
-          printLayoutPreviewCanvas.toBlob((blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error('Failed to create print layout blob'))
-          }, 'image/png')
-        })
-        
-        const printLayoutPreviewUrl = URL.createObjectURL(printLayoutBlob)
-        
-        // Clean up temporary URL
-        URL.revokeObjectURL(transparentUrl)
-        
-        setImageData({
-          originalFile: file,
-          originalUrl,
-          transparentCanvas,
-          cropArea: initialCropArea!,
-          croppedPreviewUrl,
-          printLayoutPreviewUrl,
-        })
-
-        // Advance to Step 2
-        setCurrentStep(2)
-        
         stop()
         setIsProcessing(false)
       } catch (error) {
@@ -323,7 +124,20 @@ export function MainWorkflow() {
         setIsProcessing(false)
       }
     },
-    [uploadedFile, start, stop, u2netModel, faceDetectionModel, backgroundColor, selectedSize, paperType]
+    [
+      uploadedFile,
+      start,
+      stop,
+      u2netModel,
+      faceDetectionModel,
+      backgroundColor,
+      selectedSize,
+      paperType,
+      clearNotifications,
+      setErrors,
+      setWarnings,
+      nextStep,
+    ]
   )
 
   const handleBackgroundChange = useCallback((color: string) => {
@@ -345,18 +159,17 @@ export function MainWorkflow() {
   const handleReupload = () => {
     // Clear all state and return to upload view
     setImageData(null)
-    setWarnings([])
-    setErrors([])
-    
-    // Clear uploaded file and image URL
+    clearNotifications()
+
+    // Clear uploaded file and revoke URL
     if (uploadedImageUrl) {
-      URL.revokeObjectURL(uploadedImageUrl)
+      fileUploadService.current.revokeUrl(uploadedImageUrl)
     }
     setUploadedFile(null)
     setUploadedImageUrl(null)
-    
+
     // Reset to Step 1
-    setCurrentStep(1)
+    resetToFirstStep()
   }
 
   const handleDownloadLayout = useCallback(async () => {
@@ -421,8 +234,8 @@ export function MainWorkflow() {
                 croppedPreviewUrl={imageData.croppedPreviewUrl}
                 isProcessing={isProcessing}
                 onDownload={handleDownload}
-                onNext={() => setCurrentStep(3)}
-                onBack={() => { setCurrentStep(1); handleReupload(); }}
+                onNext={() => nextStep()}
+                onBack={() => { resetToFirstStep(); handleReupload(); }}
               />
             )}
             
@@ -435,7 +248,7 @@ export function MainWorkflow() {
                 selectedSize={selectedSize}
                 isProcessing={isProcessing}
                 onDownloadLayout={handleDownloadLayout}
-                onBack={() => setCurrentStep(2)}
+                onBack={() => goToStep(2)}
               />
             )}
           </div>
