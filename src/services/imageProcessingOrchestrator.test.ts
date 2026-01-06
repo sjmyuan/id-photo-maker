@@ -12,6 +12,29 @@ vi.mock('./mattingService')
 vi.mock('./imageValidation')
 vi.mock('./exactCropService')
 vi.mock('./printLayoutService')
+vi.mock('./canvasOperationsService', () => ({
+  CanvasOperationsService: function () {
+    const mockCanvas = document.createElement('canvas')
+    mockCanvas.width = 1000
+    mockCanvas.height = 1200
+    
+    const mockImg = {
+      naturalWidth: 1000,
+      naturalHeight: 1200,
+      width: 1000,
+      height: 1200,
+    } as HTMLImageElement
+
+    return {
+      loadImageFromFile: vi.fn().mockResolvedValue(mockImg),
+      cropImage: vi.fn().mockReturnValue(mockCanvas),
+      canvasToBlob: vi.fn().mockResolvedValue(new Blob(['test'], { type: 'image/png' })),
+      createCanvasFromBlob: vi.fn().mockResolvedValue(mockCanvas),
+      loadImageFromBlob: vi.fn().mockResolvedValue(mockImg),
+      applyBackgroundColor: vi.fn().mockReturnValue(mockCanvas),
+    }
+  },
+}))
 
 describe('ImageProcessingOrchestrator', () => {
   let orchestrator: ImageProcessingOrchestrator

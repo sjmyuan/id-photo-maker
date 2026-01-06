@@ -7,11 +7,13 @@ import * as mattingService from '../services/mattingService'
 
 // Mock modules
 vi.mock('../services/downloadService', () => ({
-  DownloadService: vi.fn().mockImplementation(() => ({
-    downloadImageFromUrl: vi.fn().mockResolvedValue(undefined),
-    downloadCanvas: vi.fn().mockResolvedValue(undefined),
-    downloadBlob: vi.fn(),
-  })),
+  DownloadService: function () {
+    return {
+      downloadImageFromUrl: vi.fn().mockResolvedValue(undefined),
+      downloadCanvas: vi.fn().mockResolvedValue(undefined),
+      downloadBlob: vi.fn(),
+    }
+  },
 }))
 vi.mock('../services/printLayoutService')
 vi.mock('../services/mattingService')
