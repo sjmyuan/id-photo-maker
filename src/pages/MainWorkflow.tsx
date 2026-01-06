@@ -7,7 +7,6 @@ import { Step2Preview } from '../components/workflow/Step2Preview'
 import { Step3Layout } from '../components/workflow/Step3Layout'
 import { detectFaces } from '../services/faceDetectionService'
 import { validateImageFile } from '../services/imageValidation'
-import { scaleImageToTarget } from '../services/imageScaling'
 import { processWithU2Net } from '../services/mattingService'
 import { generatePrintLayoutPreview } from '../services/printLayoutService'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
@@ -104,19 +103,12 @@ export function MainWorkflow() {
           setWarnings(validation.warnings)
         }
 
-        // 2. Scale if needed
-        let fileToProcess = file
-        if (validation.needsScaling) {
-          const scaledBlob = await scaleImageToTarget(file, 10)
-          fileToProcess = new File([scaledBlob], file.name, { type: file.type })
-        }
-
-        // 3. Detect face on the scaled image (before U2Net processing)
-        // This ensures faceBox coordinates match the processed image dimensions
+        // 2. Detect face on the original image (without scaling)
+        // This ensures we work with the highest quality source
         let initialCropArea: CropArea | null = null
         if (faceDetectionModel) {
           const img = new Image()
-          const imgUrl = URL.createObjectURL(fileToProcess)
+          const imgUrl = URL.createObjectURL(file)
           img.src = imgUrl
           
           await new Promise((resolve, reject) => {
@@ -154,7 +146,7 @@ export function MainWorkflow() {
             imgHeight
           )
           
-          // Validate DPI - always require 300 DPI
+          // Validate DPI on original image dimensions - always require 300 DPI
           const dpiResult = calculateDPI(
             initialCropArea.width,
             initialCropArea.height,
@@ -178,7 +170,51 @@ export function MainWorkflow() {
           URL.revokeObjectURL(imgUrl)
         }
 
-        // 4. Process matting
+        // 3. Crop the original image first using the calculated crop area
+        // This improves performance by processing smaller images through U2Net
+        const img = new Image()
+        const imgUrl = URL.createObjectURL(file)
+        img.src = imgUrl
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = reject
+        })
+
+        // Create canvas with cropped area
+        const croppedCanvas = document.createElement('canvas')
+        croppedCanvas.width = initialCropArea!.width
+        croppedCanvas.height = initialCropArea!.height
+        const cropCtx = croppedCanvas.getContext('2d')
+        if (!cropCtx) throw new Error('Failed to get canvas context')
+
+        // Draw the cropped portion of the original image
+        cropCtx.drawImage(
+          img,
+          initialCropArea!.x,
+          initialCropArea!.y,
+          initialCropArea!.width,
+          initialCropArea!.height,
+          0,
+          0,
+          initialCropArea!.width,
+          initialCropArea!.height
+        )
+
+        // Convert cropped canvas to blob for matting
+        const croppedBlob = await new Promise<Blob>((resolve, reject) => {
+          croppedCanvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create cropped blob'))
+          }, 'image/png')
+        })
+
+        const croppedFile = new File([croppedBlob], 'cropped.png', { type: 'image/png' })
+
+        // Clean up image URL
+        URL.revokeObjectURL(imgUrl)
+
+        // 4. Apply matting to the cropped image only
         if (!u2netModel) {
           setErrors(['AI model not loaded yet. Please wait and try again.'])
           setIsProcessing(false)
@@ -186,9 +222,9 @@ export function MainWorkflow() {
           return
         }
 
-        const mattedBlob = await processWithU2Net(fileToProcess, u2netModel)
+        const mattedBlob = await processWithU2Net(croppedFile, u2netModel)
 
-        // Create transparent canvas from blob
+        // Create transparent canvas from matted blob
         const transparentImg = new Image()
         const transparentUrl = URL.createObjectURL(mattedBlob)
         transparentImg.src = transparentUrl
@@ -205,27 +241,28 @@ export function MainWorkflow() {
         if (!ctx) throw new Error('Failed to get canvas context')
         ctx.drawImage(transparentImg, 0, 0)
 
-        // Use exact crop service to generate output with precise pixel dimensions
-        const croppedCanvas = await generateExactCrop(
+        // 5. Use exact crop service to generate output with precise pixel dimensions
+        const finalCroppedCanvas = await generateExactCrop(
           transparentCanvas,
-          initialCropArea!,
+          // Use full canvas as crop area since we already cropped in step 3
+          { x: 0, y: 0, width: transparentCanvas.width, height: transparentCanvas.height },
           selectedSize.physicalWidth,
           selectedSize.physicalHeight,
           300 // Always use 300 DPI
         )
         
-        // Apply background color to the exact-sized canvas
+        // 6. Apply background color to the exact-sized canvas
         const croppedWithBgCanvas = document.createElement('canvas')
-        croppedWithBgCanvas.width = croppedCanvas.width
-        croppedWithBgCanvas.height = croppedCanvas.height
+        croppedWithBgCanvas.width = finalCroppedCanvas.width
+        croppedWithBgCanvas.height = finalCroppedCanvas.height
         const croppedWithBgCtx = croppedWithBgCanvas.getContext('2d')
         if (!croppedWithBgCtx) throw new Error('Failed to get canvas context')
         
         croppedWithBgCtx.fillStyle = backgroundColor
         croppedWithBgCtx.fillRect(0, 0, croppedWithBgCanvas.width, croppedWithBgCanvas.height)
-        croppedWithBgCtx.drawImage(croppedCanvas, 0, 0)
+        croppedWithBgCtx.drawImage(finalCroppedCanvas, 0, 0)
 
-        const croppedBlob = await new Promise<Blob>((resolve, reject) => {
+        const finalCroppedBlob = await new Promise<Blob>((resolve, reject) => {
           croppedWithBgCanvas.toBlob((blob) => {
             if (blob) resolve(blob)
             else reject(new Error('Failed to create cropped blob'))
@@ -234,7 +271,7 @@ export function MainWorkflow() {
 
         // Create URLs for display
         const originalUrl = URL.createObjectURL(file)
-        const croppedPreviewUrl = URL.createObjectURL(croppedBlob)
+        const croppedPreviewUrl = URL.createObjectURL(finalCroppedBlob)
         
         // Generate print layout preview (scaled-down preview for display)
         // Load cropped image to create preview

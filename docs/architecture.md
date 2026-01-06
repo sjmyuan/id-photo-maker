@@ -240,6 +240,25 @@ end note
 
 4. **Same Processing Logic**: All validation (file size, face detection, DPI) still occurs, but is now triggered explicitly by the "Generate Preview" button instead of automatically after file selection.
 
+**Image Processing Pipeline (Crop-then-Matting Refactor - Jan 2026):**
+
+The image processing workflow was refactored to improve performance by cropping the image before applying AI-based background removal:
+
+1. **Upload & Validation**: User uploads image, validation checks file size, format, and dimensions
+2. **Face Detection on Original**: Detect face on full original image (no scaling)
+3. **Crop Area Calculation**: Calculate crop area based on face position and selected size, maintaining aspect ratio
+4. **DPI Validation on Original**: Validate that crop area on original image meets 300 DPI requirement before any processing
+5. **Crop First**: Crop the original image using the calculated crop area to create a smaller working image
+6. **Background Removal**: Apply U2Net matting to the cropped image only (much faster than processing full image)
+7. **Exact Sizing**: Generate final output with precise pixel dimensions based on physical size and DPI requirements
+8. **Background Color Application**: Apply user-selected background color to the final cropped image
+
+**Key Benefits of Crop-then-Matting Approach:**
+- **Performance**: Processing smaller cropped images through U2Net is significantly faster
+- **Quality**: Working with original image quality before cropping maintains detail
+- **DPI Accuracy**: Validation happens on original dimensions, ensuring quality requirements are met
+- **Memory Efficiency**: Reduced memory footprint when processing smaller images
+
 The architecture follows these key principles:
 
 1. **Zero Server Dependency**: All processing happens in the browser using Web APIs
