@@ -1643,7 +1643,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       expect(screen.queryByTestId('step3-container')).not.toBeInTheDocument()
     })
 
-    it('should return to Step 1 from Step 2 when clicking Back and reset state', async () => {
+    it('should return to Step 1 from Step 2 when clicking Back and preserve original image', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
@@ -1682,9 +1682,12 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       
       expect(screen.queryByTestId('step2-container')).not.toBeInTheDocument()
       
-      // Should reset state (no image uploaded)
-      expect(screen.getByText('No image uploaded')).toBeInTheDocument()
-      expect(screen.getByTestId('upload-or-generate-button')).toHaveTextContent('Upload Image')
+      // Should preserve original image
+      expect(screen.getByTestId('uploaded-image')).toBeInTheDocument()
+      expect(screen.queryByText('No image uploaded')).not.toBeInTheDocument()
+      
+      // Should still show "Generate ID Photo" button (not "Upload Image")
+      expect(screen.getByTestId('upload-or-generate-button')).toHaveTextContent('Generate ID Photo')
     })
   })
 })

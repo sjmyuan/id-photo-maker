@@ -36,7 +36,7 @@ export function MainWorkflow() {
   
   // Custom hooks for single responsibilities
   const { errors, warnings, setErrors, setWarnings, clearNotifications } = useNotificationState()
-  const { currentStep, nextStep, resetToFirstStep, goToStep } = useWorkflowSteps(1)
+  const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
   const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
   const { downloadPhoto, downloadLayout } = useImageDownload({
@@ -156,20 +156,13 @@ export function MainWorkflow() {
     await downloadPhoto(imageData?.croppedPreviewUrl || null)
   }
 
-  const handleReupload = () => {
-    // Clear all state and return to upload view
+  const handleBackToSettings = () => {
+    // Clear only processed data, preserve uploaded file
     setImageData(null)
     clearNotifications()
 
-    // Clear uploaded file and revoke URL
-    if (uploadedImageUrl) {
-      fileUploadService.current.revokeUrl(uploadedImageUrl)
-    }
-    setUploadedFile(null)
-    setUploadedImageUrl(null)
-
-    // Reset to Step 1
-    resetToFirstStep()
+    // Return to Step 1 (keeps uploadedFile and uploadedImageUrl)
+    goToStep(1)
   }
 
   const handleDownloadLayout = useCallback(async () => {
@@ -235,7 +228,7 @@ export function MainWorkflow() {
                 isProcessing={isProcessing}
                 onDownload={handleDownload}
                 onNext={() => nextStep()}
-                onBack={() => { resetToFirstStep(); handleReupload(); }}
+                onBack={handleBackToSettings}
               />
             )}
             

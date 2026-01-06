@@ -213,11 +213,19 @@ note right of GeneratePreview
 end note
 
 note right of EditBackground
-  **Step 2: Edit & Download**
-  - Select background color (presets or custom RGB)
-  - Adjust crop area for framing
-  - Download final ID photo
-  - "Go Back" button returns to Step 1
+  **Step 2: ID Photo Preview**
+  - Review processed ID photo
+  - Download ID photo
+  - Continue to Print Layout (Step 3)
+  - "Back to Settings" preserves original image,
+    allows changing settings and regenerating
+end note
+
+note right of Download
+  **Step 3: Print Layout Preview**
+  - Review print layout with multiple photos
+  - Download print-ready layout
+  - "Back" returns to Step 2
 end note
 
 @enduml
@@ -258,6 +266,33 @@ The image processing workflow was refactored to improve performance by cropping 
 - **Quality**: Working with original image quality before cropping maintains detail
 - **DPI Accuracy**: Validation happens on original dimensions, ensuring quality requirements are met
 - **Memory Efficiency**: Reduced memory footprint when processing smaller images
+
+**Navigation State Management Refactor (Jan 2026):**
+
+The workflow navigation was refactored to improve user experience when going back from Step 2 to Step 1:
+
+**Previous Behavior:**
+- Clicking "Back" from Step 2 would clear all state including the uploaded image
+- Users had to re-upload the same image to try different settings
+- Lost the ability to experiment with different configurations
+
+**New Behavior:**
+- Clicking "Back to Settings" from Step 2 preserves the original uploaded image
+- Users can modify settings (size, background color, paper type) and click "Generate ID Photo" again
+- The "Change Image" button in Step 1 allows uploading a different file when needed
+- Only processed results (imageData) are cleared when going back, not the original upload
+
+**Implementation Details:**
+- New `handleBackToSettings()` function clears only `imageData` while preserving `uploadedFile` and `uploadedImageUrl`
+- Removed `handleReupload()` as it's no longer needed - the "Change Image" button flow uses `handleFileChange()` which already handles cleanup
+- Step 2's back button now calls `handleBackToSettings()` instead of clearing everything
+- The `useWorkflowSteps` hook's `goToStep()` function is used instead of `resetToFirstStep()`
+
+**Key Benefits:**
+- **Better UX**: Users can experiment with different settings without re-uploading
+- **Faster iteration**: Quick regeneration with modified configurations
+- **Reduced friction**: No need to find and re-select the same file
+- **Cleaner code**: Removed unnecessary `handleReupload()` and `resetToFirstStep()` usage
 
 The architecture follows these key principles:
 

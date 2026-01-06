@@ -14,19 +14,29 @@ The application follows a two-step workflow with explicit user control over proc
 
 ### Step 1: Upload & Configuration
 1. User selects photo size (1-inch, 2-inch, or 3-inch) and DPI requirement (300 DPI or None)
-2. User clicks "Upload Image" button to select a photo file
-3. Selected image appears in a placeholder preview
-4. Button changes to "Generate Preview"
-5. User clicks "Generate Preview" to trigger processing (face detection, validation, and background removal)
-6. If validation passes, user automatically advances to Step 2
+2. User selects background color (red, blue, white, or custom RGB)
+3. User selects paper type for print layout (6-inch, A4)
+4. User clicks "Upload Image" button to select a photo file
+5. Selected image appears in a placeholder preview
+6. Button changes to "Generate ID Photo"
+7. User clicks "Generate ID Photo" to trigger processing (face detection, validation, and background removal)
+8. If validation passes, user automatically advances to Step 2
 
-### Step 2: Edit & Download
-1. User adjusts background color using preset options or custom RGB values
-2. User fine-tunes crop area to frame the face correctly
-3. User clicks "Download ID Photo" to save the final result
-4. User can click "Go Back" to return to Step 1 and start over
+### Step 2: ID Photo Preview
+1. User reviews the processed ID photo with selected background
+2. User can click "Download ID Photo" to save the final result
+3. User can click "Continue to Print Layout" to advance to Step 3
+4. User can click "Back to Settings" to return to Step 1 (preserves original image and allows changing settings)
 
-**Key Design Decision**: Upload and processing are separated to give users explicit control. The user sees their uploaded image before triggering any processing, allowing them to verify the correct file was selected.
+### Step 3: Print Layout Preview
+1. User reviews the print layout with multiple photos optimized for selected paper type
+2. User can click "Download Print Layout" to save the print-ready layout
+3. User can click "Back" to return to Step 2
+
+**Key Design Decisions**: 
+- Upload and processing are separated to give users explicit control. The user sees their uploaded image before triggering any processing, allowing them to verify the correct file was selected.
+- When navigating back from Step 2 to Step 1, the original uploaded image is preserved, allowing users to modify settings (size, background color, paper type) and regenerate the preview without re-uploading.
+- Users can still change the image via the "Change Image" button in Step 1.
 
 ## Personas  
 ### Persona: General Consumer  
