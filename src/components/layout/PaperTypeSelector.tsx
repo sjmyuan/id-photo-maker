@@ -8,7 +8,7 @@ export interface PaperTypeSelectorProps {
 
 /**
  * PaperTypeSelector component for selecting paper type in compact grid format
- * Options: 6-inch (4×6 in) or A4 (210×297 mm)
+ * Options: 6-inch (101.6×152.4 mm) or A4 (210×297 mm)
  */
 export function PaperTypeSelector({ paperType, onPaperTypeChange, testId = 'paper-type-selector' }: PaperTypeSelectorProps) {
   return (
@@ -25,7 +25,7 @@ export function PaperTypeSelector({ paperType, onPaperTypeChange, testId = 'pape
           data-testid="paper-6-inch-button"
         >
           <div className="font-semibold text-xs">6-inch</div>
-          <div className="text-[10px] text-gray-600">4×6 in</div>
+          <div className="text-[10px] text-gray-600">102×152 mm</div>
         </button>
         <button
           onClick={() => onPaperTypeChange('a4')}

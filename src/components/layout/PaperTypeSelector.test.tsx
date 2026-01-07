@@ -10,7 +10,7 @@ describe('PaperTypeSelector', () => {
     
     expect(screen.getByText('Paper Type')).toBeInTheDocument()
     expect(screen.getByText('6-inch')).toBeInTheDocument()
-    expect(screen.getByText('4×6 in')).toBeInTheDocument()
+    expect(screen.getByText('102×152 mm')).toBeInTheDocument()
     expect(screen.getByText('A4')).toBeInTheDocument()
     expect(screen.getByText('210×297 mm')).toBeInTheDocument()
   })
