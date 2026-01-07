@@ -3,6 +3,8 @@
  * Provides background removal with adaptive performance based on device capability
  */
 
+import { processImageWithU2Net, type U2NetModel } from './u2netService'
+
 // Types
 export interface MattingResult {
   foregroundMask: ImageData
@@ -173,8 +175,45 @@ export function applyBackgroundColor(
 }
 
 /**
+ * Process image using U2Net model for AI-powered background removal
+ * 
+ * @param file - The image file to process
+ * @param model - The loaded U2Net model
+ * @returns A promise that resolves to the matted image as a PNG Blob
+ */
+export async function processWithU2Net(
+  file: File,
+  model: U2NetModel
+): Promise<Blob> {
+  // Validate file
+  if (!file || file.size === 0) {
+    throw new Error('Invalid file for matting')
+  }
+
+  // Load image from file
+  const img = new Image()
+  const imageUrl = URL.createObjectURL(file)
+  
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = imageUrl
+    })
+
+    // Process with U2Net
+    const result = await processImageWithU2Net(model, img)
+    
+    return result
+  } finally {
+    // Clean up object URL
+    URL.revokeObjectURL(imageUrl)
+  }
+}
+
+/**
  * Mock matting service that simulates AI-powered portrait matting
- * In a real implementation, this would call an actual ML model or API
+ * Used as fallback when U2Net model is not available
  * 
  * @param file - The image file to process
  * @param expectedProcessingTime - Expected processing time in milliseconds based on device capability
@@ -216,6 +255,7 @@ export async function mockMattingService(
 
 export interface MattingServiceInterface {
   processMattingAsync(file: File, expectedProcessingTime: number): Promise<Blob>
+  processWithU2Net(file: File, model: U2NetModel): Promise<Blob>
   removeBackground(image: HTMLImageElement, options?: MattingOptions): Promise<MattingResult>
   applyBackgroundColor(transparentCanvas: HTMLCanvasElement, color: string): HTMLCanvasElement
 }
@@ -227,6 +267,10 @@ export interface MattingServiceInterface {
 export class MattingService implements MattingServiceInterface {
   async processMattingAsync(file: File, expectedProcessingTime: number): Promise<Blob> {
     return mockMattingService(file, expectedProcessingTime)
+  }
+
+  async processWithU2Net(file: File, model: U2NetModel): Promise<Blob> {
+    return processWithU2Net(file, model)
   }
 
   async removeBackground(image: HTMLImageElement, options?: MattingOptions): Promise<MattingResult> {

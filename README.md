@@ -82,6 +82,11 @@ src/
 - [Requirements](docs/requirements.md)
 - [Initial Idea](docs/initial-idea.md)
 
+## References
+- [U-2-Net](https://github.com/xuebinqin/U-2-Net)
+- [rembg](https://github.com/danielgatis/rembg)
+- [tfjs face detection model](https://github.com/tensorflow/tfjs-models/tree/master/face-detection)
+
 ## License
 
 MIT

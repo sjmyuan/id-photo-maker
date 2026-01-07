@@ -3,8 +3,10 @@ import {
   mockMattingService, 
   removeBackground, 
   applyBackgroundColor,
+  processWithU2Net,
   MattingService 
 } from './mattingService'
+import type { U2NetModel } from './u2netService'
 
 // Helper to create a test image
 function createTestImage(width: number = 100, height: number = 100): HTMLImageElement {
@@ -355,5 +357,77 @@ describe('mattingService', () => {
       expect(result1.processedImage.height).toBe(result2.processedImage.height)
     })
   })
-})
 
+  describe('processWithU2Net', () => {
+    beforeEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should process image with U2Net model', async () => {
+      // Create a small valid image data
+      const imageData = new Uint8Array([/* PNG header */ 137, 80, 78, 71, 13, 10, 26, 10, ...new Array(100).fill(0)])
+      const file = new File([imageData], 'test.png', { type: 'image/png' })
+      
+      // Mock URL.createObjectURL and revokeObjectURL
+      const mockUrl = 'blob:mock-url'
+      const originalCreateObjectURL = URL.createObjectURL
+      const originalRevokeObjectURL = URL.revokeObjectURL
+      URL.createObjectURL = vi.fn().mockReturnValue(mockUrl)
+      URL.revokeObjectURL = vi.fn()
+      
+      // Mock Image to simulate successful image loading
+      const originalImage = globalThis.Image
+      globalThis.Image = class MockImage {
+        onload: (() => void) | null = null
+        onerror: (() => void) | null = null
+        src = ''
+        
+        constructor() {
+          // Simulate successful image load after a microtask
+          setTimeout(() => {
+            if (this.onload) this.onload()
+          }, 0)
+        }
+      } as unknown as typeof Image
+      
+      // Create a mock U2Net model
+      const mockModel: U2NetModel = {
+        session: {
+          inputNames: ['input'],
+          outputNames: ['output'],
+          run: vi.fn().mockResolvedValue({
+            output: {
+              data: new Float32Array(320 * 320),
+              dims: [1, 1, 320, 320]
+            }
+          })
+        } as unknown as U2NetModel['session'],
+        status: 'loaded'
+      }
+
+      try {
+        const result = await processWithU2Net(file, mockModel)
+
+        expect(result).toBeInstanceOf(Blob)
+        expect(result.type).toBe('image/png')
+        expect(URL.createObjectURL).toHaveBeenCalledWith(file)
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl)
+      } finally {
+        // Restore original implementations
+        globalThis.Image = originalImage
+        URL.createObjectURL = originalCreateObjectURL
+        URL.revokeObjectURL = originalRevokeObjectURL
+      }
+    })
+
+    it('should reject invalid file', async () => {
+      const file = new File([], 'empty.jpg', { type: 'image/jpeg' })
+      const mockModel: U2NetModel = {
+        session: {} as unknown as U2NetModel['session'],
+        status: 'loaded'
+      }
+
+      await expect(processWithU2Net(file, mockModel)).rejects.toThrow('Invalid file for matting')
+    })
+  })
+})

@@ -16,12 +16,13 @@ The knowledge section contains information about the software project, including
 </architecture>
 
 <coding-guidelines>
-- Prefer existing patterns in this repo (component structure, hooks usage, styling approach); avoid suggesting new frameworks or sweeping rewrites.
+- Follow the SOLID principles for component and function design.
+- **Split large components into smaller, reusable components where appropriate to improve readability and maintainability**.
 - Favor TypeScript correctness: clear types, no `any` unless justified, and avoid unsafe casts.
 - Ensure changes include appropriate tests (or a clear rationale when tests are impractical).
 - Ensure the test file name matches the component file name being tested. For example, if the component file is `Component.tsx`, the test file should be named `Component.test.tsx`.
 - Prefer test data-testid attributes for selecting elements in tests. If not available, use roles or text content as fallbacks.
-- Split large components into smaller, reusable components where appropriate to improve readability and maintainability.
+- Prefer to create new components for larger UI sections instead of adding everything into one file.
 </coding-guidelines>
 
 </knowledge>
@@ -63,6 +64,7 @@ The skills section describes additional capabilities that you can refer to, incl
   - **Refactor**, Improve the code’s structure, readability, and performance while maintaining functionality, ensuring no tests break during the process.  
   - **Validate Refactoring**, Run the tests again after refactoring to ensure the updated code still passes all test cases without introducing regressions.
   - **Validate Linting, Formatting and Type Checking**, Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the plan back to the user. for example:
   """
   To implement the requirement of [requirement summary], the plan is as follows:
@@ -82,7 +84,7 @@ The skills section describes additional capabilities that you can refer to, incl
   - Step 14: Validate Linting, Formatting and Type Checking for functionality B
   - ...
 
-I will update the todo list to match this plan and proceed to implement the requirement step by step as outlined.
+I will update the #todo tool to match this plan and proceed to implement the requirement step by step as outlined.
 
 """
 </implementation-planning>
@@ -99,6 +101,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - **Clean Up Tests**: Update or remove tests that are no longer relevant due to the refactor, ensuring the test suite remains accurate and effective.
   - **Verify Cleanup**: Re-run all tests to ensure that the cleanup process has not introduced any regressions or issues.
   - **Validate Linting, Formatting and Type Checking**: Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the complete plan to the user. For example:
   """
   To complete the refactoring request of [refactor request summary], the plan is as follows:
@@ -120,7 +123,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - Step 16: Validate Linting, Formatting and Type Checking for refactor objective B
   - ... 
   
-  I will update the todo list to match this plan and proceed to refactor the code step by step as outlined.
+  I will update the #todo tool to match this plan and proceed to refactor the code step by step as outlined.
   """
 </refactor-planning>
 
@@ -133,6 +136,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - **Fix Code**: Modify the minimum amount of code necessary to pass the tests while addressing the bug, avoiding over-engineering or introducing unrelated changes.
   - **Verify Fix**: Re-run all tests to confirm the fix works successfully. Debug and refine as necessary to ensure correctness.
   - **Validate Linting, Formatting and Type Checking**: Run linting, formatting and type checking tools to ensure code quality and adherence to coding standards.
+- Ensure the total number of steps in the plan is manageable and does not exceed 20 steps.
 - Summarize the complete plan to the user. For example:
   """
   To fix the bug of [bug summary], the plan is as follows:
@@ -147,7 +151,7 @@ I will update the todo list to match this plan and proceed to implement the requ
   - Step 9: Verify Fix for issue B
   - Step 10: Validate Linting, Formatting and Type Checking for issue B
   - ...
-  I will update the todo list to match this plan and proceed to fix the bug step by step as outlined.
+  I will update the #todo tool to match this plan and proceed to fix the bug step by step as outlined.
   """
 </bug-fixing-planning>
 
@@ -161,17 +165,19 @@ The rules section outlines decision criteria that determine which skills to appl
 
 <rule> If user submit a requirement, apply the **defining-requirement** skill to clarify and structure it. </rule>
 <rule> After defining the requirement, apply the **implementation-planning** skill to generate an implementation plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> If the user submits a refactoring request, apply the **defining-refactor-request** skill to clarify the scope, objectives, and constraints of the refactor request. </rule>
 <rule> After clarifying the scope, objectives and constraints of the refactor request, apply the **refactor-planning** skill to generate a refactor plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> If the user reports a bug, apply the **identifying-bug-root-cause** skill to identify the root cause of the bug. </rule>
 <rule> After identifying the root cause of the bug, apply the **bug-fixing-planning** skill to generate a bug-fixing plan. </rule>
+<rule> **DO NOT MODIFY THE #TODO TOOL AFTER CREATING IT** </rule>
 
 <rule> After completing the implementation, refactor, or bug-fixing plan, update the epics, stories and ACs in requirements.md to reflect the requirement changes and update architecture.md to reflect the design changes. </rule>
 
-<rule> **DO NOT MODIFY THE TODO LIST AFTER CREATING IT** </rule>
-
 <rule> Think aloud and explain your approach before making any code changes. </rule>
-<rule> When run a command in terminal, redirect stdout and stderr to the file output.log, then read the file to get the output. </rule>
+<rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
+<rule> Always use commands in package.json scripts for  running tests, building, linting, and other common tasks. </rule>
 </rules>

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import App from './App'
 
 // Mock the services
@@ -27,17 +28,30 @@ vi.mock('./utils/deviceCapability', () => ({
 
 describe('App', () => {
   it('renders the app title', () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
   })
 
   it('should display ImageUpload component initially', () => {
-    render(<App />)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
 
-  it('should display BackgroundSelector after successful image upload and processing', async () => {
-    render(<App />)
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should display BackgroundSelector after successful image upload and processing', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     const fileInput = screen.getByTestId('file-input')
     const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
@@ -55,8 +69,13 @@ describe('App', () => {
     })
   })
 
-  it('should display MattingPreview after background selection', async () => {
-    render(<App />)
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should display MattingPreview after background selection', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // First upload an image
     const fileInput = screen.getByTestId('file-input')
@@ -87,8 +106,13 @@ describe('App', () => {
     })
   })
 
-  it('should return to upload when reprocess is clicked from preview', async () => {
-    render(<App />)
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should return to upload when reprocess is clicked from preview', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // Upload image
     const fileInput = screen.getByTestId('file-input')
@@ -124,8 +148,13 @@ describe('App', () => {
     })
   })
 
-  it('should proceed to next step when continue is clicked from preview', async () => {
-    render(<App />)
+  // Obsolete - This workflow has been replaced by MainWorkflow's two-step wizard
+  it.skip('should proceed to next step when continue is clicked from preview', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
     
     // Upload image
     const fileInput = screen.getByTestId('file-input')
@@ -155,9 +184,21 @@ describe('App', () => {
     const previewContinueButton = screen.getByRole('button', { name: /continue to next step/i })
     previewContinueButton.click()
     
-    // For now, it should show a placeholder message for size selection
+    // Should now show size selection with crop guide
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /size selection/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /select size and adjust crop/i })).toBeInTheDocument()
+      expect(screen.getByTestId('size-1-inch')).toBeInTheDocument()
+      expect(screen.getByTestId('crop-rectangle')).toBeInTheDocument()
     })
+  })
+
+  it('should navigate to main page at root route', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
+    expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
 })

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { PRESET_COLORS } from '../../constants/colors'
 
 export interface BackgroundSelectorProps {
   /** Callback when background color changes */
@@ -7,22 +9,11 @@ export interface BackgroundSelectorProps {
   initialColor?: string
 }
 
-interface PresetColor {
-  name: string
-  value: string
-}
-
 interface RGBColor {
   r: number
   g: number
   b: number
 }
-
-const PRESET_COLORS: PresetColor[] = [
-  { name: 'Red', value: '#FF0000' },
-  { name: 'Blue', value: '#0000FF' },
-  { name: 'White', value: '#FFFFFF' },
-]
 
 /**
  * Converts a hex color string to RGB values
@@ -77,6 +68,7 @@ export function BackgroundSelector({
   onColorChange, 
   initialColor = '#FFFFFF' 
 }: BackgroundSelectorProps) {
+  const { t } = useTranslation()
   const [selectedColor, setSelectedColor] = useState<string>(initialColor)
   const [rgbValues, setRgbValues] = useState<RGBColor>(hexToRgb(initialColor))
   const [errors, setErrors] = useState<{ r?: string; g?: string; b?: string }>({})
@@ -141,7 +133,7 @@ export function BackgroundSelector({
         <label className="text-sm font-medium text-gray-700">
           Preset Colors
         </label>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {PRESET_COLORS.map((color) => (
             <button
               key={color.value}
@@ -156,14 +148,14 @@ export function BackgroundSelector({
                     : 'border-gray-300 hover:border-gray-400'
                 }
               `}
-              aria-label={color.name}
+              aria-label={t(color.nameKey)}
             >
               <div
                 className="w-12 h-12 rounded border-2 border-gray-400"
                 style={{ backgroundColor: color.value }}
               />
               <span className="text-sm font-medium text-gray-700">
-                {color.name}
+                {t(color.nameKey)}
               </span>
             </button>
           ))}

@@ -4,12 +4,12 @@ import { userEvent } from '@testing-library/user-event'
 import { BackgroundSelector } from './BackgroundSelector'
 
 describe('BackgroundSelector - Preset Colors', () => {
-  it('should render preset color buttons: Red, Blue, White', () => {
+  it('should render preset color buttons: Red, Blue, White, and others', () => {
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    expect(screen.getByRole('button', { name: /red/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /blue/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /white/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Red' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Blue' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'White' })).toBeInTheDocument()
   })
 
   it('should call onColorChange with #FF0000 when Red is clicked', async () => {
@@ -18,7 +18,7 @@ describe('BackgroundSelector - Preset Colors', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const redButton = screen.getByRole('button', { name: /red/i })
+    const redButton = screen.getByRole('button', { name: 'Red' })
     await user.click(redButton)
     
     expect(mockOnColorChange).toHaveBeenCalledWith('#FF0000')
@@ -31,7 +31,7 @@ describe('BackgroundSelector - Preset Colors', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const blueButton = screen.getByRole('button', { name: /blue/i })
+    const blueButton = screen.getByRole('button', { name: 'Blue' })
     await user.click(blueButton)
     
     expect(mockOnColorChange).toHaveBeenCalledWith('#0000FF')
@@ -44,7 +44,7 @@ describe('BackgroundSelector - Preset Colors', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const whiteButton = screen.getByRole('button', { name: /white/i })
+    const whiteButton = screen.getByRole('button', { name: 'White' })
     await user.click(whiteButton)
     
     expect(mockOnColorChange).toHaveBeenCalledWith('#FFFFFF')
@@ -57,13 +57,13 @@ describe('BackgroundSelector - Preset Colors', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const redButton = screen.getByRole('button', { name: /red/i })
+    const redButton = screen.getByRole('button', { name: 'Red' })
     await user.click(redButton)
     
     // Verify immediate callback (no delay)
     expect(mockOnColorChange).toHaveBeenCalledWith('#FF0000')
     
-    const blueButton = screen.getByRole('button', { name: /blue/i })
+    const blueButton = screen.getByRole('button', { name: 'Blue' })
     await user.click(blueButton)
     
     expect(mockOnColorChange).toHaveBeenCalledWith('#0000FF')
@@ -75,7 +75,7 @@ describe('BackgroundSelector - Preset Colors', () => {
     
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    const redButton = screen.getByRole('button', { name: /red/i })
+    const redButton = screen.getByRole('button', { name: 'Red' })
     await user.click(redButton)
     
     // Check for active state or selected indicator
@@ -95,7 +95,7 @@ describe('BackgroundSelector - Preset Colors', () => {
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
     const preview = screen.getByTestId('background-preview')
-    const redButton = screen.getByRole('button', { name: /red/i })
+    const redButton = screen.getByRole('button', { name: 'Red' })
     
     await user.click(redButton)
     
@@ -108,9 +108,9 @@ describe('BackgroundSelector - Custom RGB Input', () => {
   it('should render three input fields for R, G, B values', () => {
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    expect(screen.getByRole('spinbutton', { name: /red/i })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Red' })).toBeInTheDocument()
     expect(screen.getByRole('spinbutton', { name: /green/i })).toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: /blue/i })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Blue' })).toBeInTheDocument()
   })
 
   it('should accept valid RGB values (0-255) in input fields', async () => {
@@ -118,9 +118,9 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     const greenInput = screen.getByRole('spinbutton', { name: /green/i })
-    const blueInput = screen.getByRole('spinbutton', { name: /blue/i })
+    const blueInput = screen.getByRole('spinbutton', { name: 'Blue' })
     
     await user.clear(redInput)
     await user.type(redInput, '128')
@@ -140,9 +140,9 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     const greenInput = screen.getByRole('spinbutton', { name: /green/i })
-    const blueInput = screen.getByRole('spinbutton', { name: /blue/i })
+    const blueInput = screen.getByRole('spinbutton', { name: 'Blue' })
     
     await user.clear(redInput)
     await user.type(redInput, '100')
@@ -160,7 +160,7 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     
     // First clear to get empty state (which shows error)
     await user.clear(redInput)
@@ -174,7 +174,7 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    const blueInput = screen.getByRole('spinbutton', { name: /blue/i })
+    const blueInput = screen.getByRole('spinbutton', { name: 'Blue' })
     
     await user.clear(blueInput)
     await user.type(blueInput, '300')
@@ -201,7 +201,7 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     
     // Clear the initial call count
     mockOnColorChange.mockClear()
@@ -227,9 +227,9 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
     const preview = screen.getByTestId('background-preview')
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     const greenInput = screen.getByRole('spinbutton', { name: /green/i })
-    const blueInput = screen.getByRole('spinbutton', { name: /blue/i })
+    const blueInput = screen.getByRole('spinbutton', { name: 'Blue' })
     
     await user.clear(redInput)
     await user.type(redInput, '50')
@@ -247,7 +247,7 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={vi.fn()} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i })
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' })
     
     // Enter invalid value
     await user.clear(redInput)
@@ -268,9 +268,9 @@ describe('BackgroundSelector - Custom RGB Input', () => {
     
     render(<BackgroundSelector onColorChange={mockOnColorChange} />)
     
-    const redInput = screen.getByRole('spinbutton', { name: /red/i }) as HTMLInputElement
+    const redInput = screen.getByRole('spinbutton', { name: 'Red' }) as HTMLInputElement
     const greenInput = screen.getByRole('spinbutton', { name: /green/i }) as HTMLInputElement
-    const blueInput = screen.getByRole('spinbutton', { name: /blue/i }) as HTMLInputElement
+    const blueInput = screen.getByRole('spinbutton', { name: 'Blue' }) as HTMLInputElement
     
     // Clear and type new values
     await user.clear(redInput)

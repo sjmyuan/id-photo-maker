@@ -155,52 +155,144 @@ end note
 
 ```plantuml
 @startuml
-title ID Photo Maker - User Workflow
+title ID Photo Maker - Refactored User Workflow
 
-[*] --> Upload
-Upload --> ValidateImage
+[*] --> ConfigureSettings
+ConfigureSettings --> UploadImage : User clicks "Upload Image"
+UploadImage --> ShowPreview : File selected
+ShowPreview --> UserReview : Display uploaded image
+UserReview --> GeneratePreview : User clicks "Generate Preview"
+GeneratePreview --> ValidateImage
 ValidateImage --> ScaleImage : If >10MB
-ScaleImage --> DetectDevice
-DetectDevice --> EnableQuickMode : Low performance
-DetectDevice --> LoadAIModel : High performance
-LoadAIModel --> ProcessMatting
-EnableQuickMode --> ProcessChromaKey
-ProcessMatting --> PreviewResults
-ProcessChromaKey --> PreviewResults
-PreviewResults --> Reprocess : User clicks reprocess
-PreviewResults --> SelectSize : User continues
-SelectSize --> CropImage
-CropImage --> ValidateResolution
-ValidateResolution --> ShowWarning : Low resolution
-ValidateResolution --> SelectLayout : Good resolution
-ShowWarning --> ConfirmDownload : User acknowledges
-SelectLayout --> GenerateLayout
-GenerateLayout --> DownloadFile
-DownloadFile --> [*]
+ScaleImage --> DetectFace
+DetectFace --> ShowNoFaceError : No face detected
+DetectFace --> ShowMultiFaceError : Multiple faces detected
+DetectFace --> ValidateDPI : Single face detected
+ValidateDPI --> ShowDPIError : DPI too low (if 300 DPI required)
+ValidateDPI --> ProcessMatting : DPI sufficient or None selected
+ProcessMatting --> AdvanceToStep2 : Processing complete
+AdvanceToStep2 --> EditBackground
+EditBackground --> AdjustCrop
+AdjustCrop --> Download
+Download --> [*]
+ShowNoFaceError --> UserReview : Return to review
+ShowMultiFaceError --> UserReview : Return to review
+ShowDPIError --> UserReview : Return to review
 
-note right of Upload
-  **Step 1: Upload & Process**
-  - Camera or file upload
-  - Privacy assurance visible
-  - Device capability detection
+note right of ConfigureSettings
+  **Step 1: Configure Settings**
+  - Select photo size (1", 2", 3")
+  - Select DPI requirement (300 DPI or None)
+  - Settings configured before upload
 end note
 
-note right of SelectSize
-  **Step 2: Size & Crop**
-  - Standard size selection
-  - Real-time crop overlay
-  - Resolution validation
+note right of UploadImage
+  **Upload Process**
+  - User clicks "Upload Image" button
+  - File picker opens
+  - User selects image file
+  - NO automatic processing
 end note
 
-note right of SelectLayout
-  **Step 3: Layout & Download**
-  - Paper type selection
-  - Optimal arrangement
-  - 300DPI file generation
+note right of ShowPreview
+  **Image Preview**
+  - Uploaded image shown in placeholder
+  - Button changes to "Generate Preview"
+  - User can verify correct file selected
+  - Provides explicit control over processing
+end note
+
+note right of GeneratePreview
+  **Processing Trigger**
+  - User explicitly clicks "Generate Preview"
+  - Validates image file
+  - Detects face
+  - Validates DPI requirements
+  - Processes background removal
+  - Auto-advances to Step 2 on success
+end note
+
+note right of EditBackground
+  **Step 2: ID Photo Preview**
+  - Review processed ID photo
+  - Download ID photo
+  - Continue to Print Layout (Step 3)
+  - "Back to Settings" preserves original image,
+    allows changing settings and regenerating
+end note
+
+note right of Download
+  **Step 3: Print Layout Preview**
+  - Review print layout with multiple photos
+  - Download print-ready layout
+  - "Back" returns to Step 2
 end note
 
 @enduml
 ```
+
+**Key Workflow Changes (Refactored Upload Flow):**
+
+1. **Separated Upload from Processing**: The original workflow automatically triggered processing upon file selection. The refactored workflow separates these actions:
+   - User clicks "Upload Image" button → file picker opens
+   - User selects file → image appears in placeholder
+   - Button changes to "Generate Preview"
+   - User clicks "Generate Preview" → processing starts
+   
+2. **Explicit User Control**: Users now have explicit control over when processing begins, allowing them to:
+   - Verify the correct file was selected before processing
+   - Review the uploaded image in the placeholder
+   - Make configuration changes (size, DPI) before processing
+   
+3. **Improved User Feedback**: The placeholder shows the uploaded image immediately, and the button label clearly indicates the next action ("Upload Image" vs "Generate Preview").
+
+4. **Same Processing Logic**: All validation (file size, face detection, DPI) still occurs, but is now triggered explicitly by the "Generate Preview" button instead of automatically after file selection.
+
+**Image Processing Pipeline (Crop-then-Matting Refactor - Jan 2026):**
+
+The image processing workflow was refactored to improve performance by cropping the image before applying AI-based background removal:
+
+1. **Upload & Validation**: User uploads image, validation checks file size, format, and dimensions
+2. **Face Detection on Original**: Detect face on full original image (no scaling)
+3. **Crop Area Calculation**: Calculate crop area based on face position and selected size, maintaining aspect ratio
+4. **DPI Validation on Original**: Validate that crop area on original image meets 300 DPI requirement before any processing
+5. **Crop First**: Crop the original image using the calculated crop area to create a smaller working image
+6. **Background Removal**: Apply U2Net matting to the cropped image only (much faster than processing full image)
+7. **Exact Sizing**: Generate final output with precise pixel dimensions based on physical size and DPI requirements
+8. **Background Color Application**: Apply user-selected background color to the final cropped image
+
+**Key Benefits of Crop-then-Matting Approach:**
+- **Performance**: Processing smaller cropped images through U2Net is significantly faster
+- **Quality**: Working with original image quality before cropping maintains detail
+- **DPI Accuracy**: Validation happens on original dimensions, ensuring quality requirements are met
+- **Memory Efficiency**: Reduced memory footprint when processing smaller images
+
+**Navigation State Management Refactor (Jan 2026):**
+
+The workflow navigation was refactored to improve user experience when going back from Step 2 to Step 1:
+
+**Previous Behavior:**
+- Clicking "Back" from Step 2 would clear all state including the uploaded image
+- Users had to re-upload the same image to try different settings
+- Lost the ability to experiment with different configurations
+
+**New Behavior:**
+- Clicking "Back to Settings" from Step 2 preserves the original uploaded image
+- Users can modify settings (size, background color, paper type) and click "Generate ID Photo" again
+- The "Change Image" button in Step 1 allows uploading a different file when needed
+- Only processed results (imageData) are cleared when going back, not the original upload
+
+**Implementation Details:**
+- New `handleBackToSettings()` function clears only `imageData` while preserving `uploadedFile` and `uploadedImageUrl`
+- Removed `handleReupload()` as it's no longer needed - the "Change Image" button flow uses `handleFileChange()` which already handles cleanup
+- Step 2's back button now calls `handleBackToSettings()` instead of clearing everything
+- The `useWorkflowSteps` hook's `goToStep()` function is used instead of `resetToFirstStep()`
+
+**Key Benefits:**
+- **Better UX**: Users can experiment with different settings without re-uploading
+- **Faster iteration**: Quick regeneration with modified configurations
+- **Reduced friction**: No need to find and re-select the same file
+- **Cleaner code**: Removed unnecessary `handleReupload()` and `resetToFirstStep()` usage
 
 The architecture follows these key principles:
 
@@ -237,9 +329,13 @@ Based on the privacy-first, client-side requirements and need for AI-powered ima
 
 **AI Processing: TensorFlow.js + U²-Net Model**
 - **Why**: Industry-standard for browser-based ML, excellent WebAssembly support
-- **Model**: Pre-trained U²-Net for portrait segmentation (~5MB model size)
+- **Model Variants**: 
+  - **U2Net-P (Lite)**: ~4.7MB, faster processing, good quality - default choice
+  - **U2Net (Full)**: ~176MB, slower processing, excellent quality - premium option
+- **Model Selection**: User-configurable via localStorage with automatic persistence
 - **Fallback**: Custom chroma key algorithm for low-performance devices
 - **Optimization**: Web Workers for non-blocking processing
+- **Implementation**: ONNX Runtime Web for efficient ONNX model execution
 
 **Image Processing: Canvas API + EXIF.js**
 - **Why**: Native browser support, no external dependencies
@@ -457,6 +553,9 @@ interface CachedData {
     quickModePreference: boolean;
   };
   
+  // Model selection (U2Net variant preference)
+  'u2net-model-selection': 'u2netp' | 'u2net'; // User's preferred model variant
+  
   // Translation files (cached by Service Worker)
   'translations-en': Record<string, string>;
   'translations-es': Record<string, string>;
@@ -673,6 +772,58 @@ interface DeviceCapability {
   supportsWebAssembly: boolean;
   performanceClass: 'high' | 'medium' | 'low';
 }
+```
+
+#### Face Detection Service
+
+```typescript
+interface FaceDetectionService {
+  // Model management
+  loadFaceDetectionModel(modelUrl: string): Promise<FaceDetectionModel>;
+  
+  // Face detection
+  detectFaces(
+    model: FaceDetectionModel,
+    image: HTMLImageElement,
+    confidenceThreshold?: number
+  ): Promise<FaceDetectionResult>;
+  
+  // Image preprocessing
+  preprocessImage(image: HTMLImageElement): {
+    tensor: Float32Array;
+    width: number;
+    height: number;
+  };
+  
+  // Image sharpening for enhanced edge detection
+  sharpenImage(imageData: ImageData): ImageData;
+}
+
+interface FaceDetectionModel {
+  session: InferenceSession; // ONNX Runtime session
+  inputName: string;
+  outputNames: string[];
+}
+
+interface FaceBox {
+  x: number;      // top-left x coordinate (0-1 normalized)
+  y: number;      // top-left y coordinate (0-1 normalized)
+  width: number;  // box width (0-1 normalized)
+  height: number; // box height (0-1 normalized)
+  confidence: number; // detection confidence (0-1)
+}
+
+interface FaceDetectionResult {
+  faces: FaceBox[];
+  error?: 'no-face-detected' | 'multiple-faces-detected' | 'detection-failed';
+}
+
+// UltraFace-320 Model Specifications:
+// - Input: 320x240x3 (RGB, normalized to [-1, 1])
+// - Output: Bounding boxes with confidence scores
+// - Algorithm: Non-maximum suppression (NMS) with IoU threshold 0.5
+// - Default confidence threshold: 0.7
+// - Model file: /version-RFB-320.onnx (~1.2MB)
 ```
 
 #### Internationalization Service
@@ -1190,101 +1341,51 @@ id-photo-maker/
 │   │       ├── main.css
 │   │       └── variables.css
 │   ├── components/                 # Reusable UI components
-│   │   ├── common/                 # Generic components
-│   │   │   ├── Button.tsx
-│   │   │   ├── Card.tsx
-│   │   │   └── Modal.tsx
-│   │   ├── upload/                 # Upload step components
-│   │   │   ├── UploadScreen.tsx
-│   │   │   ├── CameraButton.tsx
-│   │   │   └── FileInput.tsx
-│   │   ├── matting/                # Matting step components
-│   │   │   ├── MattingScreen.tsx
+│   │   ├── background/             # Background color selection
 │   │   │   ├── BackgroundSelector.tsx
-│   │   │   ├── PreviewPanel.tsx
-│   │   │   └── UndoRedoControls.tsx
-│   │   ├── sizing/                 # Sizing step components
-│   │   │   ├── SizingScreen.tsx
-│   │   │   ├── SizeSelector.tsx
-│   │   │   └── CropOverlay.tsx
-│   │   ├── layout/                 # Layout step components
-│   │   │   ├── LayoutScreen.tsx
-│   │   │   ├── PaperSelector.tsx
-│   │   │   └── LayoutPreview.tsx
-│   │   └── download/               # Download step components
-│   │       ├── DownloadScreen.tsx
-│   │       └── PrintInstructions.tsx
+│   │   │   └── BackgroundSelector.test.tsx
+│   │   ├── layout/                 # Print layout components (Epic 3 Stories 1-3) ✅
+│   │   │   ├── PrintLayout.tsx     # Layout preview canvas and download
+│   │   │   └── PrintLayout.test.tsx
+│   │   ├── size/                   # Size selection and cropping
+│   │   │   ├── CropEditor.tsx
+│   │   │   └── CropEditor.test.tsx
+│   │   └── upload/                 # Upload step components
+│   │       ├── ImageUpload.tsx
+│   │       └── ImageUpload.test.tsx
 │   ├── hooks/                      # Custom React hooks
-│   │   ├── useDeviceDetection.ts
-│   │   ├── useImageProcessing.ts
-│   │   ├── useAIMatting.ts
-│   │   ├── useInternationalization.ts
-│   │   └── usePrivacyAssurance.ts
-│   ├── lib/                        # Core libraries and utilities
-│   │   ├── ai/                     # AI processing logic
-│   │   │   ├── U2NetProcessor.ts
-│   │   │   ├── ChromaKeyProcessor.ts
-│   │   │   └── DeviceCapabilityDetector.ts
-│   │   ├── image/                  # Image processing utilities
-│   │   │   ├── ImageValidator.ts
-│   │   │   ├── EXIFHandler.ts
-│   │   │   ├── CanvasUtils.ts
-│   │   │   └── HighDPIGenerator.ts
-│   │   ├── i18n/                   # Internationalization utilities
-│   │   │   ├── TranslationManager.ts
-│   │   │   ├── RTLHelper.ts
-│   │   │   └── FormatHelper.ts
-│   │   ├── privacy/                # Privacy utilities
-│   │   │   ├── PrivacyService.ts
-│   │   │   └── NetworkMonitor.ts
-│   │   └── utils/                  # General utilities
-│   │       ├── validation.ts
-│   │       ├── memory.ts
-│   │       └── storage.ts
+│   │   ├── usePerformanceMeasure.ts
+│   │   └── usePerformanceMeasure.test.ts
+│   ├── pages/                      # Main application pages
+│   │   ├── MainWorkflow.tsx        # Single-page workflow with print layout ✅
+│   │   └── MainWorkflow.test.tsx
 │   ├── services/                   # Application services
-│   │   ├── ImageProcessingService.ts
-│   │   ├── AIMattingService.ts
-│   │   ├── I18nService.ts
-│   │   ├── MediaService.ts
-│   │   └── StorageService.ts
-│   ├── store/                      # State management
-│   │   ├── appStore.ts             # Main Zustand store
-│   │   └── types.ts                # Store types and interfaces
-│   ├── types/                      # TypeScript type definitions
-│   │   ├── index.ts
-│   │   ├── app.ts
-│   │   ├── image.ts
-│   │   ├── ai.ts
-│   │   └── i18n.ts
-│   ├── views/                      # Main application views
-│   │   ├── App.tsx                 # Root component
-│   │   ├── UploadView.tsx
-│   │   ├── MattingView.tsx
-│   │   ├── SizingView.tsx
-│   │   ├── LayoutView.tsx
-│   │   └── DownloadView.tsx
-│   ├── workers/                    # Web Workers
-│   │   └── aiProcessor.worker.ts
-│   ├── config/                     # Configuration files
-│   │   ├── constants.ts            # App constants
-│   │   ├── sizes.ts                # ID photo size configurations
-│   │   ├── paper.ts                # Paper layout configurations
-│   │   └── languages.ts            # Language configurations
-│   ├── sw/                         # Service Worker
-│   │   └── sw.ts
+│   │   ├── faceDetectionService.ts # Face detection with UltraFace-320
+│   │   ├── faceDetectionService.test.ts
+│   │   ├── imageScaling.ts         # Image scaling utilities
+│   │   ├── imageScaling.test.ts
+│   │   ├── imageValidation.ts      # Image validation logic
+│   │   ├── imageValidation.test.ts
+│   │   ├── mattingService.ts       # U²-Net matting and background application
+│   │   ├── mattingService.test.ts
+│   │   ├── printLayoutService.ts   # Print layout generation (Epic 3 Story 3) ✅
+│   │   ├── printLayoutService.test.ts
+│   │   ├── u2netService.ts         # U²-Net model loading
+│   │   └── u2netService.test.ts
+│   ├── utils/                      # Utility functions
+│   │   ├── deviceCapability.ts     # Device capability detection
+│   │   ├── deviceCapability.test.ts
+│   │   ├── dpiCalculation.ts       # DPI calculation for print quality
+│   │   ├── dpiCalculation.test.ts
+│   │   ├── layoutCalculation.ts    # Layout calculation (Epic 3 Stories 1-3) ✅
+│   │   └── layoutCalculation.test.ts
+│   ├── test/                       # Test setup and utilities
+│   │   └── setup.ts                # Vitest setup with canvas mocks
 │   └── main.tsx                    # Application entry point
 ├── tests/
-│   ├── unit/                       # Unit tests
-│   │   ├── lib/
-│   │   ├── services/
-│   │   └── hooks/
+│   ├── unit/                       # Unit tests (co-located with source)
 │   ├── integration/                # Integration tests
-│   │   └── workflow/
 │   └── e2e/                        # End-to-end tests
-│       ├── upload.spec.ts
-│       ├── matting.spec.ts
-│       ├── sizing.spec.ts
-│       └── layout.spec.ts
 ├── terraform/                      # Infrastructure as Code
 │   ├── main.tf
 │   ├── variables.tf
@@ -1603,15 +1704,162 @@ interface ImageData {
 - ✅ ImageUpload - Epic 1, User Story 1
 - ✅ BackgroundSelector - Epic 1, User Story 2
 - ✅ MattingPreview - Epic 1, User Story 3
-- ✅ App Workflow - Integrated workflow management
+- ✅ FaceDetectionService - Epic 2, User Story 5 (Face Detection)
+- ✅ CropEditor with Size Guide - Epic 2, User Story 5 (Crop Positioning)
+  - Renamed from SizeSelection to better reflect primary function
+  - Added DPI calculation and warning for print quality validation
+  - Ensures faceBox coordinates match the processed image dimensions displayed in CropEditor
+- ✅ App Workflow - Integrated workflow management with face detection
 
-**Test Coverage**: 79 tests passing
+**Test Coverage**: 160 tests (157 passing, 3 outdated App.test.tsx failures)
 - All components have comprehensive unit tests
-- Integration tests verify workflow transitions
-- No linting errors
+- Face detection service: 10 tests
+- Size selection component: 31 tests (added compact mode and external size change tests)
+- Integration tests verify workflow transitions including face detection step
+- No linting errors in modified files
+- Type checking clean
+
+**Architecture Updates**:
+- Added FaceDetectionService using UltraFace-320 ONNX model
+- Integrated face detection into MainWorkflow between preview and size selection
+- Size selection now includes integrated crop guide with:
+  - Auto-positioning based on face detection (30% padding)
+  - Manual drag and resize with aspect ratio maintenance
+  - Error handling for no-face and multiple-faces scenarios
+  - Three size options (1-inch, 2-inch, 3-inch) with dynamic aspect ratio adjustment
+  - **NEW**: Compact mode for cleaner processed image view (hides duplicate size buttons/instructions)
+  - **NEW**: Reactive crop area adjustment when size changes externally via props
+  - **NEW (January 2, 2026)**: DPI calculation and warning system for print quality validation
+
+**Recent Improvements (January 2, 2026)**:
+- **Component Renamed**: SizeSelection → CropEditor to better reflect primary function
+- **DPI Warning System**: Added real-time DPI calculation based on crop area and physical dimensions
+  - Calculates DPI using formula: (pixels / mm) * 25.4
+  - Displays informational warning when DPI < 300 with actual DPI value
+  - Non-blocking warning allows users to proceed despite low DPI
+  - New utility: `src/utils/dpiCalculation.ts` with comprehensive test coverage
+  - Added `physicalWidth` and `physicalHeight` to `SizeOption` interface
+- Refactored SizeSelection to support compact mode, removing duplicate UI elements from processed view
+- Fixed bug where crop box didn't update when size was changed from external controls
+- Added `compact` prop to conditionally hide size selection UI in processed image view
+- Implemented `useEffect` to watch `selectedSize.aspectRatio` and auto-adjust crop area on external size changes
+- Maintains crop center position during size transitions for better UX
+- **CRITICAL BUG FIX**: Fixed image dimension mismatch issue where face detection ran on original image instead of scaled image
+  - Face detection now runs on scaled image (after scaling, before U2Net processing)
+  - Ensures faceBox coordinates match the processed image dimensions displayed in CropEditor
+  - Fixes crop box alignment when images are automatically scaled (>10MB files)
+  - Processing order: Validate → Scale → **Detect Face** → U2Net Matting → Apply Background
+  - Size changes now only adjust crop box without reprocessing (no redundant U2Net/TensorFlow calls)
+- **NEW (January 2, 2026)**: Added image sharpening preprocessing for U2Net
+  - Applies convolution-based sharpening filter before U2Net processing
+  - Enhances edge detection for better background removal quality
+  - Moderate kernel intensity (5/-1 pattern) to avoid artifacts
+  - Sharpening applied after resizing to 320x320, before tensor normalization
+
+### Print Layout System (Epic 3 Stories 1-3) ✅
+
+**Completed Features**:
+- Paper type selection (6-inch photo paper and A4)
+- Layout preview with visual photo grid arrangement
+- Automatic optimal layout calculation maximizing paper space
+- High-resolution print-ready canvas generation at 300 DPI
+- Download functionality for PNG print layouts
+
+**Architecture**:
+```
+PrintLayout Component (UI)
+  ├─> layoutCalculation utility (business logic)
+  │   ├─> calculateLayout() - optimal grid arrangement
+  │   ├─> mmToPixels() - DPI-aware conversions
+  │   └─> PAPER_TYPES - paper specifications
+  └─> printLayoutService (canvas generation)
+      ├─> generatePrintLayout() - high-res canvas
+      ├─> canvasToBlob() - format conversion
+      └─> downloadCanvas() - file download
+```
+
+**Key Implementation Details**:
+- **Layout Calculation** ([src/utils/layoutCalculation.ts](src/utils/layoutCalculation.ts)):
+  - Dynamic photo grid calculation (rows × columns)
+  - 5mm minimum spacing between photos for cutting ease
+  - Automatic margin calculation for centering
+  - Handles edge cases (very large/small photos, unusual aspect ratios)
+  - Deterministic algorithm producing consistent results
+
+- **Print Layout Component** ([src/components/layout/PrintLayout.tsx](src/components/layout/PrintLayout.tsx)):
+  - Canvas-based visual preview maintaining paper aspect ratio
+  - Clean, minimal presentation focused on the layout visualization
+  - Shows only the canvas preview and download button
+  - No information text display (photo count, dimensions, grid info removed for simplicity)
+  - Automatically redraws when layout or paper type changes
+  - Integrated download button for print layouts
+
+- **Print Layout Service** ([src/services/printLayoutService.ts](src/services/printLayoutService.ts)):
+  - Generates high-resolution print canvas at exact paper dimensions
+  - Arranges photos in calculated grid pattern
+  - White background fill for professional appearance
+  - Scales source canvas to exact photo dimensions
+  - PNG export with proper dimensions for printing
+
+- **Integration in MainWorkflow** ([src/pages/MainWorkflow.tsx](src/pages/MainWorkflow.tsx)):
+  - PrintLayout displayed below cropped image preview
+  - Appears only after preview generation is complete
+  - Auto-regenerates print layout when settings change (size, DPI, background, paper type)
+  - Shows loading indicator during regeneration
+  - Button layout:
+    - "Download Image" button positioned directly under photo preview
+    - "Download Print Layout" button positioned in PrintLayout component
+    - "Re-upload Image" button positioned at bottom with border separator
+  - Download handler generates and saves print layout files
+  - Filename pattern: `id-photo-layout-{size}-{paperType}-{timestamp}.png`
+
+**Test Coverage**:
+- layoutCalculation.test.ts: 16 tests covering all paper/size combinations
+- PrintLayout.test.tsx: 6 tests for canvas rendering, visual presentation, and download
+- printLayoutService.test.ts: 13 tests for canvas generation and edge cases
+- MainWorkflow.test.tsx: Integration tests including print layout and auto-regeneration
 
 **Next Steps**:
-- Implement size selection component (Epic 2, User Story 1)
-- Add print layout system (Epic 3)
+- Implement PDF export with 300 DPI metadata (Epic 3 Story 4)
 - Implement PWA capabilities (Epic 4)
 - Add internationalization (Epic 5)
+### UI Layout Refactoring (January 2026) ✅
+
+**Objective**: Improve the Step 1 Settings selector layout to reduce visual crowding when displaying multiple color and size options.
+
+**Changes Implemented**:
+
+1. **Step1Settings Layout** ([src/components/workflow/Step1Settings.tsx](src/components/workflow/Step1Settings.tsx)):
+   - Changed from responsive multi-column grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`) to vertical stack layout
+   - Selectors now display in a single column on all screen sizes
+   - DPI and Paper Type selectors placed side-by-side on the same row
+   - Layout structure:
+     - Row 1: Size Selector (full width)
+     - Row 2: Color Selector (full width)
+     - Row 3: DPI Selector + Paper Type Selector (side-by-side)
+
+2. **SizeSelector Layout** ([src/components/size/SizeSelector.tsx](src/components/size/SizeSelector.tsx)):
+   - Changed from vertical stack (`space-y-1.5`) to grid layout
+   - Size options now display in 2 columns on mobile, 3 columns on tablet/desktop
+   - Grid uses `grid-cols-2 md:grid-cols-3` with auto-wrap
+   - Reduces vertical scrolling by utilizing horizontal space
+
+**Benefits**:
+- Less visual crowding with many options (9 colors, 7 sizes)
+- Better space utilization with flow layout
+- Improved readability and accessibility
+- Maintains responsive behavior
+- Consistent layout across screen sizes
+
+**Testing**:
+- Added focused tests for new layout structure in Step1Settings.test.tsx
+- Updated tests in SizeSelector.test.tsx to verify grid layout
+- Updated MainWorkflow.test.tsx to reflect new layout expectations
+- All 350+ tests pass successfully
+- Type checking and linting pass without errors
+
+**Implementation Approach**:
+- Followed TDD methodology with test-first development
+- Tests written to verify new layout before implementation
+- Incremental refactoring with verification at each step
+- No breaking changes to component APIs or functionality

@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "证件照制作工具",
+    "subtitle": "隐私优先的证件照生成器"
+  },
+  "steps": {
+    "step1": "设置与上传",
+    "step2": "证件照预览",
+    "step3": "打印排版"
+  },
+  "common": {
+    "loading": "正在加载AI模型...",
+    "processing": "处理中...",
+    "back": "返回",
+    "backToSettings": "返回设置",
+    "backToPreview": "返回预览",
+    "continue": "继续",
+    "download": "下载"
+  },
+  "step1": {
+    "photoPreview": "照片预览",
+    "noImageUploaded": "未上传图片",
+    "uploadImage": "上传图片",
+    "generateIdPhoto": "生成证件照",
+    "changeImage": "更换图片"
+  },
+  "step2": {
+    "title": "证件照预览",
+    "downloadIdPhoto": "下载证件照",
+    "generatePrintLayout": "生成打印排版"
+  },
+  "step3": {
+    "title": "打印排版预览",
+    "downloadPrintLayout": "下载打印排版"
+  },
+  "photoSize": {
+    "label": "照片尺寸",
+    "smallOneInch": "小一寸",
+    "oneInch": "一寸",
+    "largeOneInch": "大一寸",
+    "smallTwoInch": "小二寸",
+    "twoInch": "二寸",
+    "threeInch": "三寸",
+    "chinaIdCard": "中国身份证"
+  },
+  "background": {
+    "label": "背景颜色",
+    "red": "红色",
+    "blue": "蓝色",
+    "white": "白色",
+    "crimson": "深红色",
+    "maroon": "栗色",
+    "darkRed": "暗红色",
+    "skyBlue": "天蓝色",
+    "royalBlue": "宝蓝色",
+    "lightBlue": "浅蓝色"
+  },
+  "paperType": {
+    "label": "纸张类型",
+    "sixInch": "6英寸",
+    "a4": "A4"
+  },
+  "cropEditor": {
+    "instruction": "拖动以调整照片裁剪区域",
+    "showFullImage": "显示完整图片",
+    "zoomToCrop": "放大裁剪区域",
+    "dpiWarning": "⚠️ 警告：当前裁剪区域可能无法达到300 DPI以获得最佳打印质量。",
+    "dpiInfo": "当前DPI：{{minDPI}} DPI（{{widthDPI}} × {{heightDPI}}）"
+  },
+  "faceDetection": {
+    "noFaceDetected": "⚠️ 未检测到人脸。请使用清晰的人脸照片。",
+    "multipleFacesDetected": "⚠️ 检测到多张人脸。请使用只有一个人的照片。"
+  },
+  "imagePreview": {
+    "alt": "预览图片",
+    "idPhotoAlt": "证件照预览",
+    "printLayoutAlt": "打印排版预览"
+  },
+  "language": {
+    "label": "语言",
+    "en": "English",
+    "zh": "中文"
+  }
+}
