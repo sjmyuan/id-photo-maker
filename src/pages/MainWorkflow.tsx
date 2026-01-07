@@ -27,8 +27,8 @@ interface ImageData {
 export function MainWorkflow() {
   const { t } = useTranslation()
   
-  // Helper function to translate error messages
-  const translateError = (errorMessage: string): string => {
+  // Helper function to translate error messages (memoized)
+  const translateError = useCallback((errorMessage: string): string => {
     // Check for specific error patterns and translate them
     if (errorMessage.includes('No face detected')) {
       return t('faceDetection.noFaceDetected')
@@ -37,7 +37,7 @@ export function MainWorkflow() {
     }
     // Return original message if no translation found
     return errorMessage
-  }
+  }, [t])
   
   // Settings state
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
@@ -153,6 +153,7 @@ export function MainWorkflow() {
       setErrors,
       setWarnings,
       nextStep,
+      translateError,
     ]
   )
 
