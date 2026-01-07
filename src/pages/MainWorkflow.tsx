@@ -194,7 +194,6 @@ export function MainWorkflow() {
               <img src="/logo.png" alt={t('app.title')} className="h-12 w-auto mr-4" />
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{t('app.title')}</h1>
-                <p className="text-sm text-gray-600 mt-1">{t('app.subtitle')}</p>
               </div>
             </div>
             <LanguageSelector />
