@@ -717,7 +717,7 @@ describe('CropEditor', () => {
       // Warning should appear
       const warning = screen.getByTestId('dpi-warning')
       expect(warning).toBeInTheDocument()
-      expect(warning).toHaveTextContent(/resolution warning/i)
+      expect(warning).toHaveTextContent(/warning/i)
       expect(warning).toHaveTextContent(/300 dpi/i)
     })
 

@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
 import { StepIndicator } from '../components/workflow/StepIndicator'
 import { Step1Settings } from '../components/workflow/Step1Settings'
 import { Step2Preview } from '../components/workflow/Step2Preview'
 import { Step3Layout } from '../components/workflow/Step3Layout'
+import { LanguageSelector } from '../components/language/LanguageSelector'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useModelLoading } from '../hooks/useModelLoading'
 import { useImageDownload } from '../hooks/useImageDownload'
@@ -23,6 +25,20 @@ interface ImageData {
 }
 
 export function MainWorkflow() {
+  const { t } = useTranslation()
+  
+  // Helper function to translate error messages
+  const translateError = (errorMessage: string): string => {
+    // Check for specific error patterns and translate them
+    if (errorMessage.includes('No face detected')) {
+      return t('faceDetection.noFaceDetected')
+    } else if (errorMessage.includes('Multiple faces detected')) {
+      return t('faceDetection.multipleFacesDetected')
+    }
+    // Return original message if no translation found
+    return errorMessage
+  }
+  
   // Settings state
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF')
@@ -100,7 +116,7 @@ export function MainWorkflow() {
         })
 
         if (result.errors && result.errors.length > 0) {
-          setErrors(result.errors.map((e) => e.message))
+          setErrors(result.errors.map((e) => translateError(e.message)))
           stop()
           setIsProcessing(false)
           return
@@ -173,8 +189,13 @@ export function MainWorkflow() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white shadow-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto py-4 px-4">
-          <h1 className="text-3xl font-bold text-gray-900">ID Photo Maker</h1>
-          <p className="text-sm text-gray-600 mt-1">Privacy-first ID photo generator</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{t('app.title')}</h1>
+              <p className="text-sm text-gray-600 mt-1">{t('app.subtitle')}</p>
+            </div>
+            <LanguageSelector />
+          </div>
         </div>
       </header>
 
@@ -187,7 +208,7 @@ export function MainWorkflow() {
             
             {isLoadingU2Net && (
               <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
-                Loading AI model...
+                {t('common.loading')}
               </div>
             )}
             

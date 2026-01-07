@@ -10,8 +10,10 @@ describe('ColorSelector', () => {
     render(<ColorSelector backgroundColor="#FFFFFF" onColorChange={onColorChange} />)
     
     expect(screen.getByText('Background')).toBeInTheDocument()
+    // Check all preset colors are rendered with their data-testid
     PRESET_COLORS.forEach((color) => {
-      expect(screen.getByText(color.name)).toBeInTheDocument()
+      const colorKey = color.nameKey.split('.')[1]
+      expect(screen.getByTestId(`color-${colorKey}`)).toBeInTheDocument()
     })
   })
 

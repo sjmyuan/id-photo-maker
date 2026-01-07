@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { ImagePreview } from '../layout/ImagePreview'
 import { type PaperType } from '../layout/PaperTypeSelector'
 import { type SizeOption } from '../size/CropEditor'
@@ -22,6 +23,7 @@ export function Step3Layout({
   onDownloadLayout,
   onBack,
 }: Step3LayoutProps) {
+  const { t } = useTranslation()
   const { canvasRef } = usePrintLayoutCanvas({
     croppedPreviewUrl,
     paperType,
@@ -30,7 +32,7 @@ export function Step3Layout({
 
   return (
     <div data-testid="step3-container">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">Print Layout Preview</h3>
+      <h3 className="text-lg font-semibold mb-4 text-gray-900">{t('step3.title')}</h3>
       
       {/* Print Layout Preview */}
       <div className="mb-6" data-testid="print-layout-preview">
@@ -62,7 +64,7 @@ export function Step3Layout({
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Download Print Layout
+          {t('step3.downloadPrintLayout')}
         </button>
         
         {/* Secondary Action */}
@@ -75,7 +77,7 @@ export function Step3Layout({
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
           </svg>
-          Back to Preview
+          {t('common.backToPreview')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PRESET_COLORS } from '../../constants/colors'
 
 export interface BackgroundSelectorProps {
@@ -67,6 +68,7 @@ export function BackgroundSelector({
   onColorChange, 
   initialColor = '#FFFFFF' 
 }: BackgroundSelectorProps) {
+  const { t } = useTranslation()
   const [selectedColor, setSelectedColor] = useState<string>(initialColor)
   const [rgbValues, setRgbValues] = useState<RGBColor>(hexToRgb(initialColor))
   const [errors, setErrors] = useState<{ r?: string; g?: string; b?: string }>({})
@@ -146,14 +148,14 @@ export function BackgroundSelector({
                     : 'border-gray-300 hover:border-gray-400'
                 }
               `}
-              aria-label={color.name}
+              aria-label={t(color.nameKey)}
             >
               <div
                 className="w-12 h-12 rounded border-2 border-gray-400"
                 style={{ backgroundColor: color.value }}
               />
               <span className="text-sm font-medium text-gray-700">
-                {color.name}
+                {t(color.nameKey)}
               </span>
             </button>
           ))}

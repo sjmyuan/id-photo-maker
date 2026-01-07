@@ -15,9 +15,11 @@
   "dependencies": {
     "@tensorflow-models/face-detection": "^1.0.3",
     "@tensorflow/tfjs": "^4.22.0",
+    "i18next": "^25.7.3",
     "onnxruntime-web": "^1.23.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^16.5.1",
     "react-router-dom": "^7.11.0"
   },
   "devDependencies": {

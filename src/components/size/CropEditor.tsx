@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { calculateDPI } from '../../utils/dpiCalculation'
 
 export interface CropArea {
@@ -17,6 +18,7 @@ export interface CropArea {
 export interface SizeOption {
   id: 'small-1-inch' | '1-inch' | 'large-1-inch' | 'small-2-inch' | '2-inch' | '3-inch' | 'id-card'
   label: string
+  labelKey: string // Translation key
   dimensions: string
   aspectRatio: number // width / height
   physicalWidth: number // width in millimeters
@@ -24,13 +26,13 @@ export interface SizeOption {
 }
 
 const SIZE_OPTIONS: SizeOption[] = [
-  { id: 'small-1-inch', label: 'Small 1 Inch', dimensions: '22×32mm', aspectRatio: 22 / 32, physicalWidth: 22, physicalHeight: 32 }, // 0.688
-  { id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }, // 0.714
-  { id: 'large-1-inch', label: 'Large 1 Inch', dimensions: '33×48mm', aspectRatio: 33 / 48, physicalWidth: 33, physicalHeight: 48 }, // 0.688 - Passport/Travel
-  { id: 'small-2-inch', label: 'Small 2 Inch', dimensions: '35×45mm', aspectRatio: 35 / 45, physicalWidth: 35, physicalHeight: 45 }, // 0.778 - Passport/Visa/ID
-  { id: '2-inch', label: '2 Inch', dimensions: '35×53mm', aspectRatio: 35 / 53, physicalWidth: 35, physicalHeight: 53 }, // 0.660
-  { id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }, // 0.673
-  { id: 'id-card', label: 'China ID Card', dimensions: '26×32mm', aspectRatio: 26 / 32, physicalWidth: 26, physicalHeight: 32 }, // 0.813 - 2nd Gen ID
+  { id: 'small-1-inch', label: 'Small 1 Inch', labelKey: 'photoSize.smallOneInch', dimensions: '22×32mm', aspectRatio: 22 / 32, physicalWidth: 22, physicalHeight: 32 }, // 0.688
+  { id: '1-inch', label: '1 Inch', labelKey: 'photoSize.oneInch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }, // 0.714
+  { id: 'large-1-inch', label: 'Large 1 Inch', labelKey: 'photoSize.largeOneInch', dimensions: '33×48mm', aspectRatio: 33 / 48, physicalWidth: 33, physicalHeight: 48 }, // 0.688 - Passport/Travel
+  { id: 'small-2-inch', label: 'Small 2 Inch', labelKey: 'photoSize.smallTwoInch', dimensions: '35×45mm', aspectRatio: 35 / 45, physicalWidth: 35, physicalHeight: 45 }, // 0.778 - Passport/Visa/ID
+  { id: '2-inch', label: '2 Inch', labelKey: 'photoSize.twoInch', dimensions: '35×53mm', aspectRatio: 35 / 53, physicalWidth: 35, physicalHeight: 53 }, // 0.660
+  { id: '3-inch', label: '3 Inch', labelKey: 'photoSize.threeInch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }, // 0.673
+  { id: 'id-card', label: 'China ID Card', labelKey: 'photoSize.chinaIdCard', dimensions: '26×32mm', aspectRatio: 26 / 32, physicalWidth: 26, physicalHeight: 32 }, // 0.813 - 2nd Gen ID
 ]
 
 // Export SIZE_OPTIONS for external use
@@ -52,6 +54,7 @@ export function CropEditor({
   onCropAreaChange,
   selectedSize,
 }: CropEditorProps) {
+  const { t } = useTranslation()
   const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 200, height: 280 })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState<ResizeHandle | null>(null)
@@ -387,11 +390,15 @@ export function CropEditor({
             className="absolute bottom-2 left-2 right-2 z-20 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded shadow-lg"
             data-testid="dpi-warning"
           >
-            <p className="font-semibold text-xs">Resolution Warning</p>
             <p className="text-xs">
-              Current crop area provides approximately {Math.round(dpiInfo.minDPI)} DPI. 
-              For optimal print quality, 300 DPI is recommended. 
-              Consider increasing the crop area size or using a higher resolution image.
+              {t('cropEditor.dpiWarning')}
+            </p>
+            <p className="text-xs mt-1">
+              {t('cropEditor.dpiInfo', { 
+                minDPI: Math.round(dpiInfo.minDPI),
+                widthDPI: Math.round(dpiInfo.widthDPI),
+                heightDPI: Math.round(dpiInfo.heightDPI)
+              })}
             </p>
           </div>
         )}

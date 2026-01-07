@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { SIZE_OPTIONS, type SizeOption } from './CropEditor'
 
 export interface SizeSelectorProps {
@@ -12,9 +13,11 @@ export interface SizeSelectorProps {
  * Uses 2-column grid layout with auto-wrap for better space utilization
  */
 export function SizeSelector({ selectedSize, onSizeChange, testId = 'size-selector' }: SizeSelectorProps) {
+  const { t } = useTranslation()
+  
   return (
     <div data-testid={testId}>
-      <h3 className="text-sm font-semibold mb-2 text-gray-800">Photo Size</h3>
+      <h3 className="text-sm font-semibold mb-2 text-gray-800">{t('photoSize.label')}</h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {SIZE_OPTIONS.map((size) => (
           <button
@@ -26,7 +29,7 @@ export function SizeSelector({ selectedSize, onSizeChange, testId = 'size-select
                 : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
             }`}
           >
-            <div className="font-semibold text-xs">{size.label}</div>
+            <div className="font-semibold text-xs">{t(size.labelKey)}</div>
             <div className="text-[10px] text-gray-600">{size.dimensions}</div>
           </button>
         ))}

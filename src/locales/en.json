@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "ID Photo Maker",
+    "subtitle": "Privacy-first ID photo generator"
+  },
+  "steps": {
+    "step1": "Settings & Upload",
+    "step2": "ID Photo Preview",
+    "step3": "Print Layout"
+  },
+  "common": {
+    "loading": "Loading AI model...",
+    "processing": "Processing...",
+    "back": "Back",
+    "backToSettings": "Back to Settings",
+    "backToPreview": "Back to Preview",
+    "continue": "Continue",
+    "download": "Download"
+  },
+  "step1": {
+    "photoPreview": "Photo Preview",
+    "noImageUploaded": "No image uploaded",
+    "uploadImage": "Upload Image",
+    "generateIdPhoto": "Generate ID Photo",
+    "changeImage": "Change Image"
+  },
+  "step2": {
+    "title": "ID Photo Preview",
+    "downloadIdPhoto": "Download ID Photo",
+    "generatePrintLayout": "Generate Print Layout"
+  },
+  "step3": {
+    "title": "Print Layout Preview",
+    "downloadPrintLayout": "Download Print Layout"
+  },
+  "photoSize": {
+    "label": "Photo Size",
+    "smallOneInch": "Small 1 Inch",
+    "oneInch": "1 Inch",
+    "largeOneInch": "Large 1 Inch",
+    "smallTwoInch": "Small 2 Inch",
+    "twoInch": "2 Inch",
+    "threeInch": "3 Inch",
+    "chinaIdCard": "China ID Card"
+  },
+  "background": {
+    "label": "Background",
+    "red": "Red",
+    "blue": "Blue",
+    "white": "White",
+    "crimson": "Crimson",
+    "maroon": "Maroon",
+    "darkRed": "Dark Red",
+    "skyBlue": "Sky Blue",
+    "royalBlue": "Royal Blue",
+    "lightBlue": "Light Blue"
+  },
+  "paperType": {
+    "label": "Paper Type",
+    "sixInch": "6-inch",
+    "a4": "A4"
+  },
+  "cropEditor": {
+    "instruction": "Drag to adjust photo crop",
+    "showFullImage": "Show full image",
+    "zoomToCrop": "Zoom to crop area",
+    "dpiWarning": "⚠️ Warning: The crop area may not achieve 300 DPI for optimal print quality.",
+    "dpiInfo": "Current DPI: {{minDPI}} DPI ({{widthDPI}} × {{heightDPI}})"
+  },
+  "faceDetection": {
+    "noFaceDetected": "⚠️ No face detected. Please use a clear photo with your face visible.",
+    "multipleFacesDetected": "⚠️ Multiple faces detected. Please use a photo with only one person."
+  },
+  "imagePreview": {
+    "alt": "Preview image",
+    "idPhotoAlt": "ID photo preview",
+    "printLayoutAlt": "Print layout preview"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "zh": "中文"
+  }
+}

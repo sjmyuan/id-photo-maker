@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { ImagePreview } from '../layout/ImagePreview'
 
 interface Step2PreviewProps {
@@ -15,9 +16,11 @@ export function Step2Preview({
   onNext,
   onBack,
 }: Step2PreviewProps) {
+  const { t } = useTranslation()
+  
   return (
     <div data-testid="step2-container">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">ID Photo Preview</h3>
+      <h3 className="text-lg font-semibold mb-4 text-gray-900">{t('step2.title')}</h3>
       
       {/* ID Photo Preview */}
       <div className="mb-6" data-testid="id-photo-preview">
@@ -39,7 +42,7 @@ export function Step2Preview({
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Download ID Photo
+          {t('step2.downloadIdPhoto')}
         </button>
         
         {/* Secondary Action */}
@@ -49,7 +52,7 @@ export function Step2Preview({
           data-testid="next-button"
           className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition-colors border-2 border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow"
         >
-          Generate Print Layout
+          {t('step2.generatePrintLayout')}
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
@@ -65,7 +68,7 @@ export function Step2Preview({
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
           </svg>
-          Back to Settings
+          {t('common.backToSettings')}
         </button>
       </div>
     </div>

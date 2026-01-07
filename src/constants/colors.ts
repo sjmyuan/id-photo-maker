@@ -1,16 +1,16 @@
 export interface PresetColor {
-  name: string
+  nameKey: string
   value: string
 }
 
 export const PRESET_COLORS: PresetColor[] = [
-  { name: 'Red', value: '#FF0000' },
-  { name: 'Blue', value: '#0000FF' },
-  { name: 'White', value: '#FFFFFF' },
-  { name: 'Crimson', value: '#EA3223' },
-  { name: 'Maroon', value: '#B82D24' },
-  { name: 'Dark Red', value: '#8E1C14' },
-  { name: 'Sky Blue', value: '#538ED7' },
-  { name: 'Royal Blue', value: '#193FE6' },
-  { name: 'Light Blue', value: '#64C8F2' },
+  { nameKey: 'background.red', value: '#FF0000' },
+  { nameKey: 'background.blue', value: '#0000FF' },
+  { nameKey: 'background.white', value: '#FFFFFF' },
+  { nameKey: 'background.crimson', value: '#EA3223' },
+  { nameKey: 'background.maroon', value: '#B82D24' },
+  { nameKey: 'background.darkRed', value: '#8E1C14' },
+  { nameKey: 'background.skyBlue', value: '#538ED7' },
+  { nameKey: 'background.royalBlue', value: '#193FE6' },
+  { nameKey: 'background.lightBlue', value: '#64C8F2' },
 ]

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 export type PaperType = '6-inch' | 'a4'
 
 export interface PaperTypeSelectorProps {
@@ -11,9 +13,11 @@ export interface PaperTypeSelectorProps {
  * Options: 6-inch (101.6×152.4 mm) or A4 (210×297 mm)
  */
 export function PaperTypeSelector({ paperType, onPaperTypeChange, testId = 'paper-type-selector' }: PaperTypeSelectorProps) {
+  const { t } = useTranslation()
+  
   return (
     <div data-testid={testId}>
-      <h3 className="text-sm font-semibold mb-2 text-gray-800">Paper Type</h3>
+      <h3 className="text-sm font-semibold mb-2 text-gray-800">{t('paperType.label')}</h3>
       <div className="space-y-1.5">
         <button
           onClick={() => onPaperTypeChange('6-inch')}
@@ -24,7 +28,7 @@ export function PaperTypeSelector({ paperType, onPaperTypeChange, testId = 'pape
           }`}
           data-testid="paper-6-inch-button"
         >
-          <div className="font-semibold text-xs">6-inch</div>
+          <div className="font-semibold text-xs">{t('paperType.sixInch')}</div>
           <div className="text-[10px] text-gray-600">102×152 mm</div>
         </button>
         <button
@@ -36,7 +40,7 @@ export function PaperTypeSelector({ paperType, onPaperTypeChange, testId = 'pape
           }`}
           data-testid="paper-a4-button"
         >
-          <div className="font-semibold text-xs">A4</div>
+          <div className="font-semibold text-xs">{t('paperType.a4')}</div>
           <div className="text-[10px] text-gray-600">210×297 mm</div>
         </button>
       </div>

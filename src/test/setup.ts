@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
+import '../i18n' // Initialize i18n for tests
 
 // Polyfill Blob.arrayBuffer for testing environment
 if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
