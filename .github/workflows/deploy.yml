@@ -87,9 +87,7 @@ jobs:
             --content-type "text/html"
           
           # Set appropriate cache for ONNX models
-          if [ -d "dist/public" ]; then
-            aws s3 sync dist/public/ s3://${{ secrets.S3_BUCKET }}/public/ \
-              --cache-control "public, max-age=604800" \
-              --exclude "*" \
-              --include "*.onnx"
-          fi
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }}/ \
+            --cache-control "public, max-age=604800" \
+            --exclude "*" \
+            --include "*.onnx"
