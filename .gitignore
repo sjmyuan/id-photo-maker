@@ -30,3 +30,4 @@ coverage
 # Output log
 output.log
 **/*.onnx
+!**/u2netp.onnx
