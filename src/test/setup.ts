@@ -17,7 +17,7 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
 // Polyfill ImageData for testing environment
 if (typeof ImageData === 'undefined') {
   // @ts-expect-error - Polyfilling ImageData for tests
-  global.ImageData = class ImageData {
+  globalThis.ImageData = class ImageData {
     data: Uint8ClampedArray
     width: number
     height: number

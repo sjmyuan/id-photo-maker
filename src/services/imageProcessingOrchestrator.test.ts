@@ -52,6 +52,9 @@ describe('ImageProcessingOrchestrator', () => {
     it('should return validation errors when file is invalid', async () => {
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: false,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: ['Invalid file type'],
         warnings: [],
       })
@@ -73,6 +76,9 @@ describe('ImageProcessingOrchestrator', () => {
     it('should collect warnings from validation', async () => {
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: true,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: [],
         warnings: ['Image size is large'],
       })
@@ -98,6 +104,9 @@ describe('ImageProcessingOrchestrator', () => {
     beforeEach(() => {
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: true,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: [],
         warnings: [],
       })
@@ -164,6 +173,9 @@ describe('ImageProcessingOrchestrator', () => {
     beforeEach(() => {
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: true,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: [],
         warnings: [],
       })
@@ -196,6 +208,9 @@ describe('ImageProcessingOrchestrator', () => {
     beforeEach(() => {
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: true,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: [],
         warnings: [],
       })
@@ -226,6 +241,9 @@ describe('ImageProcessingOrchestrator', () => {
       // Setup successful mocks
       vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
         isValid: true,
+        fileSize: 1024,
+        needsScaling: false,
+        dimensions: { width: 100, height: 100 },
         errors: [],
         warnings: [],
       })

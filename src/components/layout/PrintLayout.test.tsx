@@ -9,6 +9,7 @@ describe('PrintLayout', () => {
   const oneInchSize: SizeOption = {
     id: '1-inch',
     label: '1 Inch',
+    labelKey: 'photoSize.oneInch',
     dimensions: '25×35mm',
     aspectRatio: 0.714,
     physicalWidth: 25,

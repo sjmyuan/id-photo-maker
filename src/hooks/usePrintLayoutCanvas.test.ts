@@ -38,7 +38,7 @@ describe('usePrintLayoutCanvas', () => {
     } as unknown as HTMLImageElement
 
     // Mock Image constructor - use function instead of arrow function
-    global.Image = function() {
+    globalThis.Image = function() {
       return mockImage
     } as unknown as typeof Image
   })

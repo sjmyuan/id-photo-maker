@@ -10,7 +10,6 @@ describe('calculateInitialCropArea', () => {
         y: 100,
         width: 100,
         height: 100,
-        confidence: 0.99,
       }
       const aspectRatio = 1 // Square
       const imageWidth = 500
@@ -34,7 +33,6 @@ describe('calculateInitialCropArea', () => {
         y: 200,
         width: 100,
         height: 100,
-        confidence: 0.99,
       }
       const aspectRatio = 3 / 4 // Portrait ratio
       const imageWidth = 1000
@@ -60,7 +58,6 @@ describe('calculateInitialCropArea', () => {
         y: 150,
         width: 80,
         height: 80,
-        confidence: 0.99,
       }
       const aspectRatio = 4 / 3 // Landscape ratio
       const imageWidth = 800
@@ -79,7 +76,6 @@ describe('calculateInitialCropArea', () => {
         y: 200,
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 500
@@ -106,7 +102,6 @@ describe('calculateInitialCropArea', () => {
         y: 200,
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 500
@@ -125,7 +120,6 @@ describe('calculateInitialCropArea', () => {
         y: 10, // Very close to top edge
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 500
@@ -144,7 +138,6 @@ describe('calculateInitialCropArea', () => {
         y: 450, // Very close to bottom edge
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 500
@@ -163,7 +156,6 @@ describe('calculateInitialCropArea', () => {
         y: 200,
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 500
@@ -183,7 +175,6 @@ describe('calculateInitialCropArea', () => {
         y: 5,
         width: 30,
         height: 30,
-        confidence: 0.99,
       }
       const aspectRatio = 3 / 4
       const imageWidth = 400
@@ -209,7 +200,6 @@ describe('calculateInitialCropArea', () => {
         y: 480,
         width: 10,
         height: 10,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 1000
@@ -230,7 +220,6 @@ describe('calculateInitialCropArea', () => {
         y: 50,
         width: 200,
         height: 200,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 300
@@ -252,7 +241,6 @@ describe('calculateInitialCropArea', () => {
         y: 150,
         width: 100,
         height: 100,
-        confidence: 0.99,
       }
       const aspectRatio = 3 / 4
       const imageWidth = 800
@@ -277,7 +265,6 @@ describe('calculateInitialCropArea', () => {
         y: 200,
         width: 80,
         height: 80,
-        confidence: 0.99,
       }
       const aspectRatio = 16 / 9
       const imageWidth = 1920
@@ -298,7 +285,6 @@ describe('calculateInitialCropArea', () => {
         y: 400,
         width: 60,
         height: 60,
-        confidence: 0.99,
       }
       const aspectRatio = 1 / 2
       const imageWidth = 500
@@ -321,7 +307,6 @@ describe('calculateInitialCropArea', () => {
         y: 250,
         width: 100,
         height: 100,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 1000
@@ -344,7 +329,6 @@ describe('calculateInitialCropArea', () => {
         y: 20,
         width: 50,
         height: 50,
-        confidence: 0.99,
       }
       const aspectRatio = 1
       const imageWidth = 200

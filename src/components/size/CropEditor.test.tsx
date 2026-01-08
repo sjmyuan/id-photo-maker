@@ -418,7 +418,7 @@ describe('CropEditor', () => {
           processedImageUrl={mockProcessedImageUrl}
           initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
-          selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
+          selectedSize={{ id: '1-inch', label: '1 Inch', labelKey: 'photoSize.oneInch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
         />
       )
 
@@ -430,7 +430,7 @@ describe('CropEditor', () => {
           processedImageUrl={mockProcessedImageUrl}
           initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
-          selectedSize={{ id: '3-inch', label: '3 Inch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }}
+          selectedSize={{ id: '3-inch', label: '3 Inch', labelKey: 'photoSize.threeInch', dimensions: '35×52mm', aspectRatio: 35 / 52, physicalWidth: 35, physicalHeight: 52 }}
         />
       )
 
@@ -452,7 +452,7 @@ describe('CropEditor', () => {
           processedImageUrl={mockProcessedImageUrl}
           initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
-          selectedSize={{ id: '1-inch', label: '1 Inch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
+          selectedSize={{ id: '1-inch', label: '1 Inch', labelKey: 'photoSize.oneInch', dimensions: '25×35mm', aspectRatio: 25 / 35, physicalWidth: 25, physicalHeight: 35 }}
         />
       )
 
@@ -471,7 +471,7 @@ describe('CropEditor', () => {
           processedImageUrl={mockProcessedImageUrl}
           initialCropArea={mockInitialCropArea}
           onCropAreaChange={onCropAreaChange}
-          selectedSize={{ id: '2-inch', label: '2 Inch', dimensions: '35×49mm', aspectRatio: 35 / 49, physicalWidth: 35, physicalHeight: 49 }}
+          selectedSize={{ id: '2-inch', label: '2 Inch', labelKey: 'photoSize.twoInch', dimensions: '35×49mm', aspectRatio: 35 / 49, physicalWidth: 35, physicalHeight: 49 }}
         />
       )
 

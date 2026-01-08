@@ -11,11 +11,11 @@ describe('DownloadService', () => {
     service = new DownloadService()
 
     // Mock URL methods
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-    global.URL.revokeObjectURL = vi.fn()
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
 
     // Mock fetch
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
 
     // Mock embedDPIMetadata to return the same blob
     vi.spyOn(dpiMetadata, 'embedDPIMetadata').mockImplementation(async (blob) => blob)
@@ -28,20 +28,20 @@ describe('DownloadService', () => {
   describe('downloadImageFromUrl', () => {
     it('should download image from URL with DPI metadata', async () => {
       const mockBlob = new Blob(['test'], { type: 'image/png' })
-      ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ;(globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         blob: () => Promise.resolve(mockBlob),
       })
 
       await service.downloadImageFromUrl('http://example.com/image.png', 'test.png', 300)
 
-      expect(global.fetch).toHaveBeenCalledWith('http://example.com/image.png')
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://example.com/image.png')
       expect(dpiMetadata.embedDPIMetadata).toHaveBeenCalledWith(mockBlob, 300)
-      expect(global.URL.createObjectURL).toHaveBeenCalled()
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalled()
     })
 
     it('should use default DPI if not specified', async () => {
       const mockBlob = new Blob(['test'], { type: 'image/png' })
-      ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ;(globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         blob: () => Promise.resolve(mockBlob),
       })
 
@@ -60,7 +60,7 @@ describe('DownloadService', () => {
       await service.downloadCanvas(canvas, 'test.png', 300)
 
       expect(dpiMetadata.embedDPIMetadata).toHaveBeenCalled()
-      expect(global.URL.createObjectURL).toHaveBeenCalled()
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalled()
     })
 
     it('should use custom mime type', async () => {
@@ -80,7 +80,7 @@ describe('DownloadService', () => {
 
       service.downloadBlob(blob, 'test.txt')
 
-      expect(global.URL.createObjectURL).toHaveBeenCalledWith(blob)
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(blob)
       expect(document.body.appendChild).toHaveBeenCalled()
       expect(document.body.removeChild).toHaveBeenCalled()
     })
@@ -111,7 +111,7 @@ describe('DownloadService', () => {
 
       vi.advanceTimersByTime(100)
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
 
       vi.useRealTimers()
     })

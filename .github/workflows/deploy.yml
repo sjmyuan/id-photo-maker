@@ -35,7 +35,7 @@ jobs:
         run: npm run lint
 
       - name: Run type check
-        run: npx tsc -b --noEmit
+        run: npm run type-check
 
       - name: Run tests
         run: npm run test

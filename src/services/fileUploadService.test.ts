@@ -7,8 +7,8 @@ describe('FileUploadService', () => {
   beforeEach(() => {
     service = new FileUploadService()
     // Mock URL.createObjectURL and URL.revokeObjectURL
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-    global.URL.revokeObjectURL = vi.fn()
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
   })
 
   describe('handleUpload', () => {
@@ -19,7 +19,7 @@ describe('FileUploadService', () => {
 
       expect(result.file).toBe(file)
       expect(result.url).toBe('blob:mock-url')
-      expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(file)
     })
 
     it('should track created URLs', () => {
@@ -28,7 +28,7 @@ describe('FileUploadService', () => {
       service.handleUpload(file)
       service.revokeAllUrls()
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
     })
   })
 
@@ -39,13 +39,13 @@ describe('FileUploadService', () => {
 
       service.revokeUrl(url)
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith(url)
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(url)
     })
 
     it('should not revoke URL that was not tracked', () => {
       service.revokeUrl('blob:untracked-url')
 
-      expect(global.URL.revokeObjectURL).not.toHaveBeenCalled()
+      expect(globalThis.URL.revokeObjectURL).not.toHaveBeenCalled()
     })
 
     it('should remove URL from tracking after revoke', () => {
@@ -57,7 +57,7 @@ describe('FileUploadService', () => {
 
       // Try to revoke again
       service.revokeUrl(url)
-      expect(global.URL.revokeObjectURL).not.toHaveBeenCalled()
+      expect(globalThis.URL.revokeObjectURL).not.toHaveBeenCalled()
     })
   })
 
@@ -68,7 +68,7 @@ describe('FileUploadService', () => {
 
       // Mock different URLs for different files
       let callCount = 0
-      global.URL.createObjectURL = vi.fn(() => {
+      globalThis.URL.createObjectURL = vi.fn(() => {
         callCount++
         return `blob:mock-url-${callCount}`
       })
@@ -78,7 +78,7 @@ describe('FileUploadService', () => {
 
       service.revokeAllUrls()
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledTimes(2)
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledTimes(2)
     })
 
     it('should clear tracking after revoking all', () => {
@@ -90,7 +90,7 @@ describe('FileUploadService', () => {
 
       // Try to revoke all again
       service.revokeAllUrls()
-      expect(global.URL.revokeObjectURL).not.toHaveBeenCalled()
+      expect(globalThis.URL.revokeObjectURL).not.toHaveBeenCalled()
     })
   })
 
@@ -101,12 +101,12 @@ describe('FileUploadService', () => {
       const url = service.createTemporaryUrl(file)
 
       expect(url).toBe('blob:mock-url')
-      expect(global.URL.createObjectURL).toHaveBeenCalledWith(file)
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(file)
 
       // Should not be revoked when revoking all
       vi.clearAllMocks()
       service.revokeAllUrls()
-      expect(global.URL.revokeObjectURL).not.toHaveBeenCalled()
+      expect(globalThis.URL.revokeObjectURL).not.toHaveBeenCalled()
     })
   })
 
@@ -117,7 +117,7 @@ describe('FileUploadService', () => {
       const url = service.createTemporaryBlobUrl(blob)
 
       expect(url).toBe('blob:mock-url')
-      expect(global.URL.createObjectURL).toHaveBeenCalledWith(blob)
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(blob)
     })
   })
 
@@ -127,7 +127,7 @@ describe('FileUploadService', () => {
       const file2 = new File(['content2'], 'test2.jpg', { type: 'image/jpeg' })
 
       let callCount = 0
-      global.URL.createObjectURL = vi.fn(() => {
+      globalThis.URL.createObjectURL = vi.fn(() => {
         callCount++
         return `blob:mock-url-${callCount}`
       })
@@ -137,7 +137,7 @@ describe('FileUploadService', () => {
 
       service.cleanup()
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledTimes(2)
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledTimes(2)
     })
   })
 })

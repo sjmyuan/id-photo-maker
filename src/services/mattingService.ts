@@ -5,6 +5,9 @@
 
 import { processImageWithU2Net, type U2NetModel } from './u2netService'
 
+// Re-export U2NetModel for use in other modules
+export { type U2NetModel }
+
 // Types
 export interface MattingResult {
   foregroundMask: ImageData
