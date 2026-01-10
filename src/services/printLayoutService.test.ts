@@ -274,6 +274,74 @@ describe('printLayoutService', () => {
       // Photos should be drawn at calculated pixel size (not source size)
       expect(result).toBeInstanceOf(HTMLCanvasElement)
     })
+
+    it('should generate smaller canvas when margins are set', async () => {
+      // Test without margins
+      const resultWithoutMargins = await generatePrintLayout(
+        mockCanvas,
+        {
+          widthMm: 25,
+          heightMm: 35,
+        },
+        '6-inch',
+        300
+      )
+
+      // Test with margins (5mm on each side)
+      const resultWithMargins = await generatePrintLayout(
+        mockCanvas,
+        {
+          widthMm: 25,
+          heightMm: 35,
+        },
+        '6-inch',
+        300,
+        { top: 5, bottom: 5, left: 5, right: 5 }
+      )
+
+      // With margins, canvas should be smaller (printable area only)
+      // 5mm at 300 DPI = 59.055px per side (not rounded in calculation)
+      // Canvas dimensions are truncated when assigned (not rounded)
+      expect(resultWithMargins.width).toBeLessThan(resultWithoutMargins.width)
+      expect(resultWithMargins.height).toBeLessThan(resultWithoutMargins.height)
+      
+      // Verify dimensions match expected printable area
+      // 6-inch paper: 1200x1800px at 300 DPI
+      // With 5mm margins: (5*300/25.4) = 59.055px per side (unrounded)
+      // Canvas truncates: 1200 - 118.11 = 1081.89 → 1081
+      const marginPx = (5 * 300) / 25.4
+      const expectedWidth = Math.floor(1200 - 2 * marginPx)
+      const expectedHeight = Math.floor(1800 - 2 * marginPx)
+      expect(resultWithMargins.width).toBe(expectedWidth)
+      expect(resultWithMargins.height).toBe(expectedHeight)
+    })
+
+    it('should generate full-size canvas when margins are zero', async () => {
+      const resultWithZeroMargins = await generatePrintLayout(
+        mockCanvas,
+        {
+          widthMm: 25,
+          heightMm: 35,
+        },
+        '6-inch',
+        300,
+        { top: 0, bottom: 0, left: 0, right: 0 }
+      )
+
+      const resultWithoutMargins = await generatePrintLayout(
+        mockCanvas,
+        {
+          widthMm: 25,
+          heightMm: 35,
+        },
+        '6-inch',
+        300
+      )
+
+      // Zero margins should produce same size as no margins
+      expect(resultWithZeroMargins.width).toBe(resultWithoutMargins.width)
+      expect(resultWithZeroMargins.height).toBe(resultWithoutMargins.height)
+    })
   })
 
   describe('downloadCanvas', () => {

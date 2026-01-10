@@ -213,4 +213,85 @@ describe('layoutCalculation', () => {
       expect(result1).toEqual(result2)
     })
   })
+
+  describe('calculateLayout with margins', () => {
+    const photoSize: PhotoSize = { widthMm: 25, heightMm: 35 }
+
+    it('should calculate layout with zero margins (same as without margins)', () => {
+      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
+      const resultWithMargins = calculateLayout('6-inch', photoSize, 300, margins)
+      const resultWithoutMargins = calculateLayout('6-inch', photoSize, 300)
+      
+      expect(resultWithMargins.totalPhotos).toBe(resultWithoutMargins.totalPhotos)
+      expect(resultWithMargins.photosPerRow).toBe(resultWithoutMargins.photosPerRow)
+      expect(resultWithMargins.photosPerColumn).toBe(resultWithoutMargins.photosPerColumn)
+    })
+
+    it('should reduce available space with non-zero margins', () => {
+      const margins = { top: 5, bottom: 5, left: 5, right: 5 }
+      const resultWithMargins = calculateLayout('6-inch', photoSize, 300, margins)
+      const resultWithoutMargins = calculateLayout('6-inch', photoSize, 300)
+      
+      // With margins, should fit fewer photos
+      expect(resultWithMargins.totalPhotos).toBeLessThanOrEqual(resultWithoutMargins.totalPhotos)
+    })
+
+    it('should calculate correct printable dimensions for A4 with asymmetric margins', () => {
+      // A4 paper: 210×297mm
+      // Margins: top=10, bottom=5, left=3, right=7
+      // Printable: 200mm wide (210-3-7), 282mm tall (297-10-5)
+      const margins = { top: 10, bottom: 5, left: 3, right: 7 }
+      const result = calculateLayout('a4', photoSize, 300, margins)
+      
+      expect(result.paperType).toBe('a4')
+      expect(result.paperWidthPx).toBe(2480) // Full paper width
+      expect(result.paperHeightPx).toBe(3508) // Full paper height
+      
+      // Margins include printer margins plus layout centering
+      // At minimum, they should include the printer margins
+      expect(result.marginLeftPx).toBeGreaterThanOrEqual(mmToPixels(3, 300))
+      expect(result.marginTopPx).toBeGreaterThanOrEqual(mmToPixels(10, 300))
+    })
+
+    it('should handle margins that leave minimal space', () => {
+      // 6-inch paper: 102×152mm
+      // Large margins: top=20, bottom=20, left=15, right=15
+      // Printable: 72mm wide, 112mm tall
+      const margins = { top: 20, bottom: 20, left: 15, right: 15 }
+      const result = calculateLayout('6-inch', photoSize, 300, margins)
+      
+      // Should still fit at least 2 photos
+      expect(result.totalPhotos).toBeGreaterThanOrEqual(2)
+      expect(result.totalPhotos).toBeLessThan(20) // But significantly fewer than without margins
+    })
+
+    it('should position photos offset by margins', () => {
+      const margins = { top: 10, bottom: 5, left: 8, right: 3 }
+      const result = calculateLayout('a4', photoSize, 300, margins)
+      
+      // The marginLeftPx and marginTopPx in result should account for printer margins
+      // These should be at least the printer margin values
+      expect(result.marginLeftPx).toBeGreaterThanOrEqual(mmToPixels(8, 300))
+      expect(result.marginTopPx).toBeGreaterThanOrEqual(mmToPixels(10, 300))
+    })
+
+    it('should still work with single photo and large margins', () => {
+      // Very large photo (50×70mm) with modest margins on 6-inch paper
+      const largePhotoSize: PhotoSize = { widthMm: 50, heightMm: 70 }
+      const margins = { top: 10, bottom: 10, left: 10, right: 10 }
+      const result = calculateLayout('6-inch', largePhotoSize, 300, margins)
+      
+      // Should fit at least 1 photo
+      expect(result.totalPhotos).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should handle zero height/width after margins gracefully', () => {
+      // Extreme case: margins that consume all space
+      const extremeMargins = { top: 76, bottom: 76, left: 51, right: 51 }
+      const result = calculateLayout('6-inch', photoSize, 300, extremeMargins)
+      
+      // Should return result with 0 photos or handle edge case
+      expect(result.totalPhotos).toBeGreaterThanOrEqual(0)
+    })
+  })
 })

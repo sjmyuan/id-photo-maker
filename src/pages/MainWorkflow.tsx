@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'reac
 import { useTranslation } from 'react-i18next'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
+import { type PaperMargins } from '../types'
 import { StepIndicator } from '../components/workflow/StepIndicator'
 import { Step1Settings } from '../components/workflow/Step1Settings'
 import { Step2Preview } from '../components/workflow/Step2Preview'
@@ -44,6 +45,13 @@ export function MainWorkflow() {
   const [backgroundColor, setBackgroundColor] = useState<string>('#0000FF')
   const [paperType, setPaperType] = useState<PaperType>('6-inch')
   
+  // Margin state per paper type
+  const [margins6Inch, setMargins6Inch] = useState<PaperMargins>({ top: 0, bottom: 0, left: 0, right: 0 })
+  const [marginsA4, setMarginsA4] = useState<PaperMargins>({ top: 0, bottom: 0, left: 0, right: 0 })
+  
+  // Get current margins based on selected paper type
+  const currentMargins = paperType === '6-inch' ? margins6Inch : marginsA4
+  
   // Image state
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -59,6 +67,7 @@ export function MainWorkflow() {
     selectedSize,
     paperType,
     backgroundColor,
+    margins: currentMargins,
     onError: setErrors,
   })
   
@@ -110,6 +119,7 @@ export function MainWorkflow() {
           selectedSize,
           backgroundColor,
           paperType,
+          margins: currentMargins,
           u2netModel,
           faceDetectionModel,
           requiredDPI: 300,
@@ -149,6 +159,7 @@ export function MainWorkflow() {
       backgroundColor,
       selectedSize,
       paperType,
+      currentMargins,
       clearNotifications,
       setErrors,
       setWarnings,
@@ -168,6 +179,15 @@ export function MainWorkflow() {
   const handlePaperTypeChange = (paper: PaperType) => {
     setPaperType(paper)
   }
+
+  const handleMarginsChange = useCallback((margins: PaperMargins) => {
+    // Update margins for the current paper type
+    if (paperType === '6-inch') {
+      setMargins6Inch(margins)
+    } else {
+      setMarginsA4(margins)
+    }
+  }, [paperType])
 
   const handleDownload = async () => {
     await downloadPhoto(imageData?.croppedPreviewUrl || null)
@@ -233,6 +253,7 @@ export function MainWorkflow() {
                 selectedSize={selectedSize}
                 backgroundColor={backgroundColor}
                 paperType={paperType}
+                margins={currentMargins}
                 uploadedImageUrl={uploadedImageUrl}
                 uploadedFile={uploadedFile}
                 isProcessing={isProcessing}
@@ -240,6 +261,7 @@ export function MainWorkflow() {
                 onSizeChange={handleSizeChange}
                 onColorChange={handleBackgroundChange}
                 onPaperTypeChange={handlePaperTypeChange}
+                onMarginsChange={handleMarginsChange}
                 onFileChange={handleFileChange}
                 onGeneratePreview={handleGeneratePreview}
               />

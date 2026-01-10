@@ -3,6 +3,8 @@
  * Handles optimal photo placement on 6-inch photo paper and A4 paper at 300 DPI
  */
 
+import { type PaperMargins } from '../types'
+
 export interface PaperType {
   id: '6-inch' | 'a4'
   label: string
@@ -28,6 +30,12 @@ export interface LayoutResult {
   verticalSpacingPx: number
   marginLeftPx: number
   marginTopPx: number
+  printerMargins?: {
+    topPx: number
+    bottomPx: number
+    leftPx: number
+    rightPx: number
+  }
 }
 
 /**
@@ -67,12 +75,14 @@ export function mmToPixels(mm: number, dpi: number): number {
  * @param paperTypeId - Paper type identifier ('6-inch' or 'a4')
  * @param photoSize - Photo dimensions in millimeters
  * @param dpi - Dots per inch for calculation (default 300)
+ * @param margins - Optional printer margins in millimeters (default all 0)
  * @returns Layout result with photo arrangement details
  */
 export function calculateLayout(
   paperTypeId: '6-inch' | 'a4',
   photoSize: PhotoSize,
-  dpi: number = 300
+  dpi: number = 300,
+  margins?: PaperMargins
 ): LayoutResult {
   const paperType = PAPER_TYPES[paperTypeId]
   
@@ -80,32 +90,54 @@ export function calculateLayout(
   const photoWidthPx = mmToPixels(photoSize.widthMm, dpi)
   const photoHeightPx = mmToPixels(photoSize.heightMm, dpi)
   
+  // Convert margins from mm to pixels (default to 0 if not provided)
+  const printerMargins = margins ? {
+    topPx: mmToPixels(margins.top, dpi),
+    bottomPx: mmToPixels(margins.bottom, dpi),
+    leftPx: mmToPixels(margins.left, dpi),
+    rightPx: mmToPixels(margins.right, dpi),
+  } : {
+    topPx: 0,
+    bottomPx: 0,
+    leftPx: 0,
+    rightPx: 0,
+  }
+  
+  // Calculate printable area (paper dimensions minus margins)
+  const printableWidthPx = paperType.widthPx - printerMargins.leftPx - printerMargins.rightPx
+  const printableHeightPx = paperType.heightPx - printerMargins.topPx - printerMargins.bottomPx
+  
   // Define minimum spacing between photos (5mm = ~59px at 300 DPI)
   const minSpacingMm = 5
   const minSpacingPx = mmToPixels(minSpacingMm, dpi)
   
   // Calculate how many photos fit in each dimension with minimum spacing
-  const photosPerRow = Math.max(1, Math.floor(paperType.widthPx / (photoWidthPx + minSpacingPx)))
-  const photosPerColumn = Math.max(1, Math.floor(paperType.heightPx / (photoHeightPx + minSpacingPx)))
+  // Use printable area instead of full paper dimensions
+  const photosPerRow = Math.max(1, Math.floor(printableWidthPx / (photoWidthPx + minSpacingPx)))
+  const photosPerColumn = Math.max(1, Math.floor(printableHeightPx / (photoHeightPx + minSpacingPx)))
   const totalPhotos = photosPerRow * photosPerColumn
   
-  // Calculate actual spacing to distribute photos evenly
+  // Calculate actual spacing to distribute photos evenly within printable area
   // If only 1 photo in a dimension, no spacing needed
   const horizontalSpacingPx = photosPerRow > 1
-    ? (paperType.widthPx - (photosPerRow * photoWidthPx)) / (photosPerRow + 1)
+    ? (printableWidthPx - (photosPerRow * photoWidthPx)) / (photosPerRow + 1)
     : 0
   const verticalSpacingPx = photosPerColumn > 1
-    ? (paperType.heightPx - (photosPerColumn * photoHeightPx)) / (photosPerColumn + 1)
+    ? (printableHeightPx - (photosPerColumn * photoHeightPx)) / (photosPerColumn + 1)
     : 0
   
-  // Calculate margins to center the layout
-  // For single photo, center it; for multiple, use even spacing
-  const marginLeftPx = photosPerRow === 1
-    ? (paperType.widthPx - photoWidthPx) / 2
+  // Calculate margins to center the layout within printable area
+  // Then add printer margins to offset from paper edge
+  const layoutMarginLeftPx = photosPerRow === 1
+    ? (printableWidthPx - photoWidthPx) / 2
     : horizontalSpacingPx
-  const marginTopPx = photosPerColumn === 1
-    ? (paperType.heightPx - photoHeightPx) / 2
+  const layoutMarginTopPx = photosPerColumn === 1
+    ? (printableHeightPx - photoHeightPx) / 2
     : verticalSpacingPx
+  
+  // Final margins include both printer margins and layout centering margins
+  const marginLeftPx = printerMargins.leftPx + layoutMarginLeftPx
+  const marginTopPx = printerMargins.topPx + layoutMarginTopPx
   
   return {
     paperType: paperTypeId,
@@ -120,5 +152,6 @@ export function calculateLayout(
     verticalSpacingPx,
     marginLeftPx,
     marginTopPx,
+    printerMargins: margins ? printerMargins : undefined,
   }
 }

@@ -5,6 +5,7 @@
 
 import { calculateLayout } from '../utils/layoutCalculation'
 import type { PhotoSize } from '../utils/layoutCalculation'
+import type { PaperMargins } from '../types'
 
 /**
  * Generate a print-ready layout canvas with multiple photos arranged in a grid
@@ -13,21 +14,37 @@ import type { PhotoSize } from '../utils/layoutCalculation'
  * @param photoSize - Physical dimensions of the ID photo in millimeters
  * @param paperType - Paper type identifier ('6-inch' or 'a4')
  * @param dpi - Dots per inch for output (default 300)
+ * @param margins - Optional printer margins in millimeters
  * @returns High-resolution canvas with photo grid layout
  */
 export async function generatePrintLayout(
   sourceCanvas: HTMLCanvasElement,
   photoSize: PhotoSize,
   paperType: '6-inch' | 'a4',
-  dpi: number = 300
+  dpi: number = 300,
+  margins?: PaperMargins
 ): Promise<HTMLCanvasElement> {
-  // Calculate optimal layout
-  const layout = calculateLayout(paperType, photoSize, dpi)
+  // Calculate optimal layout with margins
+  const layout = calculateLayout(paperType, photoSize, dpi, margins)
 
-  // Create output canvas with paper dimensions
+  // When margins are set, create canvas sized to printable area (excluding margins)
+  // This generates an image that fits the printer's actual printable area
+  const canvasWidth = layout.printerMargins
+    ? layout.paperWidthPx - layout.printerMargins.leftPx - layout.printerMargins.rightPx
+    : layout.paperWidthPx
+  const canvasHeight = layout.printerMargins
+    ? layout.paperHeightPx - layout.printerMargins.topPx - layout.printerMargins.bottomPx
+    : layout.paperHeightPx
+
+  // Adjust photo positions: when margins are present, photos are positioned relative to printable area
+  // Subtract printer margins from the calculated positions
+  const offsetX = layout.printerMargins ? layout.printerMargins.leftPx : 0
+  const offsetY = layout.printerMargins ? layout.printerMargins.topPx : 0
+
+  // Create output canvas with calculated dimensions
   const outputCanvas = document.createElement('canvas')
-  outputCanvas.width = layout.paperWidthPx
-  outputCanvas.height = layout.paperHeightPx
+  outputCanvas.width = canvasWidth
+  outputCanvas.height = canvasHeight
 
   const ctx = outputCanvas.getContext('2d')
   if (!ctx) {
@@ -41,9 +58,9 @@ export async function generatePrintLayout(
   // Draw photo grid
   for (let row = 0; row < layout.photosPerColumn; row++) {
     for (let col = 0; col < layout.photosPerRow; col++) {
-      // Calculate position for this photo
-      const x = layout.marginLeftPx + col * (layout.photoWidthPx + layout.horizontalSpacingPx)
-      const y = layout.marginTopPx + row * (layout.photoHeightPx + layout.verticalSpacingPx)
+      // Calculate position for this photo (subtract offset to account for margins)
+      const x = layout.marginLeftPx - offsetX + col * (layout.photoWidthPx + layout.horizontalSpacingPx)
+      const y = layout.marginTopPx - offsetY + row * (layout.photoHeightPx + layout.verticalSpacingPx)
 
       // Draw the source canvas at the calculated position and size
       ctx.drawImage(
@@ -64,19 +81,33 @@ export async function generatePrintLayout(
  * @param sourceImage - Image element containing the cropped ID photo
  * @param photoSize - Physical dimensions of the ID photo in millimeters
  * @param paperType - Paper type identifier ('6-inch' or 'a4')
+ * @param margins - Optional printer margins in millimeters
  * @returns Preview-sized canvas (400px wide, maintaining aspect ratio)
  */
 export function generatePrintLayoutPreview(
   sourceImage: HTMLImageElement,
   photoSize: PhotoSize,
-  paperType: '6-inch' | 'a4'
+  paperType: '6-inch' | 'a4',
+  margins?: PaperMargins
 ): HTMLCanvasElement {
   // Calculate layout at a standard DPI for layout dimensions
-  const layout = calculateLayout(paperType, photoSize, 300)
+  const layout = calculateLayout(paperType, photoSize, 300, margins)
+
+  // When margins are set, calculate dimensions based on printable area
+  const layoutWidth = layout.printerMargins
+    ? layout.paperWidthPx - layout.printerMargins.leftPx - layout.printerMargins.rightPx
+    : layout.paperWidthPx
+  const layoutHeight = layout.printerMargins
+    ? layout.paperHeightPx - layout.printerMargins.topPx - layout.printerMargins.bottomPx
+    : layout.paperHeightPx
+
+  // Adjust photo positions: when margins are present, subtract printer margins
+  const offsetX = layout.printerMargins ? layout.printerMargins.leftPx : 0
+  const offsetY = layout.printerMargins ? layout.printerMargins.topPx : 0
 
   // Create preview canvas with fixed width
   const previewWidth = 400
-  const paperAspectRatio = layout.paperWidthPx / layout.paperHeightPx
+  const paperAspectRatio = layoutWidth / layoutHeight
   const previewHeight = previewWidth / paperAspectRatio
 
   const outputCanvas = document.createElement('canvas')
@@ -93,13 +124,17 @@ export function generatePrintLayoutPreview(
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
 
   // Calculate scaling factor from layout dimensions to preview dimensions
-  const scale = previewWidth / layout.paperWidthPx
+  const scale = previewWidth / layoutWidth
 
   // Draw photo grid
   for (let row = 0; row < layout.photosPerColumn; row++) {
     for (let col = 0; col < layout.photosPerRow; col++) {
-      const x = (layout.marginLeftPx + col * (layout.photoWidthPx + layout.horizontalSpacingPx)) * scale
-      const y = (layout.marginTopPx + row * (layout.photoHeightPx + layout.verticalSpacingPx)) * scale
+      // Calculate position for this photo (subtract offset to account for margins)
+      const layoutX = layout.marginLeftPx - offsetX + col * (layout.photoWidthPx + layout.horizontalSpacingPx)
+      const layoutY = layout.marginTopPx - offsetY + row * (layout.photoHeightPx + layout.verticalSpacingPx)
+      
+      const x = layoutX * scale
+      const y = layoutY * scale
       const w = layout.photoWidthPx * scale
       const h = layout.photoHeightPx * scale
 

@@ -5,6 +5,7 @@
 
 import { type SizeOption } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
+import { type PaperMargins } from '../types'
 import { type FaceDetectionModel, detectFaces } from './faceDetectionService'
 import { type U2NetModel, processWithU2Net } from './mattingService'
 import { validateImageFile, type ValidationResult } from './imageValidation'
@@ -33,6 +34,7 @@ export interface ProcessingOptions {
   selectedSize: SizeOption
   backgroundColor: string
   paperType: PaperType
+  margins: PaperMargins
   u2netModel: U2NetModel | null
   faceDetectionModel: FaceDetectionModel | null
   requiredDPI?: number
@@ -59,6 +61,7 @@ export class ImageProcessingOrchestrator {
       selectedSize,
       backgroundColor,
       paperType,
+      margins,
       u2netModel,
       faceDetectionModel,
       requiredDPI = 300,
@@ -117,7 +120,8 @@ export class ImageProcessingOrchestrator {
         file,
         coloredCanvas,
         selectedSize,
-        paperType
+        paperType,
+        margins
       )
 
       return {
@@ -283,7 +287,8 @@ export class ImageProcessingOrchestrator {
     file: File,
     coloredCanvas: HTMLCanvasElement,
     selectedSize: SizeOption,
-    paperType: PaperType
+    paperType: PaperType,
+    margins: PaperMargins
   ): Promise<{
     originalUrl: string
     croppedPreviewUrl: string
@@ -303,7 +308,8 @@ export class ImageProcessingOrchestrator {
         widthMm: selectedSize.physicalWidth,
         heightMm: selectedSize.physicalHeight,
       },
-      paperType
+      paperType,
+      margins
     )
 
     const printLayoutBlob = await this.canvasOps.canvasToBlob(printLayoutPreviewCanvas)

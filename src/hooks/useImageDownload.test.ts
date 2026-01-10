@@ -78,11 +78,13 @@ describe('useImageDownload', () => {
 
     it('should call downloadService.downloadImageFromUrl with proper params', async () => {
       const onError = vi.fn()
+      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
           paperType: '6-inch',
           backgroundColor: '#0000FF',
+          margins,
           onError,
         })
       )
@@ -96,11 +98,13 @@ describe('useImageDownload', () => {
   describe('downloadLayout', () => {
     it('should generate and download print layout', async () => {
       const onError = vi.fn()
+      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
           paperType: '6-inch',
           backgroundColor: '#0000FF',
+          margins,
           onError,
         })
       )
@@ -116,7 +120,8 @@ describe('useImageDownload', () => {
             heightMm: SIZE_OPTIONS[0].physicalHeight,
           },
           '6-inch',
-          300
+          300,
+          { top: 0, bottom: 0, left: 0, right: 0 }
         )
       })
       expect(onError).not.toHaveBeenCalled()
@@ -124,11 +129,13 @@ describe('useImageDownload', () => {
 
     it('should handle error when transparentCanvas is not provided', async () => {
       const onError = vi.fn()
+      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
           paperType: '6-inch',
           backgroundColor: '#0000FF',
+          margins,
           onError,
         })
       )
@@ -141,11 +148,13 @@ describe('useImageDownload', () => {
 
     it('should handle layout generation error', async () => {
       const onError = vi.fn()
+      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
         useImageDownload({
           selectedSize: SIZE_OPTIONS[0],
           paperType: '6-inch',
           backgroundColor: '#0000FF',
+          margins,
           onError,
         })
       )

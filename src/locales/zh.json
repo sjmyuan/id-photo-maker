@@ -60,6 +60,15 @@
     "sixInch": "6英寸",
     "a4": "A4"
   },
+  "margins": {
+    "label": "打印机边距",
+    "description": "设置边距以匹配打印机的不可打印区域。生成的图像将调整大小以适应可打印区域。",
+    "top": "上边距",
+    "bottom": "下边距",
+    "left": "左边距",
+    "right": "右边距",
+    "unit": "单位：毫米（mm）"
+  },
   "cropEditor": {
     "instruction": "拖动以调整照片裁剪区域",
     "showFullImage": "显示完整图片",

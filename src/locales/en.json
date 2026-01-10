@@ -60,6 +60,15 @@
     "sixInch": "6-inch",
     "a4": "A4"
   },
+  "margins": {
+    "label": "Printer Margins",
+    "description": "Set margins to match your printer's unprintable area. The generated image will be sized to fit the printable area.",
+    "top": "Top",
+    "bottom": "Bottom",
+    "left": "Left",
+    "right": "Right",
+    "unit": "Unit: millimeters (mm)"
+  },
   "cropEditor": {
     "instruction": "Drag to adjust photo crop",
     "showFullImage": "Show full image",

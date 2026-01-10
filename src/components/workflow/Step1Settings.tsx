@@ -4,11 +4,20 @@ import { type SizeOption } from '../size/CropEditor'
 import { SizeSelector } from '../size/SizeSelector'
 import { ColorSelector } from '../background/ColorSelector'
 import { PaperTypeSelector, type PaperType } from '../layout/PaperTypeSelector'
+import { MarginSelector } from '../layout/MarginSelector'
+import { type PaperMargins } from '../../types'
+
+// Paper dimensions in millimeters
+const PAPER_DIMENSIONS = {
+  '6-inch': { widthMm: 102, heightMm: 152 }, // 4×6 inches
+  'a4': { widthMm: 210, heightMm: 297 },
+}
 
 interface Step1SettingsProps {
   selectedSize: SizeOption
   backgroundColor: string
   paperType: PaperType
+  margins: PaperMargins
   uploadedImageUrl: string | null
   uploadedFile: File | null
   isProcessing: boolean
@@ -16,6 +25,7 @@ interface Step1SettingsProps {
   onSizeChange: (size: SizeOption) => void
   onColorChange: (color: string) => void
   onPaperTypeChange: (paper: PaperType) => void
+  onMarginsChange: (margins: PaperMargins) => void
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
   onGeneratePreview: () => void
 }
@@ -24,6 +34,7 @@ export function Step1Settings({
   selectedSize,
   backgroundColor,
   paperType,
+  margins,
   uploadedImageUrl,
   uploadedFile,
   isProcessing,
@@ -31,6 +42,7 @@ export function Step1Settings({
   onSizeChange,
   onColorChange,
   onPaperTypeChange,
+  onMarginsChange,
   onFileChange,
   onGeneratePreview,
 }: Step1SettingsProps) {
@@ -59,6 +71,12 @@ export function Step1Settings({
           paperType={paperType} 
           onPaperTypeChange={onPaperTypeChange} 
           testId="paper-type-selector-step1"
+        />
+        <MarginSelector
+          margins={margins}
+          paperDimensions={PAPER_DIMENSIONS[paperType]}
+          onMarginsChange={onMarginsChange}
+          testId="margin-selector-step1"
         />
       </div>
       

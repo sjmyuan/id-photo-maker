@@ -6,6 +6,7 @@
 import { useCallback, useMemo } from 'react'
 import { type SizeOption } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
+import { type PaperMargins } from '../types'
 import { DownloadService } from '../services/downloadService'
 import { generatePrintLayout } from '../services/printLayoutService'
 import { applyBackgroundColor } from '../services/mattingService'
@@ -14,6 +15,7 @@ interface UseImageDownloadParams {
   selectedSize: SizeOption
   paperType: PaperType
   backgroundColor: string
+  margins: PaperMargins
   onError: (errors: string[]) => void
 }
 
@@ -21,6 +23,7 @@ export function useImageDownload({
   selectedSize,
   paperType,
   backgroundColor,
+  margins,
   onError,
 }: UseImageDownloadParams) {
   const downloadService = useMemo(() => new DownloadService(), [])
@@ -59,7 +62,8 @@ export function useImageDownload({
             heightMm: selectedSize.physicalHeight,
           },
           paperType,
-          300
+          300,
+          margins
         )
 
         // Download the layout with DPI metadata (always 300 DPI)
@@ -70,7 +74,7 @@ export function useImageDownload({
         onError([error instanceof Error ? error.message : 'Failed to download layout'])
       }
     },
-    [selectedSize, backgroundColor, paperType, onError, downloadService]
+    [selectedSize, backgroundColor, paperType, margins, onError, downloadService]
   )
 
   return {
