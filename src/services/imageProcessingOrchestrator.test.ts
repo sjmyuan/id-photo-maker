@@ -64,6 +64,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
       })
@@ -92,6 +93,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
       })
@@ -118,6 +120,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: null,
       })
@@ -137,6 +140,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
       })
@@ -159,6 +163,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
       })
@@ -192,6 +197,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
         requiredDPI: 300,
@@ -227,6 +233,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: null,
         faceDetectionModel: {} as never,
       })
@@ -271,6 +278,7 @@ describe('ImageProcessingOrchestrator', () => {
         selectedSize: SIZE_OPTIONS[0],
         backgroundColor: '#FFFFFF',
         paperType: '6-inch',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         u2netModel: {} as never,
         faceDetectionModel: {} as never,
       })

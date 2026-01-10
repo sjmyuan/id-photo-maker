@@ -131,7 +131,7 @@ describe('marginValidation', () => {
     it('should return true if photo fits in printable area', () => {
       const printableArea: PrintableArea = { widthMm: 100, heightMm: 150 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 5)
+      const result = canFitPhoto(printableArea, photoSize)
       expect(result.canFit).toBe(true)
       expect(result.message).toBeUndefined()
     })
@@ -139,14 +139,14 @@ describe('marginValidation', () => {
     it('should return true if exactly one photo fits', () => {
       const printableArea: PrintableArea = { widthMm: 25, heightMm: 35 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 0)
+      const result = canFitPhoto(printableArea, photoSize)
       expect(result.canFit).toBe(true)
     })
 
     it('should return false if photo is wider than printable area', () => {
       const printableArea: PrintableArea = { widthMm: 20, heightMm: 150 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 5)
+      const result = canFitPhoto(printableArea, photoSize)
       expect(result.canFit).toBe(false)
       expect(result.message).toContain('printable area is too small')
     })
@@ -154,7 +154,7 @@ describe('marginValidation', () => {
     it('should return false if photo is taller than printable area', () => {
       const printableArea: PrintableArea = { widthMm: 100, heightMm: 30 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 5)
+      const result = canFitPhoto(printableArea, photoSize)
       expect(result.canFit).toBe(false)
       expect(result.message).toContain('printable area is too small')
     })
@@ -164,14 +164,14 @@ describe('marginValidation', () => {
       // we should still allow it since at minimum one photo can fit
       const printableArea: PrintableArea = { widthMm: 30, heightMm: 40 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 10) // 10mm spacing parameter is noted but not enforced for single photo
+      const result = canFitPhoto(printableArea, photoSize) // Spacing is not required for single photo
       expect(result.canFit).toBe(true) // Single photo fits in available space
     })
 
     it('should return true with zero spacing', () => {
       const printableArea: PrintableArea = { widthMm: 25, heightMm: 35 }
       const photoSize = { widthMm: 25, heightMm: 35 }
-      const result = canFitPhoto(printableArea, photoSize, 0)
+      const result = canFitPhoto(printableArea, photoSize)
       expect(result.canFit).toBe(true)
     })
   })

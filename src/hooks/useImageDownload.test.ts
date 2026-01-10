@@ -49,6 +49,7 @@ describe('useImageDownload', () => {
         selectedSize: SIZE_OPTIONS[0],
         paperType: '6-inch',
         backgroundColor: '#0000FF',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         onError: vi.fn(),
       })
     )
@@ -67,6 +68,7 @@ describe('useImageDownload', () => {
           selectedSize: SIZE_OPTIONS[0],
           paperType: '6-inch',
           backgroundColor: '#0000FF',
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
           onError,
         })
       )
