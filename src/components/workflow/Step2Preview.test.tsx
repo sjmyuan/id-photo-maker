@@ -79,4 +79,34 @@ describe('Step2Preview', () => {
     expect(screen.getByTestId('next-button')).not.toBeDisabled()
     expect(screen.getByTestId('back-button')).not.toBeDisabled()
   })
+
+  describe('Button Layout and Grouping', () => {
+    it('renders primary action section', () => {
+      render(<Step2Preview {...defaultProps} />)
+      expect(screen.getByTestId('primary-actions')).toBeInTheDocument()
+    })
+
+    it('renders navigation actions section', () => {
+      render(<Step2Preview {...defaultProps} />)
+      expect(screen.getByTestId('navigation-actions')).toBeInTheDocument()
+    })
+
+    it('groups back and next buttons together', () => {
+      render(<Step2Preview {...defaultProps} />)
+      const navigationSection = screen.getByTestId('navigation-actions')
+      const backButton = screen.getByTestId('back-button')
+      const nextButton = screen.getByTestId('next-button')
+      
+      expect(navigationSection).toContainElement(backButton)
+      expect(navigationSection).toContainElement(nextButton)
+    })
+
+    it('places primary action in separate section', () => {
+      render(<Step2Preview {...defaultProps} />)
+      const primarySection = screen.getByTestId('primary-actions')
+      const downloadButton = screen.getByTestId('download-id-photo-button')
+      
+      expect(primarySection).toContainElement(downloadButton)
+    })
+  })
 })

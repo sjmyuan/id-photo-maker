@@ -107,4 +107,32 @@ describe('Step3Layout', () => {
     expect(screen.getByTestId('download-print-layout-button')).not.toBeDisabled()
     expect(screen.getByTestId('back-button')).not.toBeDisabled()
   })
+
+  describe('Button Layout and Grouping', () => {
+    it('renders primary action section', () => {
+      render(<Step3Layout {...defaultProps} />)
+      expect(screen.getByTestId('primary-actions')).toBeInTheDocument()
+    })
+
+    it('renders navigation actions section', () => {
+      render(<Step3Layout {...defaultProps} />)
+      expect(screen.getByTestId('navigation-actions')).toBeInTheDocument()
+    })
+
+    it('places back button in navigation section', () => {
+      render(<Step3Layout {...defaultProps} />)
+      const navigationSection = screen.getByTestId('navigation-actions')
+      const backButton = screen.getByTestId('back-button')
+      
+      expect(navigationSection).toContainElement(backButton)
+    })
+
+    it('places download button in primary section', () => {
+      render(<Step3Layout {...defaultProps} />)
+      const primarySection = screen.getByTestId('primary-actions')
+      const downloadButton = screen.getByTestId('download-print-layout-button')
+      
+      expect(primarySection).toContainElement(downloadButton)
+    })
+  })
 })
