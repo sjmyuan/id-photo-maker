@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MainWorkflow } from './MainWorkflow'
+import { ToastProvider } from '../components/toast/ToastProvider'
+
+// Helper function to render MainWorkflow with ToastProvider
+function renderMainWorkflow() {
+  return render(
+    <ToastProvider>
+      <MainWorkflow />
+    </ToastProvider>
+  )
+}
 
 // Mock Image to avoid async loading issues in tests
 class MockImage {
@@ -95,7 +105,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it('should start at step 1 (upload step)', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Step 1 should show upload interface
     expect(screen.getByTestId('upload-step')).toBeInTheDocument()
@@ -103,7 +113,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it('should not show step 2 content initially', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Step 2 should not be visible initially
     expect(screen.queryByTestId('edit-step')).not.toBeInTheDocument()
@@ -115,7 +125,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     // Wait for models to load
@@ -140,7 +150,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -162,7 +172,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     const userEvent = (await import('@testing-library/user-event')).default
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -192,7 +202,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     const userEvent = (await import('@testing-library/user-event')).default
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -219,7 +229,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
 
   // Obsolete tests - these test the old single-view layout which has been refactored to a two-step wizard
   it.skip('should render upper area for image preview (original and processed)', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Upper area should have containers for original and processed images
     const previewArea = screen.getByTestId('preview-area')
@@ -231,7 +241,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it.skip('should render lower area with all controls: upload, size selector, background selector, download', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Lower area should have all controls
     const controlsArea = screen.getByTestId('controls-area')
@@ -251,7 +261,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it.skip('should display all controls immediately without step-based navigation', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // All controls should be visible at the same time
     expect(screen.getByTestId('upload-control')).toBeVisible()
@@ -261,7 +271,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it('should not have any "Continue" or step navigation buttons', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Should not have step navigation buttons (use exact matching to avoid false positives)
     expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument()
@@ -271,7 +281,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it.skip('should have 1-inch size selected by default', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Check that 1-inch button has selected styling
     const oneInchButton = screen.getByRole('button', { name: /1 inch/i })
@@ -279,7 +289,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it.skip('should have blue background color selected by default', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Check that blue preset is selected
     const blueButton = screen.getByRole('button', { name: 'Blue' })
@@ -291,7 +301,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it.skip('should have download button disabled when no image is uploaded', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     const downloadButton = screen.getByTestId('download-button')
     expect(downloadButton).toBeDisabled()
@@ -300,7 +310,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   it.skip('should not cause infinite loops when crop area changes', async () => {
     // This test verifies that handleCropAreaChange maintains stable reference
     // and doesn't trigger infinite re-renders in CropEditor component
-    const { container } = render(<MainWorkflow />)
+    const { container } = renderMainWorkflow()
     
     // Verify component renders without throwing maximum update depth error
     expect(container).toBeTruthy()
@@ -315,7 +325,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   it('should use original image for face detection, not the processed image', async () => {
     // This test will fail initially because the current implementation uses processedUrl
     // After the fix, it should pass when originalUrl is used instead
-    render(<MainWorkflow />)
+    renderMainWorkflow()
 
     // Wait for models to load
     await waitFor(() => {
@@ -362,7 +372,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     // Mock processWithU2Net
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
 
     // Wait for models to load
     await waitFor(() => {
@@ -408,7 +418,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 
   it('should show size selector in step 1', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Step 1 should show size selection
     expect(screen.getByTestId('size-selector-step1')).toBeInTheDocument()
@@ -424,7 +434,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 
   it('should have 1-inch size selected by default in step 1', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Check that Small 1-inch button has selected styling (first option, default)
     const smallOneInchButton = screen.getByText('Small 1 Inch').closest('button')
@@ -433,7 +443,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
 
   it('should allow selecting different photo sizes in step 1', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     // Select Large 1-inch size
@@ -449,14 +459,14 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 
   it('should show color selector in step 1', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Step 1 should show color selection
     expect(screen.getByTestId('color-selector-step1')).toBeInTheDocument()
   })
 
   it('should have blue background color selected by default in step 1', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Check that blue is selected by default
     const blueButton = screen.getByTestId('color-blue')
@@ -465,7 +475,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
 
   it('should allow selecting different background colors in step 1', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     // Select red color
@@ -481,7 +491,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 
   it('should display size, color, and paper type selectors in a vertical stack layout', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     const selectorsContainer = screen.getByTestId('selectors-container')
     
@@ -495,7 +505,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
   })
 
   it('should have 6-inch paper type selected by default in step 1', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     const sixInchButton = screen.getByTestId('paper-6-inch-button')
     expect(sixInchButton).toHaveClass('border-blue-600')
@@ -505,7 +515,7 @@ describe('MainWorkflow - Step 1 Configuration Tests', () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const user = userEvent.setup()
     
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     const a4Button = screen.getByTestId('paper-a4-button')
     await user.click(a4Button)
@@ -528,7 +538,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
     vi.mocked(detectFaces).mockResolvedValue({ faces: [], error: 'no-face-detected' })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -562,7 +572,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
     })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -593,7 +603,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
     })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -625,7 +635,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
     })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -661,7 +671,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
     })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -693,7 +703,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -715,7 +725,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -741,7 +751,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -764,7 +774,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -789,14 +799,14 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
   })
 
   it('should display image placeholder initially', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Image placeholder should be visible in step 1
     expect(screen.getByTestId('image-placeholder')).toBeInTheDocument()
   })
 
   it('should render "Upload Image" button initially', () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     // Should show "Upload Image" button
     const uploadButton = screen.getByTestId('upload-or-generate-button')
@@ -805,7 +815,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
   })
 
   it('should trigger hidden file input when "Upload Image" button is clicked', async () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     await waitFor(() => {
       const uploadButton = screen.getByTestId('upload-or-generate-button')
@@ -822,7 +832,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
   })
 
   it('should show uploaded image in placeholder after file selection', async () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     await waitFor(() => {
       const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -842,7 +852,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
   })
 
   it('should change button to "Generate Preview" after file upload', async () => {
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     await waitFor(() => {
       const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -868,7 +878,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     
     await waitFor(() => {
       const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -895,7 +905,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
     const { processWithU2Net } = await import('../services/mattingService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -933,7 +943,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
       error: undefined 
     })
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -976,7 +986,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
     })
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-    render(<MainWorkflow />)
+    renderMainWorkflow()
     const user = userEvent.setup()
     
     await waitFor(() => {
@@ -1014,7 +1024,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
   describe('Step 1: Settings & Upload', () => {
     it('should show step indicator with step 1 active', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       // Wait for models to load
       await waitFor(() => {
@@ -1031,7 +1041,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should show all settings (size, background, paper type)', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1045,7 +1055,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should show upload interface', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1059,7 +1069,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should show image placeholder before upload', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1071,7 +1081,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should show uploaded image preview after file selection', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1090,7 +1100,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should change button text to "Generate ID Photo" after file upload', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1112,7 +1122,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
     })
 
     it('should not show Step 2 or Step 3 content initially', async () => {
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       
       await waitFor(() => {
         const fileInput = screen.getByTestId('file-input') as HTMLInputElement
@@ -1136,7 +1146,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1171,7 +1181,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1201,7 +1211,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1231,7 +1241,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1261,7 +1271,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1291,7 +1301,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1330,7 +1340,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1372,7 +1382,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1408,7 +1418,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1444,7 +1454,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1480,7 +1490,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1525,7 +1535,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1561,7 +1571,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1601,7 +1611,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {
@@ -1648,7 +1658,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
       const { processWithU2Net } = await import('../services/mattingService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
-      render(<MainWorkflow />)
+      renderMainWorkflow()
       const user = userEvent.setup()
       
       await waitFor(() => {

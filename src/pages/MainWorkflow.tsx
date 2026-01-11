@@ -11,10 +11,10 @@ import { LanguageSelector } from '../components/language/LanguageSelector'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useModelLoading } from '../hooks/useModelLoading'
 import { useImageDownload } from '../hooks/useImageDownload'
-import { useNotificationState } from '../hooks/useNotificationState'
 import { useWorkflowSteps } from '../hooks/useWorkflowSteps'
 import { FileUploadService } from '../services/fileUploadService'
 import { ImageProcessingOrchestrator } from '../services/imageProcessingOrchestrator'
+import { useToast } from '../components/toast/ToastProvider'
 
 interface ImageData {
   originalFile: File
@@ -59,7 +59,7 @@ export function MainWorkflow() {
   const [isProcessing, setIsProcessing] = useState(false)
   
   // Custom hooks for single responsibilities
-  const { errors, warnings, setErrors, setWarnings, clearNotifications } = useNotificationState()
+  const { showInfo, showSuccess, showWarning, showError } = useToast()
   const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
   const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
@@ -68,7 +68,9 @@ export function MainWorkflow() {
     paperType,
     backgroundColor,
     margins: currentMargins,
-    onError: setErrors,
+    onError: (errors: string[]) => {
+      errors.forEach((error) => showError(error))
+    },
   })
   
   // Services (using refs to maintain instance across renders)
@@ -83,6 +85,13 @@ export function MainWorkflow() {
     }
   }, [])
 
+  // Show loading toast when models are loading
+  useEffect(() => {
+    if (isLoadingU2Net) {
+      showInfo(t('common.loading'))
+    }
+  }, [isLoadingU2Net, showInfo, t])
+
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -90,15 +99,15 @@ export function MainWorkflow() {
       if (!file) return
 
       // Clear previous state
-      clearNotifications()
       setImageData(null)
 
       // Handle upload with service
       const uploaded = fileUploadService.current.handleUpload(file)
       setUploadedFile(uploaded.file)
       setUploadedImageUrl(uploaded.url)
+      showInfo(t('step1.imageUploaded'))
     },
-    [clearNotifications]
+    [showInfo, t]
   )
 
   // Handle processing (triggered by "Generate Preview" button)
@@ -107,9 +116,9 @@ export function MainWorkflow() {
       if (!uploadedFile) return
 
       // Reset state
-      clearNotifications()
       setImageData(null)
       setIsProcessing(true)
+      showInfo(t('common.processing'))
       start()
 
       try {
@@ -126,18 +135,19 @@ export function MainWorkflow() {
         })
 
         if (result.errors && result.errors.length > 0) {
-          setErrors(result.errors.map((e) => translateError(e.message)))
+          result.errors.forEach((e) => showError(translateError(e.message)))
           stop()
           setIsProcessing(false)
           return
         }
 
         if (result.warnings && result.warnings.length > 0) {
-          setWarnings(result.warnings)
+          result.warnings.forEach((warning) => showWarning(warning))
         }
 
         if (result.result) {
           setImageData(result.result)
+          showSuccess(t('step2.processSuccess'))
           // Advance to Step 2
           nextStep()
         }
@@ -145,7 +155,7 @@ export function MainWorkflow() {
         stop()
         setIsProcessing(false)
       } catch (error) {
-        setErrors([error instanceof Error ? error.message : 'Processing failed'])
+        showError(error instanceof Error ? error.message : 'Processing failed')
         stop()
         setIsProcessing(false)
       }
@@ -160,11 +170,13 @@ export function MainWorkflow() {
       selectedSize,
       paperType,
       currentMargins,
-      clearNotifications,
-      setErrors,
-      setWarnings,
+      showInfo,
+      showSuccess,
+      showWarning,
+      showError,
       nextStep,
       translateError,
+      t,
     ]
   )
 
@@ -191,12 +203,12 @@ export function MainWorkflow() {
 
   const handleDownload = async () => {
     await downloadPhoto(imageData?.croppedPreviewUrl || null)
+    showSuccess(t('step2.downloadSuccess'))
   }
 
   const handleBackToSettings = () => {
     // Clear only processed data, preserve uploaded file
     setImageData(null)
-    clearNotifications()
 
     // Return to Step 1 (keeps uploadedFile and uploadedImageUrl)
     goToStep(1)
@@ -204,7 +216,8 @@ export function MainWorkflow() {
 
   const handleDownloadLayout = useCallback(async () => {
     await downloadLayout(imageData?.transparentCanvas || null)
-  }, [imageData, downloadLayout])
+    showSuccess(t('step3.downloadSuccess'))
+  }, [imageData, downloadLayout, showSuccess, t])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -228,24 +241,6 @@ export function MainWorkflow() {
           <div className="bg-white rounded-lg shadow p-8">
             {/* Step Indicator */}
             <StepIndicator currentStep={currentStep} />
-            
-            {isLoadingU2Net && (
-              <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 text-sm rounded">
-                {t('common.loading')}
-              </div>
-            )}
-            
-            {warnings.length > 0 && (
-              <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 text-sm rounded">
-                {warnings.map((warning, i) => <div key={i}>{warning}</div>)}
-              </div>
-            )}
-            
-            {errors.length > 0 && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
-                {errors.map((error, i) => <div key={i}>{error}</div>)}
-              </div>
-            )}
             
             {/* Step 1: Settings & Upload */}
             {currentStep === 1 && (

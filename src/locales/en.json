@@ -22,16 +22,20 @@
     "noImageUploaded": "No image uploaded",
     "uploadImage": "Upload Image",
     "generateIdPhoto": "Generate ID Photo",
-    "changeImage": "Change Image"
+    "changeImage": "Change Image",
+    "imageUploaded": "Image uploaded successfully"
   },
   "step2": {
     "title": "ID Photo Preview",
     "downloadIdPhoto": "Download ID Photo",
-    "generatePrintLayout": "Generate Print Layout"
+    "generatePrintLayout": "Generate Print Layout",
+    "processSuccess": "ID photo generated successfully!",
+    "downloadSuccess": "Photo downloaded successfully"
   },
   "step3": {
     "title": "Print Layout Preview",
-    "downloadPrintLayout": "Download Print Layout"
+    "downloadPrintLayout": "Download Print Layout",
+    "downloadSuccess": "Print layout downloaded successfully"
   },
   "photoSize": {
     "label": "Photo Size",

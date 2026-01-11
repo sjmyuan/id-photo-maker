@@ -2,6 +2,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
+import { ToastProvider } from './components/toast/ToastProvider'
+
+// Helper function to render App with required providers
+function renderApp(initialEntries: string[] = ['/']) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </MemoryRouter>
+  )
+}
 
 // Mock the services
 vi.mock('./services/imageValidation', () => ({
@@ -28,20 +40,12 @@ vi.mock('./utils/deviceCapability', () => ({
 
 describe('App', () => {
   it('renders the app title', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    )
+    renderApp()
     expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
   })
 
   it('should display ImageUpload component initially', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    )
+    renderApp()
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })
 
@@ -193,11 +197,7 @@ describe('App', () => {
   })
 
   it('should navigate to main page at root route', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    )
+    renderApp()
     expect(screen.getByText('ID Photo Maker')).toBeInTheDocument()
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
   })

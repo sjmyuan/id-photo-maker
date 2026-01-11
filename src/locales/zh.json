@@ -22,16 +22,20 @@
     "noImageUploaded": "未上传图片",
     "uploadImage": "上传图片",
     "generateIdPhoto": "生成证件照",
-    "changeImage": "更换图片"
+    "changeImage": "更换图片",
+    "imageUploaded": "图片上传成功"
   },
   "step2": {
     "title": "证件照预览",
     "downloadIdPhoto": "下载证件照",
-    "generatePrintLayout": "生成打印排版"
+    "generatePrintLayout": "生成打印排版",
+    "processSuccess": "证件照生成成功！",
+    "downloadSuccess": "照片下载成功"
   },
   "step3": {
     "title": "打印排版预览",
-    "downloadPrintLayout": "下载打印排版"
+    "downloadPrintLayout": "下载打印排版",
+    "downloadSuccess": "打印排版下载成功"
   },
   "photoSize": {
     "label": "照片尺寸",
