@@ -113,8 +113,8 @@ function preprocessImage(image: HTMLImageElement): { tensor: ort.Tensor; origina
   originalCtx.drawImage(image, 0, 0, image.width, image.height);
 
   // Step 2: Apply sharpening to the original image
-  let sharpenedImageData = originalCtx.getImageData(0, 0, image.width, image.height);
-  sharpenedImageData = sharpenImage(sharpenedImageData);
+  const sharpenedImageData = originalCtx.getImageData(0, 0, image.width, image.height);
+  //sharpenedImageData = sharpenImage(sharpenedImageData);
 
   // Step 3: Draw the sharpened image onto a 320x320 canvas
   const resizedCanvas = document.createElement('canvas');
