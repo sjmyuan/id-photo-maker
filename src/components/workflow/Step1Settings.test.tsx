@@ -20,7 +20,7 @@ describe('Step1Settings', () => {
     uploadedImageUrl: null,
     uploadedFile: null,
     isProcessing: false,
-    isLoadingU2Net: false,
+    modelsLoaded: true,
     onSizeChange: vi.fn(),
     onColorChange: vi.fn(),
     onPaperTypeChange: vi.fn(),
@@ -127,10 +127,10 @@ describe('Step1Settings', () => {
     expect(fileInput).toBeDisabled()
   })
 
-  it('disables controls when loading U2Net model', () => {
+  it('disables controls when models are not loaded', () => {
     const props = {
       ...defaultProps,
-      isLoadingU2Net: true,
+      modelsLoaded: false,
     }
     render(<Step1Settings {...props} />)
     const button = screen.getByTestId('upload-or-generate-button')

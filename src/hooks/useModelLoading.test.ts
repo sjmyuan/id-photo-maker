@@ -188,4 +188,80 @@ describe('useModelLoading', () => {
       expect(faceDetectionService.loadFaceDetectionModel).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('model load completion tracking', () => {
+    it('should start with modelsLoaded as false', () => {
+      const { result } = renderHook(() => useModelLoading())
+
+      expect(result.current.modelsLoaded).toBe(false)
+    })
+
+    it('should set modelsLoaded to true when both models load successfully', async () => {
+      const { result } = renderHook(() => useModelLoading())
+
+      expect(result.current.modelsLoaded).toBe(false)
+
+      await waitFor(() => {
+        expect(result.current.modelsLoaded).toBe(true)
+      })
+
+      expect(result.current.u2netModel).toBe(mockU2NetModel)
+      expect(result.current.faceDetectionModel).toBe(mockFaceDetectionModel)
+    })
+
+    it('should not set modelsLoaded to true if U2Net model fails to load', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(u2netService.loadU2NetModel).mockRejectedValue(new Error('Failed'))
+
+      const { result } = renderHook(() => useModelLoading())
+
+      await waitFor(() => {
+        expect(result.current.isLoadingU2Net).toBe(false)
+        expect(result.current.isLoadingFaceDetection).toBe(false)
+      })
+
+      expect(result.current.modelsLoaded).toBe(false)
+      expect(result.current.u2netModel).toBeNull()
+      expect(result.current.faceDetectionModel).toBe(mockFaceDetectionModel)
+
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('should not set modelsLoaded to true if face detection model fails to load', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(faceDetectionService.loadFaceDetectionModel).mockRejectedValue(new Error('Failed'))
+
+      const { result } = renderHook(() => useModelLoading())
+
+      await waitFor(() => {
+        expect(result.current.isLoadingU2Net).toBe(false)
+        expect(result.current.isLoadingFaceDetection).toBe(false)
+      })
+
+      expect(result.current.modelsLoaded).toBe(false)
+      expect(result.current.u2netModel).toBe(mockU2NetModel)
+      expect(result.current.faceDetectionModel).toBeNull()
+
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('should not set modelsLoaded to true if both models fail to load', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(u2netService.loadU2NetModel).mockRejectedValue(new Error('Failed'))
+      vi.mocked(faceDetectionService.loadFaceDetectionModel).mockRejectedValue(new Error('Failed'))
+
+      const { result } = renderHook(() => useModelLoading())
+
+      await waitFor(() => {
+        expect(result.current.isLoadingU2Net).toBe(false)
+        expect(result.current.isLoadingFaceDetection).toBe(false)
+      })
+
+      expect(result.current.modelsLoaded).toBe(false)
+      expect(result.current.u2netModel).toBeNull()
+      expect(result.current.faceDetectionModel).toBeNull()
+
+      consoleErrorSpy.mockRestore()
+    })
+  })
 })

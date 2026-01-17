@@ -412,6 +412,48 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 })
 
+describe('MainWorkflow - Model Loading Messages', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show loading message when models are loading', () => {
+    renderMainWorkflow()
+    
+    // Should show loading toast
+    expect(screen.getByText('Loading AI model...')).toBeInTheDocument()
+  })
+
+  it('should show completion message when models finish loading', async () => {
+    renderMainWorkflow()
+    
+    // Wait for models to load and completion message to appear
+    await waitFor(() => {
+      expect(screen.getByText('AI models loaded successfully!')).toBeInTheDocument()
+    }, { timeout: 3000 })
+  })
+
+  it('should not show completion message if models fail to load', async () => {
+    // Mock both models to fail
+    const { loadU2NetModel } = await import('../services/u2netService')
+    const { loadFaceDetectionModel } = await import('../services/faceDetectionService')
+    vi.mocked(loadU2NetModel).mockRejectedValueOnce(new Error('Failed to load U2Net'))
+    vi.mocked(loadFaceDetectionModel).mockRejectedValueOnce(new Error('Failed to load face detection'))
+    
+    renderMainWorkflow()
+    
+    // Wait a bit to ensure models have time to fail
+    await waitFor(() => {
+      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
+      // File input should remain disabled when models fail
+      expect(fileInput).toBeDisabled()
+    }, { timeout: 3000 })
+    
+    // Should not show completion message
+    expect(screen.queryByText('AI models loaded successfully!')).not.toBeInTheDocument()
+  })
+})
+
 describe('MainWorkflow - Step 1 Configuration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()

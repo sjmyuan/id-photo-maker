@@ -31,11 +31,6 @@ The knowledge section contains information about the software project, including
 
 The rules section outlines decision criteria that determine which skills to apply based on the current context and user inputs.
 
-<rule> Identify whether the user input is a requirement, refactor request, or bug report. </rule>
+<rule> Identify whether the user input is a requirement, refactor request, or bug report, then invoke the appropriate skills. </rule>
 
-<rule> After completing the implementation, refactor, or bug-fixing plan, update the epics, stories and ACs in requirements.md to reflect the requirement changes and update architecture.md to reflect the design changes. </rule>
-
-<rule> Think aloud and explain your approach before making any code changes. </rule>
-<rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
-<rule> Always use commands in package.json scripts for  running tests, building, linting, and other common tasks. </rule>
-</rules>
+<rules>

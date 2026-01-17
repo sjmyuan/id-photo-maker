@@ -62,7 +62,7 @@ export function MainWorkflow() {
   const { showInfo, showSuccess, showWarning, showError } = useToast()
   const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
-  const { u2netModel, faceDetectionModel, isLoadingU2Net } = useModelLoading()
+  const { u2netModel, faceDetectionModel, isLoadingU2Net, modelsLoaded } = useModelLoading()
   const { downloadPhoto, downloadLayout } = useImageDownload({
     selectedSize,
     paperType,
@@ -85,12 +85,23 @@ export function MainWorkflow() {
     }
   }, [])
 
+  // Track if we've already shown the completion message (to prevent re-showing on re-renders)
+  const completionMessageShown = useRef(false)
+
   // Show loading toast when models are loading
   useEffect(() => {
     if (isLoadingU2Net) {
       showInfo(t('common.loading'))
     }
   }, [isLoadingU2Net, showInfo, t])
+
+  // Show completion message when models finish loading successfully
+  useEffect(() => {
+    if (modelsLoaded && !completionMessageShown.current) {
+      completionMessageShown.current = true
+      showSuccess(t('common.modelLoadComplete'))
+    }
+  }, [modelsLoaded, showSuccess, t])
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -252,7 +263,7 @@ export function MainWorkflow() {
                 uploadedImageUrl={uploadedImageUrl}
                 uploadedFile={uploadedFile}
                 isProcessing={isProcessing}
-                isLoadingU2Net={isLoadingU2Net}
+                modelsLoaded={modelsLoaded}
                 onSizeChange={handleSizeChange}
                 onColorChange={handleBackgroundChange}
                 onPaperTypeChange={handlePaperTypeChange}

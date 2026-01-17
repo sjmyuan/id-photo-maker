@@ -10,6 +10,7 @@
   },
   "common": {
     "loading": "正在加载AI模型...",
+    "modelLoadComplete": "AI模型加载成功！",
     "processing": "处理中...",
     "back": "返回",
     "backToSettings": "返回设置",

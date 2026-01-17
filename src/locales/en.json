@@ -10,6 +10,7 @@
   },
   "common": {
     "loading": "Loading AI model...",
+    "modelLoadComplete": "AI models loaded successfully!",
     "processing": "Processing...",
     "back": "Back",
     "backToSettings": "Back to Settings",
