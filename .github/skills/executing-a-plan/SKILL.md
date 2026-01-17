@@ -1,10 +1,10 @@
 ---
 name: executing-a-plan
-description: Execute a predefined plan step by step, tracking progress and updating the status of each step as you go. Use this skill whenever you need to systematically carry out an outlined plan.
+description: Execute an outlined plan step by step, tracking progress and updating the status of each step as you go. Use this skill whenever you need to execute an outlined plan.
 ---
 
 <when-to-use-this-skill>
-- You need to systematically carry out an outlined plan.
+- You need to execute an outlined plan.
 </when-to-use-this-skill>
 
 <rules>
@@ -16,6 +16,4 @@ The rules section outlines decision criteria that determine which capabilities t
 <rule> **DO NOT MODIFY THE PLAN EXCEPT TO UPDATE THE STATUS OF STEPS.** </rule>
 <rule> After every 10 completed steps, present a summary of the plan's current status. </rule>
 <rule> Think aloud and explain your approach before making any code changes. </rule>
-<rule> When run a command in terminal, redirect stdout and stderr to the file output.log in the project folder, then read the file to get the output. </rule>
-
 </rules>

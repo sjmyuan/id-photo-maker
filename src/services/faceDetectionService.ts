@@ -35,6 +35,7 @@ export async function loadFaceDetectionModel(): Promise<FaceDetectionModel> {
       faceDetection.SupportedModels.MediaPipeFaceDetector,
       {
         runtime: 'tfjs',
+        detectorModelUrl: '/face-detection-models/model.json',
       }
     )
     

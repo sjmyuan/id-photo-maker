@@ -38,6 +38,25 @@ describe('faceDetectionService', () => {
       expect(model.status).toBe('loaded')
     })
 
+    it('should load model from local path using detectorModelUrl', async () => {
+      const mockDetector = {
+        estimateFaces: vi.fn(),
+        dispose: vi.fn(),
+      }
+      
+      vi.mocked(faceDetection.createDetector).mockResolvedValue(mockDetector as unknown as faceDetection.FaceDetector)
+
+      await loadFaceDetectionModel()
+
+      expect(faceDetection.createDetector).toHaveBeenCalledWith(
+        faceDetection.SupportedModels.MediaPipeFaceDetector,
+        expect.objectContaining({
+          runtime: 'tfjs',
+          detectorModelUrl: expect.stringContaining('/face-detection-models/model.json')
+        })
+      )
+    })
+
     it('should throw error when model fails to load', async () => {
       vi.mocked(faceDetection.createDetector).mockRejectedValue(new Error('Model not found'))
 
