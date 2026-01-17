@@ -3,24 +3,22 @@ name: implementing-a-requirement
 description: Clarify and structure the requirement first, then generate an implementation plan for the requirement, and execute the plan step by step; Use this skill when user submits a requirement to add new functionalities.
 ---
 
-# Implementing a requirement
+<when-to-use-this-skill>
+- User submits a requirement to add new functionalities.
+</when-to-use-this-skill>
 
-This skill helps you
-- Clarify and structure the requirement 
-- Generate a plan to implement the requirement
-- Complete the plan step by step
+<capabilities>
 
-# When to use this skill
+The capabilities section describes additional capabilities that you can refer to.
 
-Use this skill when user submits a requirement to add new functionalities.
-
-# Guidance to implement a requirement
-
+<defining-requirement>
 - Gather relevant information from the codebase, knowledge base, and user input to clearly define the software requirement.
 - Identify and clarify any ambiguous terms or implicit assumptions to ensure proper understanding.
 - Ask questions to the user to refine and narrow down the focus of the software requirement as needed.
 - Present a structured summary of the requirement to the user and request confirmation or refinements.
+</defining-requirement>
 
+<implementation-planning>
 - Break down high-level software requirements into specific, independently testable functionalities.
 - Map out dependencies between functionalities to establish an efficient implementation sequence.
 - Create a detailed step-by-step implementation plan for the functionalities following the tdd approach. for each functionality, the steps should include:
@@ -52,7 +50,16 @@ Use this skill when user submits a requirement to add new functionalities.
   - ...
 
   I will update the #todo tool to match this plan and proceed to implement the requirement step by step as outlined.
-  Aside from the status of steps, I will not modify the steps of the plan in the #todo tool.
-  """
 
-- Implement the requirement step by step as outlined. And aside from the status of steps, do not modify the steps of the plan in the #todo tool.
+  """
+</implementation-planning>
+
+</capabilities>
+
+<rules>
+
+The rules section outlines decision criteria that determine which capabilities to apply based on the current context and user inputs.
+
+<rule> If user submit a requirement, apply the **defining-requirement** capability to clarify and structure it. </rule>
+<rule> After defining the requirement, apply the **implementation-planning** capability to generate an implementation plan. </rule>
+</rules>

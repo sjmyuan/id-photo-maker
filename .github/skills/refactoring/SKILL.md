@@ -3,24 +3,23 @@ name: refactoring
 description: Clarify the scope, objectives, and constraints of the refactor request first, then generate a refactoring plan for the refactor request, and execute the plan step by step. Use this skill when the user submits a refactor request to refactor existing functionality.
 ---
 
-# Refactoring
+<when-to-use-this-skill>
+- User submits a refactor request to refactor existing functionalities
+</when-to-use-this-skill>
 
-This skill helps you
-- Clarify the scope, objectives, and constraints of the refactor request.
-- Generate a plan to refactor existing functionality.
-- Complete the plan step by step.
 
-# When to use this skill
+<capabilities>
 
-Use this skill when the user submits a refactor request to refactor existing functionality.
+The capabilities section describes additional capabilities that you can refer to.
 
-# Guidance to refactor existing functionality
-
+<defining-refactor-request>
 - Gather relevant information from the codebase, knowledge base, and user input to clearly define the refactor request.
 - Identify and clarify any ambiguous terms or implicit assumptions to ensure proper understanding.
 - Ask questions to the user to refine and narrow down the focus of the refactor request as needed.
 - Present a structured summary of the refactor request to the user and request confirmation or refinements.
+</defining-refactor-request>
 
+<refactor-planning>
 - Break down the refactor request into specific, measurable objectives and clearly defined constraints.
 - Identify and map dependencies between objectives to establish an efficient and logical refactoring sequence.
 - Create a detailed step-by-step refactor plan following the TDD approach. For each objective, the steps should include:
@@ -55,6 +54,14 @@ Use this skill when the user submits a refactor request to refactor existing fun
   - ... 
   
   I will update the #todo tool to match this plan and proceed to refactor the code step by step as outlined.
-  Aside from the status of steps, I will not modify the steps of the plan in the #todo tool.
   """
-- Refactor the existing functionality step by step as outlined. And aside from the status of steps, do not modify the steps of the plan in the #todo tool.
+</refactor-planning>
+<capabilities>
+
+<rules>
+
+The rules section outlines decision criteria that determine which capabilities to apply based on the current context and user inputs.
+
+<rule> If the user submits a refactoring request, apply the **defining-refactor-request** capability to clarify the scope, objectives, and constraints of the refactor request. </rule>
+<rule> After clarifying the scope, objectives and constraints of the refactor request, apply the **refactor-planning** capability to generate a refactor plan. </rule>
+</rules>
