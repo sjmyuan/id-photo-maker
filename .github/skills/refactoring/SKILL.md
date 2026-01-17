@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: Clarify the scope, objectives, and constraints of the refactor request first, then generate a refactoring plan for the refactor request, and execute the plan step by step. Use this skill when the user submits a refactor request to refactor existing functionality.
+description: Clarify the scope, objectives, and constraints of the refactor request first, then generate a refactoring plan for the refactor request. Use this skill when the user submits a refactor request to refactor existing functionality.
 ---
 
 <when-to-use-this-skill>

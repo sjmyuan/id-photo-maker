@@ -1,6 +1,6 @@
 ---
 name: implementing-a-requirement
-description: Clarify and structure the requirement first, then generate an implementation plan for the requirement, and execute the plan step by step; Use this skill when user submits a requirement to add new functionalities.
+description: Clarify and structure the requirement first, then generate an implementation plan for the requirement; Use this skill when user submits a requirement to add new functionalities.
 ---
 
 <when-to-use-this-skill>
