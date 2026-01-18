@@ -35,9 +35,7 @@ URL.createObjectURL = vi.fn(() => 'blob:mock-url')
 URL.revokeObjectURL = vi.fn()
 
 // Mock the services
-vi.mock('../services/u2netService', () => ({
-  loadU2NetModel: vi.fn(() => Promise.resolve({ session: {} })),
-}))
+
 
 vi.mock('../services/faceDetectionService', () => ({
   loadFaceDetectionModel: vi.fn(() => Promise.resolve({ session: {} })),
@@ -48,17 +46,29 @@ vi.mock('../services/faceDetectionService', () => ({
   })),
 }))
 
-vi.mock('../services/mattingService', () => ({
-  mockMattingService: vi.fn(() => Promise.resolve(new Blob())),
-  processWithU2Net: vi.fn(() => Promise.resolve(new Blob())),
-  applyBackgroundColor: vi.fn((canvas: HTMLCanvasElement) => {
-    // Return a new canvas with the background applied
-    const newCanvas = document.createElement('canvas')
-    newCanvas.width = canvas.width
-    newCanvas.height = canvas.height
-    return newCanvas
-  }),
-}))
+vi.mock('../services/u2netService', async () => {
+  const actual = await vi.importActual('../services/u2netService')
+  return {
+    ...actual,
+    loadU2NetModel: vi.fn(() => Promise.resolve({ session: {} })),
+    mockMattingService: vi.fn(() => Promise.resolve(new Blob())),
+    processWithU2Net: vi.fn(() => Promise.resolve(new Blob())),
+  }
+})
+
+vi.mock('../services/canvasOperationsService', () => {
+  class MockCanvasOperationsService {
+    applyBackgroundColor(canvas: HTMLCanvasElement) {
+      const newCanvas = document.createElement('canvas')
+      newCanvas.width = canvas.width
+      newCanvas.height = canvas.height
+      return newCanvas
+    }
+  }
+  return {
+    CanvasOperationsService: MockCanvasOperationsService
+  }
+})
 
 vi.mock('../services/imageValidation', () => ({
   validateImageFile: vi.fn(() =>
@@ -73,6 +83,31 @@ vi.mock('../services/imageScaling', () => ({
 vi.mock('../services/exactCropService', () => ({
   generateExactCrop: vi.fn(() => Promise.resolve(document.createElement('canvas'))),
 }))
+
+vi.mock('../services/imageProcessingOrchestrator', () => {
+  class MockImageProcessingOrchestrator {
+    async processImage() {
+      const canvas = document.createElement('canvas')
+      canvas.width = 100
+      canvas.height = 100
+      return {
+        result: {
+          originalFile: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
+          originalUrl: 'blob:mock-original',
+          transparentCanvas: canvas,
+          cropArea: { x: 0, y: 0, width: 100, height: 100 },
+          croppedPreviewUrl: 'blob:mock-cropped',
+          printLayoutPreviewUrl: 'blob:mock-layout',
+        },
+        errors: [],
+        warnings: [],
+      }
+    }
+  }
+  return {
+    ImageProcessingOrchestrator: MockImageProcessingOrchestrator
+  }
+})
 
 // Helper function to simulate file upload in tests
 const uploadFile = (fileInput: HTMLInputElement, file: File) => {
@@ -122,7 +157,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
 
   it('should advance to step 2 after successful image processing', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -147,7 +182,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
 
   it('should show go-back button in step 2', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -168,7 +203,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it('should return to step 1 when go-back button is clicked', async () => {
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const userEvent = (await import('@testing-library/user-event')).default
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
@@ -198,7 +233,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 
   it('should clear image data when going back to step 1', async () => {
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const userEvent = (await import('@testing-library/user-event')).default
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
@@ -347,7 +382,7 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
     const { detectFaces } = await import('../services/faceDetectionService')
     const { scaleImageToTarget } = await import('../services/imageScaling')
     const { validateImageFile } = await import('../services/imageValidation')
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     
     // Mock validation to require scaling
     vi.mocked(validateImageFile).mockResolvedValue({
@@ -573,7 +608,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
 
   it('should show error when no face is detected', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     
     // Mock no face detected
@@ -601,7 +636,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
 
   it('should show error when multiple faces are detected', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     
     // Mock multiple faces detected
@@ -635,7 +670,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
 
   it('should show error when DPI requirement cannot be met', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     
     // Mock single face detected with small dimensions that will result in low DPI
@@ -666,7 +701,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
   })
 
   it('should allow processing when DPI requirement is None (no validation)', async () => {
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     const userEvent = (await import('@testing-library/user-event')).default
     
@@ -703,7 +738,7 @@ describe.skip('MainWorkflow - Face Detection and DPI Validation Tests (OBSOLETE 
 
   it('should advance to step 2 when face is detected and DPI is sufficient', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     
     // Mock single face detected with large enough dimensions for 300 DPI
@@ -742,7 +777,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
 
   it('should show processed image on the right side in step 2', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -764,7 +799,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
 
   it('should NOT show background selector in step 2 after refactor (moved to step 1)', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -790,7 +825,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
 
   it('should not show original image in step 2', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -813,7 +848,7 @@ describe.skip('MainWorkflow - Step 2 Layout Tests (OBSOLETE - Step 2 removed)', 
 
   it('should show download button and go-back button at the bottom in step 2', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -917,7 +952,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
   })
 
   it('should NOT start processing automatically after file upload', async () => {
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -944,7 +979,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
 
   it('should start processing when "Generate Preview" button is clicked', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
     renderMainWorkflow()
@@ -1018,7 +1053,7 @@ describe.skip('MainWorkflow - Refactored Upload Flow with Placeholder (OBSOLETE 
 
   it('should transition to step 2 only after successful processing', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
-    const { processWithU2Net } = await import('../services/mattingService')
+    const { processWithU2Net } = await import('../services/u2netService')
     const { detectFaces } = await import('../services/faceDetectionService')
     
     // Mock single face detected with large enough dimensions for 300 DPI
@@ -1185,7 +1220,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
   describe('Step 2: ID Photo Preview', () => {
     it('should show step indicator with step 2 active', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1220,7 +1255,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show ID photo preview', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1250,7 +1285,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show Download ID Photo button', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1280,7 +1315,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show Next button', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1310,7 +1345,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show Back button', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1340,7 +1375,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should not show Step 1 or Step 3 content', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1379,7 +1414,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
   describe('Step 3: Print Layout Preview', () => {
     it('should show step indicator with step 3 active', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1421,7 +1456,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show print layout preview', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1457,7 +1492,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show Download Print Layout button', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1493,7 +1528,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should show Back button', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1529,7 +1564,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should not show Step 1 or Step 2 content', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1574,7 +1609,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
   describe('Navigation', () => {
     it('should advance from Step 1 to Step 2 after clicking Generate ID Photo', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1610,7 +1645,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should advance from Step 2 to Step 3 after clicking Next', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1650,7 +1685,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should return to Step 2 from Step 3 when clicking Back', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()
@@ -1697,7 +1732,7 @@ describe('MainWorkflow - 3-Step Workflow', () => {
 
     it('should return to Step 1 from Step 2 when clicking Back and preserve original image', async () => {
       const userEvent = (await import('@testing-library/user-event')).default
-      const { processWithU2Net } = await import('../services/mattingService')
+      const { processWithU2Net } = await import('../services/u2netService')
       vi.mocked(processWithU2Net).mockResolvedValue(new Blob(['matted'], { type: 'image/png' }))
 
       renderMainWorkflow()

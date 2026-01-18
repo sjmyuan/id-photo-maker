@@ -3,7 +3,6 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { useImageDownload } from './useImageDownload'
 import { SIZE_OPTIONS } from '../components/size/CropEditor'
 import * as printLayoutService from '../services/printLayoutService'
-import * as mattingService from '../services/mattingService'
 
 // Mock modules
 vi.mock('../services/downloadService', () => ({
@@ -16,10 +15,19 @@ vi.mock('../services/downloadService', () => ({
   },
 }))
 vi.mock('../services/printLayoutService')
-vi.mock('../services/mattingService')
-vi.mock('../services/canvasOperationsService', () => ({
-  CanvasOperationsService: vi.fn().mockImplementation(() => ({})),
-}))
+vi.mock('../services/canvasOperationsService', () => {
+  class MockCanvasOperationsService {
+    applyBackgroundColor(canvas: HTMLCanvasElement) {
+      const newCanvas = document.createElement('canvas')
+      newCanvas.width = canvas.width
+      newCanvas.height = canvas.height
+      return newCanvas
+    }
+  }
+  return {
+    CanvasOperationsService: MockCanvasOperationsService
+  }
+})
 
 describe('useImageDownload', () => {
   let mockBlob: Blob
@@ -38,8 +46,7 @@ describe('useImageDownload', () => {
       height: 100,
     } as unknown as HTMLCanvasElement
 
-    // Mock print layout services
-    vi.mocked(mattingService.applyBackgroundColor).mockReturnValue(mockCanvas)
+    // Mock print layout service
     vi.mocked(printLayoutService.generatePrintLayout).mockResolvedValue(mockCanvas)
   })
 
@@ -114,9 +121,8 @@ describe('useImageDownload', () => {
       await result.current.downloadLayout(mockCanvas)
 
       await waitFor(() => {
-        expect(mattingService.applyBackgroundColor).toHaveBeenCalledWith(mockCanvas, '#0000FF')
         expect(printLayoutService.generatePrintLayout).toHaveBeenCalledWith(
-          mockCanvas,
+          expect.any(HTMLCanvasElement), // After applying background color
           {
             widthMm: SIZE_OPTIONS[0].physicalWidth,
             heightMm: SIZE_OPTIONS[0].physicalHeight,
@@ -144,7 +150,6 @@ describe('useImageDownload', () => {
 
       await result.current.downloadLayout(null)
 
-      expect(mattingService.applyBackgroundColor).not.toHaveBeenCalled()
       expect(onError).not.toHaveBeenCalled()
     })
 

@@ -331,3 +331,79 @@ const { tensor } = preprocessImage(image)
     throw new Error(`Failed to process image: ${error}`)
   }
 }
+
+/**
+ * Wrapper for backward compatibility
+ * Process image file with U2Net model
+ */
+export async function processWithU2Net(
+  file: File,
+  model: U2NetModel
+): Promise<Blob> {
+  // Validate file
+  if (!file || file.size === 0) {
+    throw new Error('Invalid file for matting')
+  }
+
+  // Load image from file
+  const img = new Image()
+  const imageUrl = URL.createObjectURL(file)
+  
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = imageUrl
+    })
+
+    // Process with U2Net
+    const result = await processImageWithU2Net(model, img)
+    
+    return result
+  } finally {
+    // Clean up object URL
+    URL.revokeObjectURL(imageUrl)
+  }
+}
+
+/**
+ * Mock matting service that simulates AI-powered portrait matting
+ * Used as fallback when U2Net model is not available
+ * 
+ * @param file - The image file to process
+ * @param expectedProcessingTime - Expected processing time in milliseconds based on device capability
+ * @returns A promise that resolves to the matted image as a PNG Blob
+ */
+export async function mockMattingService(
+  file: File,
+  expectedProcessingTime: number
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    // Validate file
+    if (!file || file.size === 0) {
+      reject(new Error('Invalid file for matting'))
+      return
+    }
+
+    // Simulate processing time
+    setTimeout(() => {
+      try {
+        // In a real implementation, this would:
+        // 1. Send the image to an AI model (e.g., RMBG, SAM, U2Net)
+        // 2. Process the image to detect and extract the person
+        // 3. Generate a PNG with transparent background
+        
+        // Create a mock PNG blob with reasonable size
+        // PNG signature + minimal image data
+        const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10]
+        const mockImageData = new Array(Math.min(1000, file.size)).fill(0)
+        const mockMattedData = new Uint8Array([...pngSignature, ...mockImageData])
+        
+        const blob = new Blob([mockMattedData], { type: 'image/png' })
+        resolve(blob)
+      } catch (error) {
+        reject(error)
+      }
+    }, expectedProcessingTime)
+  })
+}

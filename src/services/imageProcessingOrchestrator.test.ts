@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ImageProcessingOrchestrator } from './imageProcessingOrchestrator'
 import * as faceDetectionService from './faceDetectionService'
-import * as mattingService from './mattingService'
+import * as u2netService from './u2netService'
 import * as imageValidation from './imageValidation'
 import * as exactCropService from './exactCropService'
 import * as printLayoutService from './printLayoutService'
 import { SIZE_OPTIONS } from '../components/size/CropEditor'
 
 vi.mock('./faceDetectionService')
-vi.mock('./mattingService')
+vi.mock('./u2netService')
 vi.mock('./imageValidation')
 vi.mock('./exactCropService')
 vi.mock('./printLayoutService')
@@ -259,7 +259,7 @@ describe('ImageProcessingOrchestrator', () => {
         faces: [{ x: 100, y: 100, width: 800, height: 1000 }],
       })
 
-      vi.spyOn(mattingService, 'processWithU2Net').mockResolvedValue(
+      vi.spyOn(u2netService, 'processWithU2Net').mockResolvedValue(
         new Blob(['matted'], { type: 'image/png' })
       )
 

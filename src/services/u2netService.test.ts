@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { loadU2NetModel, processImageWithU2Net, sharpenImage, type U2NetModel } from './u2netService'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { loadU2NetModel, processImageWithU2Net, sharpenImage, mockMattingService, processWithU2Net, type U2NetModel } from './u2netService'
 import * as ort from 'onnxruntime-web'
 
 // Mock onnxruntime-web
@@ -183,6 +183,118 @@ describe('u2netService', () => {
         expect(sharpened.data[i + 2]).toBeGreaterThanOrEqual(0)
         expect(sharpened.data[i + 2]).toBeLessThanOrEqual(255)
       }
+    })
+  })
+
+  describe('mockMattingService', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should complete matting within expected time', async () => {
+      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+      const expectedTime = 3000
+
+      const promise = mockMattingService(file, expectedTime)
+      vi.advanceTimersByTime(expectedTime)
+      const result = await promise
+
+      expect(result).toBeDefined()
+      expect(result.type).toBe('image/png')
+    })
+
+    it('should return PNG format for matted image', async () => {
+      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+      const expectedTime = 3000
+
+      const promise = mockMattingService(file, expectedTime)
+      vi.advanceTimersByTime(expectedTime)
+      const result = await promise
+
+      expect(result).toBeInstanceOf(Blob)
+      expect(result.size).toBeGreaterThan(0)
+      expect(result.type).toBe('image/png')
+    })
+
+    it('should handle errors gracefully when file is invalid', async () => {
+      const file = new File([], 'test.jpg', { type: 'image/jpeg' })
+      Object.defineProperty(file, 'size', { value: 0 })
+      const expectedTime = 3000
+
+      const promise = mockMattingService(file, expectedTime)
+      vi.advanceTimersByTime(expectedTime)
+
+      await expect(promise).rejects.toThrow('Invalid file for matting')
+    })
+  })
+
+  describe('processWithU2Net', () => {
+    it('should process file with U2Net model', async () => {
+      // Mock Image
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).Image = class {
+        onload: (() => void) | null = null
+        onerror: (() => void) | null = null
+        src = ''
+        width = 320
+        height = 320
+        
+        constructor() {
+          setTimeout(() => {
+            if (this.onload) this.onload()
+          }, 0)
+        }
+      }
+
+      // Mock canvas toBlob
+      HTMLCanvasElement.prototype.toBlob = vi.fn(function(callback) {
+        const blob = new Blob(['test'], { type: 'image/png' })
+        callback(blob)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }) as any
+
+      const mockSession = {
+        run: vi.fn().mockResolvedValue({
+          output: {
+            data: new Float32Array(320 * 320),
+            dims: [1, 1, 320, 320],
+          },
+        }),
+        inputNames: ['input'],
+        outputNames: ['output'],
+      }
+      const mockModel: U2NetModel = {
+        session: mockSession as unknown as U2NetModel['session'],
+        status: 'loaded' as const,
+      }
+
+      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+      
+      // Mock URL.createObjectURL
+      const mockUrl = 'blob:mock-url'
+      URL.createObjectURL = vi.fn(() => mockUrl)
+      URL.revokeObjectURL = vi.fn()
+
+      const result = await processWithU2Net(file, mockModel)
+
+      expect(result).toBeInstanceOf(Blob)
+      expect(URL.createObjectURL).toHaveBeenCalledWith(file)
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl)
+    })
+
+    it('should reject invalid file', async () => {
+      const mockModel: U2NetModel = {
+        session: {} as U2NetModel['session'],
+        status: 'loaded' as const,
+      }
+      const file = new File([], 'test.jpg', { type: 'image/jpeg' })
+      Object.defineProperty(file, 'size', { value: 0 })
+
+      await expect(processWithU2Net(file, mockModel)).rejects.toThrow('Invalid file for matting')
     })
   })
 })

@@ -9,7 +9,7 @@ import { type PaperType } from '../components/layout/PaperTypeSelector'
 import { type PaperMargins } from '../types'
 import { DownloadService } from '../services/downloadService'
 import { generatePrintLayout } from '../services/printLayoutService'
-import { applyBackgroundColor } from '../services/mattingService'
+import { CanvasOperationsService } from '../services/canvasOperationsService'
 
 interface UseImageDownloadParams {
   selectedSize: SizeOption
@@ -27,6 +27,7 @@ export function useImageDownload({
   onError,
 }: UseImageDownloadParams) {
   const downloadService = useMemo(() => new DownloadService(), [])
+  const canvasService = useMemo(() => new CanvasOperationsService(), [])
 
   const downloadPhoto = useCallback(
     async (croppedPreviewUrl: string | null) => {
@@ -52,7 +53,7 @@ export function useImageDownload({
 
       try {
         // Apply background color to canvas before generating layout
-        const coloredCanvas = applyBackgroundColor(transparentCanvas, backgroundColor)
+        const coloredCanvas = canvasService.applyBackgroundColor(transparentCanvas, backgroundColor)
 
         // Generate high-resolution print layout with colored canvas (always 300 DPI)
         const layoutCanvas = await generatePrintLayout(
@@ -74,7 +75,7 @@ export function useImageDownload({
         onError([error instanceof Error ? error.message : 'Failed to download layout'])
       }
     },
-    [selectedSize, backgroundColor, paperType, margins, onError, downloadService]
+    [selectedSize, backgroundColor, paperType, margins, onError, downloadService, canvasService]
   )
 
   return {

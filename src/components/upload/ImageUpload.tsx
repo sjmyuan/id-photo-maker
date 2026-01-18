@@ -1,10 +1,9 @@
 import { useState, useCallback, type ChangeEvent } from 'react'
 import { validateImageFile } from '../../services/imageValidation'
 import { scaleImageToTarget } from '../../services/imageScaling'
-import { mockMattingService, processWithU2Net } from '../../services/mattingService'
+import { mockMattingService, processWithU2Net, type U2NetModel } from '../../services/u2netService'
 import { detectDeviceCapability } from '../../utils/deviceCapability'
 import { usePerformanceMeasure } from '../../hooks/usePerformanceMeasure'
-import type { U2NetModel } from '../../services/u2netService'
 
 export interface ImageUploadProps {
   /** Callback when image is successfully processed */

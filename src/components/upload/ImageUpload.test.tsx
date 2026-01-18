@@ -11,7 +11,7 @@ vi.mock('../../services/imageScaling', () => ({
   scaleImageToTarget: vi.fn(),
 }))
 
-vi.mock('../../services/mattingService', () => ({
+vi.mock('../../services/u2netService', () => ({
   mockMattingService: vi.fn(),
   processWithU2Net: vi.fn(),
 }))
@@ -22,7 +22,7 @@ vi.mock('../../utils/deviceCapability', () => ({
 
 import { validateImageFile } from '../../services/imageValidation'
 import { scaleImageToTarget } from '../../services/imageScaling'
-import { mockMattingService } from '../../services/mattingService'
+import { mockMattingService } from '../../services/u2netService'
 import { detectDeviceCapability } from '../../utils/deviceCapability'
 
 describe('ImageUpload', () => {

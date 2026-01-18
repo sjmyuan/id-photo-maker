@@ -25,7 +25,7 @@ vi.mock('./services/imageValidation', () => ({
   }),
 }))
 
-vi.mock('./services/mattingService', () => ({
+vi.mock('./services/u2netService', () => ({
   mockMattingService: vi.fn().mockResolvedValue(
     new Blob(['processed'], { type: 'image/png' })
   ),
