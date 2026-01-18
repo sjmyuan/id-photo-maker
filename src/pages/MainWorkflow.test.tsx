@@ -447,28 +447,45 @@ describe.skip('MainWorkflow - Two-Step Wizard (OBSOLETE - Refactored to single p
   })
 })
 
-describe('MainWorkflow - Model Loading Messages', () => {
+describe('MainWorkflow - Model Loading Modal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('should show loading message when models are loading', () => {
+  it('should show loading modal when models are loading', () => {
     renderMainWorkflow()
     
-    // Should show loading toast
+    // Should show loading modal
+    const modal = screen.getByRole('dialog')
+    expect(modal).toBeInTheDocument()
     expect(screen.getByText('Loading AI model...')).toBeInTheDocument()
   })
 
-  it('should show completion message when models finish loading', async () => {
+  it('should hide loading modal when models finish loading', async () => {
     renderMainWorkflow()
     
-    // Wait for models to load and completion message to appear
+    // Initially modal should be visible
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    
+    // Wait for models to load and modal to disappear
     await waitFor(() => {
-      expect(screen.getByText('AI models loaded successfully!')).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
-  it('should not show completion message if models fail to load', async () => {
+  it('should display correct loading message in modal', () => {
+    renderMainWorkflow()
+    
+    const modal = screen.getByRole('dialog')
+    expect(modal).toBeInTheDocument()
+    
+    // Verify the message is displayed with proper structure
+    const message = screen.getByText('Loading AI model...')
+    expect(message).toHaveAttribute('role', 'status')
+    expect(message).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('should hide loading modal even if models fail to load', async () => {
     // Mock both models to fail
     const { loadU2NetModel } = await import('../services/u2netService')
     const { loadFaceDetectionModel } = await import('../services/faceDetectionService')
@@ -477,14 +494,16 @@ describe('MainWorkflow - Model Loading Messages', () => {
     
     renderMainWorkflow()
     
-    // Wait a bit to ensure models have time to fail
+    // Wait for models to fail and modal to disappear
     await waitFor(() => {
-      const fileInput = screen.getByTestId('file-input') as HTMLInputElement
-      // File input should remain disabled when models fail
-      expect(fileInput).toBeDisabled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     }, { timeout: 3000 })
+  })
+
+  it('should not show toast notifications for model loading', () => {
+    renderMainWorkflow()
     
-    // Should not show completion message
+    // Should not have any success or info toasts about model loading
     expect(screen.queryByText('AI models loaded successfully!')).not.toBeInTheDocument()
   })
 })

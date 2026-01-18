@@ -8,6 +8,7 @@ import { Step1Settings } from '../components/workflow/Step1Settings'
 import { Step2Preview } from '../components/workflow/Step2Preview'
 import { Step3Layout } from '../components/workflow/Step3Layout'
 import { LanguageSelector } from '../components/language/LanguageSelector'
+import { LoadingModal } from '../components/loading/LoadingModal'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useModelLoading } from '../hooks/useModelLoading'
 import { useImageDownload } from '../hooks/useImageDownload'
@@ -62,7 +63,7 @@ export function MainWorkflow() {
   const { showInfo, showSuccess, showWarning, showError } = useToast()
   const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
-  const { u2netModel, faceDetectionModel, isLoadingU2Net, modelsLoaded } = useModelLoading()
+  const { u2netModel, faceDetectionModel, isLoadingU2Net, isLoadingFaceDetection, modelsLoaded } = useModelLoading()
   const { downloadPhoto, downloadLayout } = useImageDownload({
     selectedSize,
     paperType,
@@ -84,24 +85,6 @@ export function MainWorkflow() {
       service.cleanup()
     }
   }, [])
-
-  // Track if we've already shown the completion message (to prevent re-showing on re-renders)
-  const completionMessageShown = useRef(false)
-
-  // Show loading toast when models are loading
-  useEffect(() => {
-    if (isLoadingU2Net) {
-      showInfo(t('common.loading'))
-    }
-  }, [isLoadingU2Net, showInfo, t])
-
-  // Show completion message when models finish loading successfully
-  useEffect(() => {
-    if (modelsLoaded && !completionMessageShown.current) {
-      completionMessageShown.current = true
-      showSuccess(t('common.modelLoadComplete'))
-    }
-  }, [modelsLoaded, showSuccess, t])
 
   // Handle file upload (only store file, don't process yet)
   const handleFileChange = useCallback(
@@ -299,6 +282,12 @@ export function MainWorkflow() {
           </div>
         </div>
       </main>
+
+      {/* Loading Modal - shown while models are loading */}
+      <LoadingModal 
+        isOpen={isLoadingU2Net || isLoadingFaceDetection} 
+        message={t('common.loading')} 
+      />
     </div>
   )
 }
