@@ -1,5 +1,5 @@
 ---
-name: refactoring
+name: refactor-planner
 description: Clarify the scope, objectives, and constraints of the refactor request first, then generate a refactoring plan for the refactor request. Use this skill when the user submits a refactor request to refactor existing functionality.
 ---
 

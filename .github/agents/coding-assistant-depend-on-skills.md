@@ -33,8 +33,6 @@ The rules section outlines decision criteria that determine which skills to appl
 
 <rule> Identify whether the user input is a requirement, refactor request, or bug report, then invoke the appropriate skills. </rule>
 
-<rule> Use the **executing-a-plan** skill to execute the outlined plan.</rule>
-
 <rule> **INVOKE PREDEFINED SKILLS WHENEVER YOU CAN** </rule>
 
 <rules>

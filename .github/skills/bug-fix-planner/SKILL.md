@@ -1,6 +1,6 @@
 ---
-name: fixing-a-bug
-description: First, determine the root cause of the reported bug. Then, create a clear, step-by-step plan to resolve it. Use this skill whenever a user reports a bug.
+name: bug-fix-planner
+description: First, determine the root cause of the reported bug. Then, create a clear, step-by-step plan for the bug fixing. Use this skill whenever a user reports a bug.
 ---
 
 <when-to-use-this-skill>

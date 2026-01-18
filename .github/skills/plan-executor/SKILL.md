@@ -1,5 +1,5 @@
 ---
-name: executing-a-plan
+name: plan-executor
 description: Execute an outlined plan step by step, tracking progress and updating the status of each step as you go. Use this skill whenever you need to execute an outlined plan.
 ---
 
