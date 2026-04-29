@@ -20,7 +20,6 @@ describe('Step1Settings', () => {
     uploadedImageUrl: null,
     uploadedFile: null,
     isProcessing: false,
-    modelsLoaded: true,
     onSizeChange: vi.fn(),
     onColorChange: vi.fn(),
     onPaperTypeChange: vi.fn(),
@@ -118,19 +117,6 @@ describe('Step1Settings', () => {
     const props = {
       ...defaultProps,
       isProcessing: true,
-    }
-    render(<Step1Settings {...props} />)
-    const button = screen.getByTestId('upload-or-generate-button')
-    const fileInput = screen.getByTestId('file-input')
-    
-    expect(button).toBeDisabled()
-    expect(fileInput).toBeDisabled()
-  })
-
-  it('disables controls when models are not loaded', () => {
-    const props = {
-      ...defaultProps,
-      modelsLoaded: false,
     }
     render(<Step1Settings {...props} />)
     const button = screen.getByTestId('upload-or-generate-button')

@@ -1,179 +1,95 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { useImageDownload } from './useImageDownload'
 import { SIZE_OPTIONS } from '../components/size/CropEditor'
-import * as printLayoutService from '../services/printLayoutService'
 
-// Mock modules
+const { mockDownloadFn } = vi.hoisted(() => ({
+  mockDownloadFn: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('../services/downloadService', () => ({
   DownloadService: function () {
-    return {
-      downloadImageFromUrl: vi.fn().mockResolvedValue(undefined),
-      downloadCanvas: vi.fn().mockResolvedValue(undefined),
-      downloadBlob: vi.fn(),
-    }
+    return { downloadImageFromUrl: mockDownloadFn }
   },
 }))
-vi.mock('../services/printLayoutService')
-vi.mock('../services/canvasOperationsService', () => {
-  class MockCanvasOperationsService {
-    applyBackgroundColor(canvas: HTMLCanvasElement) {
-      const newCanvas = document.createElement('canvas')
-      newCanvas.width = canvas.width
-      newCanvas.height = canvas.height
-      return newCanvas
-    }
-  }
-  return {
-    CanvasOperationsService: MockCanvasOperationsService
-  }
-})
 
 describe('useImageDownload', () => {
-  let mockBlob: Blob
-  let mockCanvas: HTMLCanvasElement
-
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Mock blob
-    mockBlob = new Blob(['test'], { type: 'image/png' })
-
-    // Mock canvas
-    mockCanvas = {
-      toBlob: vi.fn((callback) => callback(mockBlob)),
-      width: 100,
-      height: 100,
-    } as unknown as HTMLCanvasElement
-
-    // Mock print layout service
-    vi.mocked(printLayoutService.generatePrintLayout).mockResolvedValue(mockCanvas)
+    mockDownloadFn.mockResolvedValue(undefined)
   })
 
   it('should return downloadPhoto and downloadLayout functions', () => {
     const { result } = renderHook(() =>
-      useImageDownload({
-        selectedSize: SIZE_OPTIONS[0],
-        paperType: '6-inch',
-        backgroundColor: '#0000FF',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        onError: vi.fn(),
-      })
+      useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError: vi.fn() })
     )
 
-    expect(result.current.downloadPhoto).toBeDefined()
-    expect(result.current.downloadLayout).toBeDefined()
     expect(typeof result.current.downloadPhoto).toBe('function')
     expect(typeof result.current.downloadLayout).toBe('function')
   })
 
   describe('downloadPhoto', () => {
-    it('should handle when croppedPreviewUrl is not provided', async () => {
+    it('should not call onError when url is null', async () => {
       const onError = vi.fn()
       const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          margins: { top: 0, bottom: 0, left: 0, right: 0 },
-          onError,
-        })
+        useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError })
       )
 
       await result.current.downloadPhoto(null)
 
       expect(onError).not.toHaveBeenCalled()
+      expect(mockDownloadFn).not.toHaveBeenCalled()
     })
 
-    it('should call downloadService.downloadImageFromUrl with proper params', async () => {
+    it('should call downloadService.downloadImageFromUrl with the url', async () => {
       const onError = vi.fn()
-      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          margins,
-          onError,
-        })
+        useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError })
       )
 
       await result.current.downloadPhoto('blob:test-url')
 
+      expect(mockDownloadFn).toHaveBeenCalledWith('blob:test-url', expect.stringContaining('id-photo'), 300)
       expect(onError).not.toHaveBeenCalled()
     })
   })
 
   describe('downloadLayout', () => {
-    it('should generate and download print layout', async () => {
+    it('should not call onError when url is null', async () => {
       const onError = vi.fn()
-      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          margins,
-          onError,
-        })
-      )
-
-      await result.current.downloadLayout(mockCanvas)
-
-      await waitFor(() => {
-        expect(printLayoutService.generatePrintLayout).toHaveBeenCalledWith(
-          expect.any(HTMLCanvasElement), // After applying background color
-          {
-            widthMm: SIZE_OPTIONS[0].physicalWidth,
-            heightMm: SIZE_OPTIONS[0].physicalHeight,
-          },
-          '6-inch',
-          300,
-          { top: 0, bottom: 0, left: 0, right: 0 }
-        )
-      })
-      expect(onError).not.toHaveBeenCalled()
-    })
-
-    it('should handle error when transparentCanvas is not provided', async () => {
-      const onError = vi.fn()
-      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
-      const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          margins,
-          onError,
-        })
+        useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError })
       )
 
       await result.current.downloadLayout(null)
 
       expect(onError).not.toHaveBeenCalled()
+      expect(mockDownloadFn).not.toHaveBeenCalled()
     })
 
-    it('should handle layout generation error', async () => {
+    it('should call downloadService.downloadImageFromUrl with the layout url', async () => {
       const onError = vi.fn()
-      const margins = { top: 0, bottom: 0, left: 0, right: 0 }
       const { result } = renderHook(() =>
-        useImageDownload({
-          selectedSize: SIZE_OPTIONS[0],
-          paperType: '6-inch',
-          backgroundColor: '#0000FF',
-          margins,
-          onError,
-        })
+        useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError })
       )
 
-      const error = new Error('Layout generation failed')
-      vi.mocked(printLayoutService.generatePrintLayout).mockRejectedValue(error)
+      await result.current.downloadLayout('data:image/png;base64,abc==')
 
-      await result.current.downloadLayout(mockCanvas)
+      expect(mockDownloadFn).toHaveBeenCalledWith('data:image/png;base64,abc==', expect.stringContaining('layout'), 300)
+      expect(onError).not.toHaveBeenCalled()
+    })
 
-      await waitFor(() => {
-        expect(onError).toHaveBeenCalledWith(['Layout generation failed'])
-      })
+    it('should call onError when download throws', async () => {
+      const onError = vi.fn()
+      mockDownloadFn.mockRejectedValueOnce(new Error('Download failed'))
+
+      const { result } = renderHook(() =>
+        useImageDownload({ selectedSize: SIZE_OPTIONS[0], onError })
+      )
+
+      await result.current.downloadLayout('data:image/png;base64,abc==')
+
+      expect(onError).toHaveBeenCalledWith(['Download failed'])
     })
   })
 })

@@ -16,27 +16,15 @@ function renderApp(initialEntries: string[] = ['/']) {
 }
 
 // Mock the services
-vi.mock('./services/imageValidation', () => ({
-  validateImageFile: vi.fn().mockResolvedValue({
-    isValid: true,
-    warnings: [],
-    errors: [],
-    needsScaling: false,
-  }),
-}))
+vi.mock('./services/imageProcessingOrchestrator', () => {
+  class MockImageProcessingOrchestrator {
+    async processImage() {
+      return { result: null, errors: [], warnings: [] }
+    }
+  }
+  return { ImageProcessingOrchestrator: MockImageProcessingOrchestrator }
+})
 
-vi.mock('./services/u2netService', () => ({
-  mockMattingService: vi.fn().mockResolvedValue(
-    new Blob(['processed'], { type: 'image/png' })
-  ),
-}))
-
-vi.mock('./utils/deviceCapability', () => ({
-  detectDeviceCapability: vi.fn().mockReturnValue({
-    hardwareConcurrency: 4,
-    expectedProcessingTime: 3000,
-  }),
-}))
 
 describe('App', () => {
   it('renders the app title', () => {

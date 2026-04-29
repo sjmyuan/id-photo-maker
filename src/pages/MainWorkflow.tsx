@@ -10,7 +10,6 @@ import { Step3Layout } from '../components/workflow/Step3Layout'
 import { LanguageSelector } from '../components/language/LanguageSelector'
 import { LoadingModal } from '../components/loading/LoadingModal'
 import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
-import { useModelLoading } from '../hooks/useModelLoading'
 import { useImageDownload } from '../hooks/useImageDownload'
 import { useWorkflowSteps } from '../hooks/useWorkflowSteps'
 import { FileUploadService } from '../services/fileUploadService'
@@ -18,10 +17,6 @@ import { ImageProcessingOrchestrator } from '../services/imageProcessingOrchestr
 import { useToast } from '../components/toast/ToastProvider'
 
 interface ImageData {
-  originalFile: File
-  originalUrl: string
-  transparentCanvas: HTMLCanvasElement
-  cropArea: { x: number; y: number; width: number; height: number }
   croppedPreviewUrl: string
   printLayoutPreviewUrl: string
 }
@@ -63,12 +58,8 @@ export function MainWorkflow() {
   const { showInfo, showSuccess, showWarning, showError } = useToast()
   const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
-  const { u2netModel, faceDetectionModel, isLoadingU2Net, isLoadingFaceDetection, modelsLoaded } = useModelLoading()
   const { downloadPhoto, downloadLayout } = useImageDownload({
     selectedSize,
-    paperType,
-    backgroundColor,
-    margins: currentMargins,
     onError: (errors: string[]) => {
       errors.forEach((error) => showError(error))
     },
@@ -123,8 +114,6 @@ export function MainWorkflow() {
           backgroundColor,
           paperType,
           margins: currentMargins,
-          u2netModel,
-          faceDetectionModel,
           requiredDPI: 300,
         })
 
@@ -158,8 +147,7 @@ export function MainWorkflow() {
       uploadedFile,
       start,
       stop,
-      u2netModel,
-      faceDetectionModel,
+
       backgroundColor,
       selectedSize,
       paperType,
@@ -209,7 +197,7 @@ export function MainWorkflow() {
   }
 
   const handleDownloadLayout = useCallback(async () => {
-    await downloadLayout(imageData?.transparentCanvas || null)
+    await downloadLayout(imageData?.printLayoutPreviewUrl || null)
     showSuccess(t('step3.downloadSuccess'))
   }, [imageData, downloadLayout, showSuccess, t])
 
@@ -246,7 +234,6 @@ export function MainWorkflow() {
                 uploadedImageUrl={uploadedImageUrl}
                 uploadedFile={uploadedFile}
                 isProcessing={isProcessing}
-                modelsLoaded={modelsLoaded}
                 onSizeChange={handleSizeChange}
                 onColorChange={handleBackgroundChange}
                 onPaperTypeChange={handlePaperTypeChange}
@@ -283,10 +270,10 @@ export function MainWorkflow() {
         </div>
       </main>
 
-      {/* Loading Modal - shown while models are loading */}
+      {/* Loading Modal - shown while processing */}
       <LoadingModal 
-        isOpen={isLoadingU2Net || isLoadingFaceDetection} 
-        message={t('common.loading')} 
+        isOpen={isProcessing} 
+        message={t('common.processing')} 
       />
     </div>
   )

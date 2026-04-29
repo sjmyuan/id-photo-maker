@@ -21,7 +21,6 @@ interface Step1SettingsProps {
   uploadedImageUrl: string | null
   uploadedFile: File | null
   isProcessing: boolean
-  modelsLoaded: boolean
   onSizeChange: (size: SizeOption) => void
   onColorChange: (color: string) => void
   onPaperTypeChange: (paper: PaperType) => void
@@ -38,7 +37,6 @@ export function Step1Settings({
   uploadedImageUrl,
   uploadedFile,
   isProcessing,
-  modelsLoaded,
   onSizeChange,
   onColorChange,
   onPaperTypeChange,
@@ -113,7 +111,7 @@ export function Step1Settings({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         onChange={onFileChange}
-        disabled={isProcessing || !modelsLoaded}
+        disabled={isProcessing}
         data-testid="file-input"
         className="hidden"
       />
@@ -123,7 +121,7 @@ export function Step1Settings({
         {!uploadedFile ? (
           <button
             onClick={handleUploadButtonClick}
-            disabled={isProcessing || !modelsLoaded}
+            disabled={isProcessing}
             data-testid="upload-or-generate-button"
             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
           >
@@ -136,7 +134,7 @@ export function Step1Settings({
           <>
             <button
               onClick={onGeneratePreview}
-              disabled={isProcessing || !modelsLoaded}
+              disabled={isProcessing}
               data-testid="upload-or-generate-button"
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
             >
@@ -157,7 +155,7 @@ export function Step1Settings({
             
             <button
               onClick={handleUploadButtonClick}
-              disabled={isProcessing || !modelsLoaded}
+              disabled={isProcessing}
               className="w-full py-2 px-4 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition-colors border-2 border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

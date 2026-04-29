@@ -1,293 +1,130 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ImageProcessingOrchestrator } from './imageProcessingOrchestrator'
-import * as faceDetectionService from './faceDetectionService'
-import * as u2netService from './u2netService'
-import * as imageValidation from './imageValidation'
-import * as exactCropService from './exactCropService'
-import * as printLayoutService from './printLayoutService'
+import * as apiClient from './apiClient'
 import { SIZE_OPTIONS } from '../components/size/CropEditor'
 
-vi.mock('./faceDetectionService')
-vi.mock('./u2netService')
-vi.mock('./imageValidation')
-vi.mock('./exactCropService')
-vi.mock('./printLayoutService')
-vi.mock('./canvasOperationsService', () => ({
-  CanvasOperationsService: function () {
-    const mockCanvas = document.createElement('canvas')
-    mockCanvas.width = 1000
-    mockCanvas.height = 1200
-    
-    const mockImg = {
-      naturalWidth: 1000,
-      naturalHeight: 1200,
-      width: 1000,
-      height: 1200,
-    } as HTMLImageElement
-
-    return {
-      loadImageFromFile: vi.fn().mockResolvedValue(mockImg),
-      cropImage: vi.fn().mockReturnValue(mockCanvas),
-      canvasToBlob: vi.fn().mockResolvedValue(new Blob(['test'], { type: 'image/png' })),
-      createCanvasFromBlob: vi.fn().mockResolvedValue(mockCanvas),
-      loadImageFromBlob: vi.fn().mockResolvedValue(mockImg),
-      applyBackgroundColor: vi.fn().mockReturnValue(mockCanvas),
-    }
-  },
-}))
+vi.mock('./apiClient')
 
 describe('ImageProcessingOrchestrator', () => {
   let orchestrator: ImageProcessingOrchestrator
   let mockFile: File
 
+  const defaultOptions = {
+    file: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
+    selectedSize: SIZE_OPTIONS[0],
+    backgroundColor: '#FFFFFF',
+    paperType: '6-inch' as const,
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
+  }
+
   beforeEach(() => {
     orchestrator = new ImageProcessingOrchestrator()
     mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-
-    // Reset all mocks
     vi.clearAllMocks()
   })
 
-  describe('processImage - validation errors', () => {
-    it('should return validation errors when file is invalid', async () => {
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: false,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: ['Invalid file type'],
+  describe('processImage - success', () => {
+    it('should return preview URLs derived from base64 on success', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        idPhotoBase64: 'abc123==',
+        printLayoutBase64: 'def456==',
         warnings: [],
       })
 
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(result.errors).toBeUndefined()
+      expect(result.result).toBeDefined()
+      expect(result.result!.croppedPreviewUrl).toBe('data:image/png;base64,abc123==')
+      expect(result.result!.printLayoutPreviewUrl).toBe('data:image/png;base64,def456==')
+    })
+
+    it('should forward warnings from the API', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        idPhotoBase64: 'abc123==',
+        printLayoutBase64: 'def456==',
+        warnings: ['Image was downscaled'],
       })
+
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(result.warnings).toEqual(['Image was downscaled'])
+    })
+
+    it('should pass all options through to the API', async () => {
+      const spy = vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        idPhotoBase64: 'abc==',
+        printLayoutBase64: 'def==',
+        warnings: [],
+      })
+
+      const margins = { top: 5, bottom: 10, left: 3, right: 3 }
+      await orchestrator.processImage({
+        file: mockFile,
+        selectedSize: SIZE_OPTIONS[1],
+        backgroundColor: '#FF0000',
+        paperType: 'a4',
+        margins,
+        requiredDPI: 600,
+      })
+
+      expect(spy).toHaveBeenCalledWith({
+        file: mockFile,
+        selectedSize: SIZE_OPTIONS[1],
+        backgroundColor: '#FF0000',
+        paperType: 'a4',
+        margins,
+        requiredDPI: 600,
+      })
+    })
+  })
+
+  describe('processImage - API errors', () => {
+    it('should return validation errors from the API', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        errors: [{ type: 'validation', message: 'Invalid file type' }],
+      })
+
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
 
       expect(result.errors).toHaveLength(1)
       expect(result.errors![0].type).toBe('validation')
       expect(result.errors![0].message).toBe('Invalid file type')
     })
 
-    it('should collect warnings from validation', async () => {
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: true,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: [],
-        warnings: ['Image size is large'],
+    it('should return face-detection errors from the API', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        errors: [{ type: 'face-detection', message: 'No face detected in the image. Please upload an image with exactly one face.' }],
       })
 
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [],
-      })
-
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
-      })
-
-      expect(result.warnings).toContain('Image size is large')
-    })
-  })
-
-  describe('processImage - face detection errors', () => {
-    beforeEach(() => {
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: true,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: [],
-        warnings: [],
-      })
-    })
-
-    it('should return error when face detection model is not loaded', async () => {
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: null,
-      })
-
-      expect(result.errors).toHaveLength(1)
-      expect(result.errors![0].type).toBe('face-detection')
-      expect(result.errors![0].message).toContain('model not loaded')
-    })
-
-    it('should return error when no face is detected', async () => {
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [],
-      })
-
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
-      })
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
 
       expect(result.errors).toHaveLength(1)
       expect(result.errors![0].type).toBe('face-detection')
       expect(result.errors![0].message).toContain('No face detected')
     })
 
-    it('should return error when multiple faces are detected', async () => {
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [
-          { x: 0, y: 0, width: 100, height: 100 },
-          { x: 200, y: 0, width: 100, height: 100 },
+    it('should return multiple errors from the API', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        errors: [
+          { type: 'validation', message: 'Error 1' },
+          { type: 'processing', message: 'Error 2' },
         ],
       })
 
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
-      })
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(result.errors).toHaveLength(2)
+    })
+
+    it('should return processing error when API call throws', async () => {
+      vi.spyOn(apiClient, 'processImageViaApi').mockRejectedValue(new Error('Network failure'))
+
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
 
       expect(result.errors).toHaveLength(1)
-      expect(result.errors![0].type).toBe('face-detection')
-      expect(result.errors![0].message).toContain('Multiple faces')
-    })
-  })
-
-  describe('processImage - DPI errors', () => {
-    beforeEach(() => {
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: true,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: [],
-        warnings: [],
-      })
-
-      // Mock a face detection with small image dimensions (low DPI)
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [{ x: 10, y: 10, width: 50, height: 50 }],
-      })
-    })
-
-    it('should return DPI error when resolution is too low', async () => {
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
-        requiredDPI: 300,
-      })
-
-      expect(result.errors).toBeDefined()
-      if (result.errors) {
-        expect(result.errors[0].type).toBe('dpi')
-      }
-    })
-  })
-
-  describe('processImage - matting errors', () => {
-    beforeEach(() => {
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: true,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: [],
-        warnings: [],
-      })
-
-      // Mock sufficient face and DPI
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [{ x: 100, y: 100, width: 800, height: 1000 }],
-      })
-    })
-
-    it('should return error when U2Net model is not loaded', async () => {
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: null,
-        faceDetectionModel: {} as never,
-      })
-
-      expect(result.errors).toHaveLength(1)
-      expect(result.errors![0].type).toBe('matting')
-    })
-  })
-
-  describe('processImage - success case', () => {
-    beforeEach(() => {
-      // Setup successful mocks
-      vi.spyOn(imageValidation, 'validateImageFile').mockResolvedValue({
-        isValid: true,
-        fileSize: 1024,
-        needsScaling: false,
-        dimensions: { width: 100, height: 100 },
-        errors: [],
-        warnings: [],
-      })
-
-      vi.spyOn(faceDetectionService, 'detectFaces').mockResolvedValue({
-        faces: [{ x: 100, y: 100, width: 800, height: 1000 }],
-      })
-
-      vi.spyOn(u2netService, 'processWithU2Net').mockResolvedValue(
-        new Blob(['matted'], { type: 'image/png' })
-      )
-
-      const mockCanvas = document.createElement('canvas')
-      mockCanvas.width = 100
-      mockCanvas.height = 100
-
-      vi.spyOn(exactCropService, 'generateExactCrop').mockResolvedValue(mockCanvas)
-
-      vi.spyOn(printLayoutService, 'generatePrintLayoutPreview').mockReturnValue(mockCanvas)
-    })
-
-    it('should successfully process image', async () => {
-      const result = await orchestrator.processImage({
-        file: mockFile,
-        selectedSize: SIZE_OPTIONS[0],
-        backgroundColor: '#FFFFFF',
-        paperType: '6-inch',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        u2netModel: {} as never,
-        faceDetectionModel: {} as never,
-      })
-
-      expect(result.result).toBeDefined()
-      expect(result.result!.originalFile).toBe(mockFile)
-      expect(result.result!.transparentCanvas).toBeDefined()
-      expect(result.result!.croppedPreviewUrl).toBeDefined()
-      expect(result.result!.printLayoutPreviewUrl).toBeDefined()
+      expect(result.errors![0].type).toBe('processing')
+      expect(result.errors![0].message).toContain('Network failure')
     })
   })
 })

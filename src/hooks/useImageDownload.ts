@@ -5,29 +5,15 @@
 
 import { useCallback, useMemo } from 'react'
 import { type SizeOption } from '../components/size/CropEditor'
-import { type PaperType } from '../components/layout/PaperTypeSelector'
-import { type PaperMargins } from '../types'
 import { DownloadService } from '../services/downloadService'
-import { generatePrintLayout } from '../services/printLayoutService'
-import { CanvasOperationsService } from '../services/canvasOperationsService'
 
 interface UseImageDownloadParams {
   selectedSize: SizeOption
-  paperType: PaperType
-  backgroundColor: string
-  margins: PaperMargins
   onError: (errors: string[]) => void
 }
 
-export function useImageDownload({
-  selectedSize,
-  paperType,
-  backgroundColor,
-  margins,
-  onError,
-}: UseImageDownloadParams) {
+export function useImageDownload({ selectedSize, onError }: UseImageDownloadParams) {
   const downloadService = useMemo(() => new DownloadService(), [])
-  const canvasService = useMemo(() => new CanvasOperationsService(), [])
 
   const downloadPhoto = useCallback(
     async (croppedPreviewUrl: string | null) => {
@@ -40,7 +26,6 @@ export function useImageDownload({
           300
         )
       } catch (error) {
-        console.error('Failed to download image:', error)
         onError([error instanceof Error ? error.message : 'Failed to download image'])
       }
     },
@@ -48,34 +33,20 @@ export function useImageDownload({
   )
 
   const downloadLayout = useCallback(
-    async (transparentCanvas: HTMLCanvasElement | null) => {
-      if (!transparentCanvas) return
+    async (printLayoutUrl: string | null) => {
+      if (!printLayoutUrl) return
 
       try {
-        // Apply background color to canvas before generating layout
-        const coloredCanvas = canvasService.applyBackgroundColor(transparentCanvas, backgroundColor)
-
-        // Generate high-resolution print layout with colored canvas (always 300 DPI)
-        const layoutCanvas = await generatePrintLayout(
-          coloredCanvas,
-          {
-            widthMm: selectedSize.physicalWidth,
-            heightMm: selectedSize.physicalHeight,
-          },
-          paperType,
-          300,
-          margins
+        await downloadService.downloadImageFromUrl(
+          printLayoutUrl,
+          `id-photo-layout-${selectedSize.id}-${Date.now()}.png`,
+          300
         )
-
-        // Download the layout with DPI metadata (always 300 DPI)
-        const filename = `id-photo-layout-${selectedSize.id}-${paperType}-${Date.now()}.png`
-        await downloadService.downloadCanvas(layoutCanvas, filename, 300)
       } catch (error) {
-        console.error('Failed to generate print layout:', error)
         onError([error instanceof Error ? error.message : 'Failed to download layout'])
       }
     },
-    [selectedSize, backgroundColor, paperType, margins, onError, downloadService, canvasService]
+    [selectedSize, onError, downloadService]
   )
 
   return {
