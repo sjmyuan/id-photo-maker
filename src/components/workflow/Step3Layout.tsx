@@ -42,6 +42,8 @@ export function Step3Layout({
             alt="Print layout preview"
           />
         ) : (
+          // Defensive fallback: renders a client-side canvas preview when the backend
+          // printLayoutPreviewUrl is unavailable (e.g. offline or future local-processing mode).
           <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
             <canvas
               ref={canvasRef}

@@ -22,9 +22,6 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
   },
-  optimizeDeps: {
-    exclude: ['onnxruntime-web'],
-  },
   test: {
     globals: true,
     environment: 'jsdom',

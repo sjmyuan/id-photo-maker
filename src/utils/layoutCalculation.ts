@@ -8,8 +8,8 @@ import { type PaperMargins } from '../types'
 export interface PaperType {
   id: '6-inch' | 'a4'
   label: string
-  widthPx: number // Width in pixels at 300 DPI
-  heightPx: number // Height in pixels at 300 DPI
+  widthMm: number // Physical width in millimetres
+  heightMm: number // Physical height in millimetres
 }
 
 export interface PhotoSize {
@@ -39,20 +39,21 @@ export interface LayoutResult {
 }
 
 /**
- * Standard paper types with dimensions at 300 DPI
+ * Standard paper types with physical dimensions in millimetres.
+ * Pixel dimensions are computed at runtime from these values and the requested DPI.
  */
 export const PAPER_TYPES: Record<'6-inch' | 'a4', PaperType> = {
   '6-inch': {
     id: '6-inch',
     label: '6-inch Photo Paper',
-    widthPx: 1200,  // 4 inches × 300 DPI
-    heightPx: 1800, // 6 inches × 300 DPI
+    widthMm: 101.6, // 4 inches
+    heightMm: 152.4, // 6 inches
   },
   'a4': {
     id: 'a4',
     label: 'A4 Paper',
-    widthPx: 2480,  // 210mm × (300/25.4) ≈ 2480px
-    heightPx: 3508, // 297mm × (300/25.4) ≈ 3508px
+    widthMm: 210,
+    heightMm: 297,
   },
 }
 
@@ -85,7 +86,11 @@ export function calculateLayout(
   margins?: PaperMargins
 ): LayoutResult {
   const paperType = PAPER_TYPES[paperTypeId]
-  
+
+  // Compute paper pixel dimensions from physical mm at the requested DPI
+  const paperWidthPx = Math.round(mmToPixels(paperType.widthMm, dpi))
+  const paperHeightPx = Math.round(mmToPixels(paperType.heightMm, dpi))
+
   // Convert photo dimensions from mm to pixels
   const photoWidthPx = mmToPixels(photoSize.widthMm, dpi)
   const photoHeightPx = mmToPixels(photoSize.heightMm, dpi)
@@ -104,8 +109,8 @@ export function calculateLayout(
   }
   
   // Calculate printable area (paper dimensions minus margins)
-  const printableWidthPx = paperType.widthPx - printerMargins.leftPx - printerMargins.rightPx
-  const printableHeightPx = paperType.heightPx - printerMargins.topPx - printerMargins.bottomPx
+  const printableWidthPx = paperWidthPx - printerMargins.leftPx - printerMargins.rightPx
+  const printableHeightPx = paperHeightPx - printerMargins.topPx - printerMargins.bottomPx
   
   // Define minimum spacing between photos (5mm = ~59px at 300 DPI)
   const minSpacingMm = 5
@@ -141,8 +146,8 @@ export function calculateLayout(
   
   return {
     paperType: paperTypeId,
-    paperWidthPx: paperType.widthPx,
-    paperHeightPx: paperType.heightPx,
+    paperWidthPx,
+    paperHeightPx,
     photoWidthPx,
     photoHeightPx,
     photosPerRow,

@@ -52,6 +52,15 @@ vi.mock('../services/imageProcessingOrchestrator', () => {
   }
 })
 
+vi.mock('../services/apiClient', () => ({
+  detectFaceViaApi: vi.fn().mockResolvedValue({
+    imageWidth: 800,
+    imageHeight: 600,
+    face: { x: 100, y: 80, width: 200, height: 250 },
+    warnings: [],
+  }),
+}))
+
 // Helper function to simulate file upload in tests
 const uploadFile = (fileInput: HTMLInputElement, file: File) => {
   Object.defineProperty(fileInput, 'files', {

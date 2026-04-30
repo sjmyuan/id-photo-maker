@@ -39,6 +39,71 @@ export interface ApiProcessFailure {
 
 export type ApiProcessResult = ApiProcessSuccess | ApiProcessFailure
 
+export interface ApiDetectSuccess {
+  imageWidth: number
+  imageHeight: number
+  face: { x: number; y: number; width: number; height: number }
+  warnings: string[]
+  errors?: never
+}
+
+export interface ApiDetectFailure {
+  errors: ApiProcessError[]
+  imageWidth?: never
+  imageHeight?: never
+  face?: never
+  warnings?: never
+}
+
+export type ApiDetectResult = ApiDetectSuccess | ApiDetectFailure
+
+/**
+ * Pre-flight face detection check. Validates that exactly one face is present
+ * without running background removal — faster than /process.
+ */
+export async function detectFaceViaApi(file: File): Promise<ApiDetectResult> {
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+
+    const response = await fetch(`${API_BASE_URL}/detect`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    const json = await response.json() as {
+      success: boolean
+      imageWidth?: number
+      imageHeight?: number
+      face?: { x: number; y: number; width: number; height: number }
+      warnings?: string[]
+      errors?: ApiProcessError[]
+    }
+
+    if (!response.ok || !json.success) {
+      return {
+        errors: json.errors ?? [{ type: 'processing', message: 'Face detection failed' }],
+      }
+    }
+
+    return {
+      imageWidth: json.imageWidth!,
+      imageHeight: json.imageHeight!,
+      face: json.face!,
+      warnings: json.warnings ?? [],
+    }
+  } catch (error) {
+    return {
+      errors: [
+        {
+          type: 'processing',
+          message: error instanceof Error ? error.message : 'Network error',
+        },
+      ],
+    }
+  }
+}
+
 /**
  * Send an image to the backend for full processing (face detection,
  * background removal, exact crop, print layout generation).

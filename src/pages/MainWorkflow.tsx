@@ -13,7 +13,8 @@ import { usePerformanceMeasure } from '../hooks/usePerformanceMeasure'
 import { useImageDownload } from '../hooks/useImageDownload'
 import { useWorkflowSteps } from '../hooks/useWorkflowSteps'
 import { FileUploadService } from '../services/fileUploadService'
-import { ImageProcessingOrchestrator } from '../services/imageProcessingOrchestrator'
+import { ImageProcessingOrchestrator, type ProcessingError } from '../services/imageProcessingOrchestrator'
+import { detectFaceViaApi } from '../services/apiClient'
 import { useToast } from '../components/toast/ToastProvider'
 
 interface ImageData {
@@ -25,15 +26,12 @@ export function MainWorkflow() {
   const { t } = useTranslation()
   
   // Helper function to translate error messages (memoized)
-  const translateError = useCallback((errorMessage: string): string => {
-    // Check for specific error patterns and translate them
-    if (errorMessage.includes('No face detected')) {
+  const translateError = useCallback((error: ProcessingError): string => {
+    if (error.type === 'face-detection') {
+      if (error.message.includes('Multiple')) return t('faceDetection.multipleFacesDetected')
       return t('faceDetection.noFaceDetected')
-    } else if (errorMessage.includes('Multiple faces detected')) {
-      return t('faceDetection.multipleFacesDetected')
     }
-    // Return original message if no translation found
-    return errorMessage
+    return error.message
   }, [t])
   
   // Settings state
@@ -91,8 +89,15 @@ export function MainWorkflow() {
       setUploadedFile(uploaded.file)
       setUploadedImageUrl(uploaded.url)
       showInfo(t('step1.imageUploaded'))
+
+      // Pre-flight: validate face presence before the expensive /process call
+      detectFaceViaApi(uploaded.file).then((result) => {
+        if (result.errors) {
+          result.errors.forEach((e) => showError(translateError(e)))
+        }
+      })
     },
-    [showInfo, t]
+    [showInfo, showError, translateError, t]
   )
 
   // Handle processing (triggered by "Generate Preview" button)
@@ -118,7 +123,7 @@ export function MainWorkflow() {
         })
 
         if (result.errors && result.errors.length > 0) {
-          result.errors.forEach((e) => showError(translateError(e.message)))
+          result.errors.forEach((e) => showError(translateError(e)))
           stop()
           setIsProcessing(false)
           return
