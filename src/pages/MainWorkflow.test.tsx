@@ -36,7 +36,7 @@ URL.revokeObjectURL = vi.fn()
 
 vi.mock('../services/imageProcessingOrchestrator', () => {
   class MockImageProcessingOrchestrator {
-    async processImage() {
+    async processImage(_options: { normalisedFace?: unknown }) {
       return {
         result: {
           croppedPreviewUrl: 'data:image/png;base64,mock-cropped',
@@ -54,11 +54,15 @@ vi.mock('../services/imageProcessingOrchestrator', () => {
 
 vi.mock('../services/apiClient', () => ({
   detectFaceViaApi: vi.fn().mockResolvedValue({
-    imageWidth: 800,
-    imageHeight: 600,
-    face: { x: 100, y: 80, width: 200, height: 250 },
+    face: { x: 0.125, y: 0.133, width: 0.25, height: 0.417 },
     warnings: [],
   }),
+}))
+
+vi.mock('../utils/imageCrop', () => ({
+  downscaleImageForDetect: vi.fn().mockImplementation((file: File) => Promise.resolve(file)),
+  cropImageToArea: vi.fn().mockImplementation((file: File) => Promise.resolve(file)),
+  getImageDimensions: vi.fn().mockResolvedValue({ width: 800, height: 600 }),
 }))
 
 // Helper function to simulate file upload in tests

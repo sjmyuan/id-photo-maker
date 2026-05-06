@@ -1,16 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ImageProcessingOrchestrator } from './imageProcessingOrchestrator'
 import * as apiClient from './apiClient'
+import * as imageCropModule from '../utils/imageCrop'
+import * as cropCalcModule from '../utils/cropAreaCalculation'
 import { SIZE_OPTIONS } from '../components/size/CropEditor'
 
 vi.mock('./apiClient')
+vi.mock('../utils/imageCrop')
+vi.mock('../utils/cropAreaCalculation')
+
+const MOCK_CROP_AREA = { x: 100, y: 80, width: 200, height: 280 }
+const MOCK_FACE = { x: 0.3, y: 0.2, width: 0.1, height: 0.14 }
 
 describe('ImageProcessingOrchestrator', () => {
   let orchestrator: ImageProcessingOrchestrator
   let mockFile: File
+  let croppedFile: File
 
   const defaultOptions = {
     file: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
+    normalisedFace: MOCK_FACE,
     selectedSize: SIZE_OPTIONS[0],
     backgroundColor: '#FFFFFF',
     paperType: '6-inch' as const,
@@ -20,7 +29,13 @@ describe('ImageProcessingOrchestrator', () => {
   beforeEach(() => {
     orchestrator = new ImageProcessingOrchestrator()
     mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+    croppedFile = new File(['cropped'], 'test-crop.jpg', { type: 'image/jpeg' })
     vi.clearAllMocks()
+
+    // Default mocks for utils
+    vi.spyOn(imageCropModule, 'getImageDimensions').mockResolvedValue({ width: 800, height: 600 })
+    vi.spyOn(cropCalcModule, 'calculateCropAreaFromNormalisedFace').mockReturnValue(MOCK_CROP_AREA)
+    vi.spyOn(imageCropModule, 'cropImageToArea').mockResolvedValue(croppedFile)
   })
 
   describe('processImage - success', () => {
@@ -51,7 +66,19 @@ describe('ImageProcessingOrchestrator', () => {
       expect(result.warnings).toEqual(['Image was downscaled'])
     })
 
-    it('should pass all options through to the API', async () => {
+    it('should send the cropped file (not the original) to the API', async () => {
+      const spy = vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        idPhotoBase64: 'abc==',
+        printLayoutBase64: 'def==',
+        warnings: [],
+      })
+
+      await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ file: croppedFile }))
+    })
+
+    it('should pass non-file options through to the API', async () => {
       const spy = vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
         idPhotoBase64: 'abc==',
         printLayoutBase64: 'def==',
@@ -61,6 +88,7 @@ describe('ImageProcessingOrchestrator', () => {
       const margins = { top: 5, bottom: 10, left: 3, right: 3 }
       await orchestrator.processImage({
         file: mockFile,
+        normalisedFace: MOCK_FACE,
         selectedSize: SIZE_OPTIONS[1],
         backgroundColor: '#FF0000',
         paperType: 'a4',
@@ -68,14 +96,29 @@ describe('ImageProcessingOrchestrator', () => {
         requiredDPI: 600,
       })
 
-      expect(spy).toHaveBeenCalledWith({
-        file: mockFile,
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({
         selectedSize: SIZE_OPTIONS[1],
         backgroundColor: '#FF0000',
         paperType: 'a4',
         margins,
         requiredDPI: 600,
+      }))
+    })
+
+    it('should compute crop area using the normalised face and selected size aspect ratio', async () => {
+      const calcSpy = vi.spyOn(cropCalcModule, 'calculateCropAreaFromNormalisedFace')
+      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
+        idPhotoBase64: 'abc==', printLayoutBase64: 'def==', warnings: [],
       })
+
+      await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(calcSpy).toHaveBeenCalledWith(
+        MOCK_FACE,
+        SIZE_OPTIONS[0].aspectRatio,
+        800,
+        600,
+      )
     })
   })
 
@@ -90,18 +133,6 @@ describe('ImageProcessingOrchestrator', () => {
       expect(result.errors).toHaveLength(1)
       expect(result.errors![0].type).toBe('validation')
       expect(result.errors![0].message).toBe('Invalid file type')
-    })
-
-    it('should return face-detection errors from the API', async () => {
-      vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
-        errors: [{ type: 'face-detection', message: 'No face detected in the image. Please upload an image with exactly one face.' }],
-      })
-
-      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
-
-      expect(result.errors).toHaveLength(1)
-      expect(result.errors![0].type).toBe('face-detection')
-      expect(result.errors![0].message).toContain('No face detected')
     })
 
     it('should return multiple errors from the API', async () => {
@@ -125,6 +156,15 @@ describe('ImageProcessingOrchestrator', () => {
       expect(result.errors).toHaveLength(1)
       expect(result.errors![0].type).toBe('processing')
       expect(result.errors![0].message).toContain('Network failure')
+    })
+
+    it('should return processing error when crop fails', async () => {
+      vi.spyOn(imageCropModule, 'cropImageToArea').mockRejectedValue(new Error('Canvas error'))
+
+      const result = await orchestrator.processImage({ ...defaultOptions, file: mockFile })
+
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors![0].type).toBe('processing')
     })
   })
 })

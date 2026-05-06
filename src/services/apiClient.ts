@@ -19,7 +19,12 @@ export interface ApiProcessOptions {
 }
 
 export interface ApiProcessError {
-  type: 'validation' | 'face-detection' | 'dpi' | 'matting' | 'processing'
+  type: 'validation' | 'matting' | 'processing'
+  message: string
+}
+
+export interface ApiDetectError {
+  type: 'validation' | 'face-detection' | 'processing'
   message: string
 }
 
@@ -39,18 +44,22 @@ export interface ApiProcessFailure {
 
 export type ApiProcessResult = ApiProcessSuccess | ApiProcessFailure
 
+/** Face bbox with all values normalised to the 0–1 range */
+export interface NormalisedFaceBox {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface ApiDetectSuccess {
-  imageWidth: number
-  imageHeight: number
-  face: { x: number; y: number; width: number; height: number }
+  face: NormalisedFaceBox
   warnings: string[]
   errors?: never
 }
 
 export interface ApiDetectFailure {
-  errors: ApiProcessError[]
-  imageWidth?: never
-  imageHeight?: never
+  errors: ApiDetectError[]
   face?: never
   warnings?: never
 }
@@ -73,11 +82,9 @@ export async function detectFaceViaApi(file: File): Promise<ApiDetectResult> {
 
     const json = await response.json() as {
       success: boolean
-      imageWidth?: number
-      imageHeight?: number
-      face?: { x: number; y: number; width: number; height: number }
+      face?: NormalisedFaceBox
       warnings?: string[]
-      errors?: ApiProcessError[]
+      errors?: ApiDetectError[]
     }
 
     if (!response.ok || !json.success) {
@@ -87,8 +94,6 @@ export async function detectFaceViaApi(file: File): Promise<ApiDetectResult> {
     }
 
     return {
-      imageWidth: json.imageWidth!,
-      imageHeight: json.imageHeight!,
       face: json.face!,
       warnings: json.warnings ?? [],
     }

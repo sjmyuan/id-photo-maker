@@ -14,7 +14,8 @@ import { useImageDownload } from '../hooks/useImageDownload'
 import { useWorkflowSteps } from '../hooks/useWorkflowSteps'
 import { FileUploadService } from '../services/fileUploadService'
 import { ImageProcessingOrchestrator, type ProcessingError } from '../services/imageProcessingOrchestrator'
-import { detectFaceViaApi } from '../services/apiClient'
+import { detectFaceViaApi, type NormalisedFaceBox } from '../services/apiClient'
+import { downscaleImageForDetect } from '../utils/imageCrop'
 import { useToast } from '../components/toast/ToastProvider'
 
 interface ImageData {
@@ -27,12 +28,8 @@ export function MainWorkflow() {
   
   // Helper function to translate error messages (memoized)
   const translateError = useCallback((error: ProcessingError): string => {
-    if (error.type === 'face-detection') {
-      if (error.message.includes('Multiple')) return t('faceDetection.multipleFacesDetected')
-      return t('faceDetection.noFaceDetected')
-    }
     return error.message
-  }, [t])
+  }, [])
   
   // Settings state
   const [selectedSize, setSelectedSize] = useState<SizeOption>(SIZE_OPTIONS[0])
@@ -50,6 +47,7 @@ export function MainWorkflow() {
   const [imageData, setImageData] = useState<ImageData | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+  const [normalisedFace, setNormalisedFace] = useState<NormalisedFaceBox | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   
   // Custom hooks for single responsibilities
@@ -83,6 +81,7 @@ export function MainWorkflow() {
 
       // Clear previous state
       setImageData(null)
+      setNormalisedFace(null)
 
       // Handle upload with service
       const uploaded = fileUploadService.current.handleUpload(file)
@@ -90,20 +89,42 @@ export function MainWorkflow() {
       setUploadedImageUrl(uploaded.url)
       showInfo(t('step1.imageUploaded'))
 
-      // Pre-flight: validate face presence before the expensive /process call
-      detectFaceViaApi(uploaded.file).then((result) => {
-        if (result.errors) {
-          result.errors.forEach((e) => showError(translateError(e)))
+      // Pre-flight: downscale, then validate exactly one face is present
+      void (async () => {
+        try {
+          const downscaled = await downscaleImageForDetect(uploaded.file)
+          const result = await detectFaceViaApi(downscaled)
+          if (result.errors) {
+            result.errors.forEach((e) => {
+              if (e.type === 'face-detection') {
+                showError(
+                  e.message.includes('Multiple')
+                    ? t('faceDetection.multipleFacesDetected')
+                    : t('faceDetection.noFaceDetected'),
+                )
+              } else {
+                showError(e.message)
+              }
+            })
+          } else {
+            setNormalisedFace(result.face)
+          }
+        } catch {
+          // Detection errors are non-fatal; the user will be informed when they try to process
         }
-      })
+      })()
     },
-    [showInfo, showError, translateError, t]
+    [showInfo, showError, t]
   )
 
   // Handle processing (triggered by "Generate Preview" button)
   const handleGeneratePreview = useCallback(
     async () => {
       if (!uploadedFile) return
+      if (!normalisedFace) {
+        showError(t('faceDetection.noFaceDetected'))
+        return
+      }
 
       // Reset state
       setImageData(null)
@@ -115,6 +136,7 @@ export function MainWorkflow() {
         // Use orchestrator to process the image
         const result = await imageProcessor.current.processImage({
           file: uploadedFile,
+          normalisedFace: normalisedFace!,
           selectedSize,
           backgroundColor,
           paperType,
@@ -150,6 +172,7 @@ export function MainWorkflow() {
     },
     [
       uploadedFile,
+      normalisedFace,
       start,
       stop,
 

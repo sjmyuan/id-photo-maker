@@ -6,7 +6,11 @@
 import { type SizeOption } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
 import { type PaperMargins } from '../types'
-import { processImageViaApi, type ApiProcessError } from './apiClient'
+import { processImageViaApi, type ApiProcessError, type NormalisedFaceBox } from './apiClient'
+import {
+  calculateCropAreaFromNormalisedFace,
+} from '../utils/cropAreaCalculation'
+import { getImageDimensions, cropImageToArea } from '../utils/imageCrop'
 
 export interface ProcessingResult {
   croppedPreviewUrl: string
@@ -14,12 +18,13 @@ export interface ProcessingResult {
 }
 
 export interface ProcessingError {
-  type: ApiProcessError['type']
+  type: ApiProcessError['type'] | 'crop'
   message: string
 }
 
 export interface ProcessingOptions {
   file: File
+  normalisedFace: NormalisedFaceBox
   selectedSize: SizeOption
   backgroundColor: string
   paperType: PaperType
@@ -28,17 +33,31 @@ export interface ProcessingOptions {
 }
 
 /**
- * Orchestrates the complete image processing pipeline via the backend API
+ * Orchestrates the complete image processing pipeline via the backend API.
+ * Crops the original image client-side before sending to /process.
  */
 export class ImageProcessingOrchestrator {
   async processImage(
     options: ProcessingOptions
   ): Promise<{ result?: ProcessingResult; errors?: ProcessingError[]; warnings?: string[] }> {
-    const { file, selectedSize, backgroundColor, paperType, margins, requiredDPI = 300 } = options
+    const { file, normalisedFace, selectedSize, backgroundColor, paperType, margins, requiredDPI = 300 } = options
 
     try {
+      // 1. Compute the crop area from the normalised face bbox
+      const { width: imgW, height: imgH } = await getImageDimensions(file)
+      const cropArea = calculateCropAreaFromNormalisedFace(
+        normalisedFace,
+        selectedSize.aspectRatio,
+        imgW,
+        imgH,
+      )
+
+      // 2. Crop the original image to the face region
+      const croppedFile = await cropImageToArea(file, cropArea)
+
+      // 3. Send the cropped image to the backend for background removal + layout
       const apiResult = await processImageViaApi({
-        file,
+        file: croppedFile,
         selectedSize,
         backgroundColor,
         paperType,
