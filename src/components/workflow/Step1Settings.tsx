@@ -5,7 +5,7 @@ import { SizeSelector } from '../size/SizeSelector'
 import { ColorSelector } from '../background/ColorSelector'
 import { PaperTypeSelector, type PaperType } from '../layout/PaperTypeSelector'
 import { MarginSelector } from '../layout/MarginSelector'
-import { type PaperMargins } from '../../types'
+import { type PaperMargins, type FaceDetectionStatus } from '../../types'
 
 // Paper dimensions in millimeters
 const PAPER_DIMENSIONS = {
@@ -21,6 +21,7 @@ interface Step1SettingsProps {
   uploadedImageUrl: string | null
   uploadedFile: File | null
   isProcessing: boolean
+  faceDetectionStatus: FaceDetectionStatus
   onSizeChange: (size: SizeOption) => void
   onColorChange: (color: string) => void
   onPaperTypeChange: (paper: PaperType) => void
@@ -37,6 +38,7 @@ export function Step1Settings({
   uploadedImageUrl,
   uploadedFile,
   isProcessing,
+  faceDetectionStatus,
   onSizeChange,
   onColorChange,
   onPaperTypeChange,
@@ -50,6 +52,8 @@ export function Step1Settings({
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click()
   }
+
+  const isGenerateDisabled = isProcessing || faceDetectionStatus !== 'valid'
 
   return (
     <div data-testid="step1-container">
@@ -103,6 +107,29 @@ export function Step1Settings({
             </div>
           )}
         </div>
+
+        {/* Face Detection Status */}
+        {faceDetectionStatus === 'detecting' && (
+          <div
+            className="mt-2 flex items-center gap-2 text-sm text-blue-600"
+            data-testid="face-detection-indicator"
+          >
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent flex-shrink-0" />
+            <span>{t('faceDetection.detecting')}</span>
+          </div>
+        )}
+
+        {faceDetectionStatus === 'invalid' && (
+          <div
+            className="mt-2 flex items-center gap-2 text-sm text-red-600"
+            data-testid="face-detection-indicator"
+          >
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span>{t('faceDetection.invalidImage')}</span>
+          </div>
+        )}
       </div>
 
       {/* Hidden file input */}
@@ -134,7 +161,7 @@ export function Step1Settings({
           <>
             <button
               onClick={onGeneratePreview}
-              disabled={isProcessing}
+              disabled={isGenerateDisabled}
               data-testid="upload-or-generate-button"
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
             >

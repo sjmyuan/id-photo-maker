@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'reac
 import { useTranslation } from 'react-i18next'
 import { type SizeOption, SIZE_OPTIONS } from '../components/size/CropEditor'
 import { type PaperType } from '../components/layout/PaperTypeSelector'
-import { type PaperMargins } from '../types'
+import { type PaperMargins, type FaceDetectionStatus } from '../types'
 import { StepIndicator } from '../components/workflow/StepIndicator'
 import { Step1Settings } from '../components/workflow/Step1Settings'
 import { Step2Preview } from '../components/workflow/Step2Preview'
@@ -47,6 +47,7 @@ export function MainWorkflow() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
   const [normalisedFace, setNormalisedFace] = useState<NormalisedFaceBox | null>(null)
+  const [faceDetectionStatus, setFaceDetectionStatus] = useState<FaceDetectionStatus>('idle')
   const [isProcessing, setIsProcessing] = useState(false)
   
   // Custom hooks for single responsibilities
@@ -81,6 +82,7 @@ export function MainWorkflow() {
       // Clear previous state
       setImageData(null)
       setNormalisedFace(null)
+      setFaceDetectionStatus('detecting')
 
       // Handle upload with service
       const uploaded = fileUploadService.current.handleUpload(file)
@@ -94,6 +96,7 @@ export function MainWorkflow() {
           const downscaled = await downscaleImageForDetect(uploaded.file)
           const result = await detectFaceViaApi(downscaled)
           if (result.errors) {
+            setFaceDetectionStatus('invalid')
             result.errors.forEach((e) => {
               if (e.type === 'face-detection') {
                 showError(
@@ -107,8 +110,10 @@ export function MainWorkflow() {
             })
           } else {
             setNormalisedFace(result.face)
+            setFaceDetectionStatus('valid')
           }
         } catch {
+          setFaceDetectionStatus('invalid')
           // Detection errors are non-fatal; the user will be informed when they try to process
         }
       })()
@@ -263,6 +268,7 @@ export function MainWorkflow() {
                 uploadedImageUrl={uploadedImageUrl}
                 uploadedFile={uploadedFile}
                 isProcessing={isProcessing}
+                faceDetectionStatus={faceDetectionStatus}
                 onSizeChange={handleSizeChange}
                 onColorChange={handleBackgroundChange}
                 onPaperTypeChange={handlePaperTypeChange}

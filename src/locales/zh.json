@@ -82,8 +82,10 @@
     "dpiInfo": "当前DPI：{{minDPI}} DPI（{{widthDPI}} × {{heightDPI}}）"
   },
   "faceDetection": {
+    "detecting": "正在检测人脸...",
     "noFaceDetected": "⚠️ 未检测到人脸。请使用清晰的人脸照片。",
-    "multipleFacesDetected": "⚠️ 检测到多张人脸。请使用只有一个人的照片。"
+    "multipleFacesDetected": "⚠️ 检测到多张人脸。请使用只有一个人的照片。",
+    "invalidImage": "图片无效。请上传含有且仅有一张人脸的照片。"
   },
   "imagePreview": {
     "alt": "预览图片",

@@ -20,6 +20,7 @@ describe('Step1Settings', () => {
     uploadedImageUrl: null,
     uploadedFile: null,
     isProcessing: false,
+    faceDetectionStatus: 'valid' as const,
     onSizeChange: vi.fn(),
     onColorChange: vi.fn(),
     onPaperTypeChange: vi.fn(),
@@ -81,6 +82,7 @@ describe('Step1Settings', () => {
     const props = {
       ...defaultProps,
       uploadedFile: file,
+      faceDetectionStatus: 'valid' as const,
       onGeneratePreview,
     }
     render(<Step1Settings {...props} />)
@@ -202,5 +204,71 @@ describe('Step1Settings', () => {
     render(<Step1Settings {...defaultProps} paperType="a4" />)
     // MarginSelector should receive A4 dimensions (210×297mm)
     expect(screen.getByTestId('margin-selector-step1')).toBeInTheDocument()
+  })
+
+  describe('Generate button disabled state based on faceDetectionStatus', () => {
+    const fileProps = {
+      ...{
+        selectedSize: SIZE_OPTIONS[0],
+        backgroundColor: '#0000FF',
+        paperType: '6-inch' as const,
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        uploadedImageUrl: 'blob:test',
+        uploadedFile: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
+        isProcessing: false,
+        onSizeChange: vi.fn(),
+        onColorChange: vi.fn(),
+        onPaperTypeChange: vi.fn(),
+        onMarginsChange: vi.fn(),
+        onFileChange: vi.fn(),
+        onGeneratePreview: vi.fn(),
+      },
+    }
+
+    it('enables generate button when faceDetectionStatus is valid', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="valid" />)
+      const button = screen.getByTestId('upload-or-generate-button')
+      expect(button).not.toBeDisabled()
+    })
+
+    it('disables generate button when faceDetectionStatus is idle', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="idle" />)
+      const button = screen.getByTestId('upload-or-generate-button')
+      expect(button).toBeDisabled()
+    })
+
+    it('disables generate button when faceDetectionStatus is detecting', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="detecting" />)
+      const button = screen.getByTestId('upload-or-generate-button')
+      expect(button).toBeDisabled()
+    })
+
+    it('disables generate button when faceDetectionStatus is invalid', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="invalid" />)
+      const button = screen.getByTestId('upload-or-generate-button')
+      expect(button).toBeDisabled()
+    })
+
+    it('shows face detection spinner when faceDetectionStatus is detecting', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="detecting" />)
+      expect(screen.getByTestId('face-detection-indicator')).toBeInTheDocument()
+      expect(screen.getByText('Detecting face...')).toBeInTheDocument()
+    })
+
+    it('shows invalid face indicator when faceDetectionStatus is invalid', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="invalid" />)
+      expect(screen.getByTestId('face-detection-indicator')).toBeInTheDocument()
+      expect(screen.getByText('Invalid image. Please upload a photo with exactly one face.')).toBeInTheDocument()
+    })
+
+    it('does not show face detection indicator when faceDetectionStatus is valid', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="valid" />)
+      expect(screen.queryByTestId('face-detection-indicator')).not.toBeInTheDocument()
+    })
+
+    it('does not show face detection indicator when faceDetectionStatus is idle', () => {
+      render(<Step1Settings {...fileProps} faceDetectionStatus="idle" />)
+      expect(screen.queryByTestId('face-detection-indicator')).not.toBeInTheDocument()
+    })
   })
 })

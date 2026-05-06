@@ -82,8 +82,10 @@
     "dpiInfo": "Current DPI: {{minDPI}} DPI ({{widthDPI}} × {{heightDPI}})"
   },
   "faceDetection": {
+    "detecting": "Detecting face...",
     "noFaceDetected": "⚠️ No face detected. Please use a clear photo with your face visible.",
-    "multipleFacesDetected": "⚠️ Multiple faces detected. Please use a photo with only one person."
+    "multipleFacesDetected": "⚠️ Multiple faces detected. Please use a photo with only one person.",
+    "invalidImage": "Invalid image. Please upload a photo with exactly one face."
   },
   "imagePreview": {
     "alt": "Preview image",
