@@ -5,7 +5,6 @@ import { SIZE_OPTIONS } from '../size/CropEditor'
 
 describe('Step3Layout', () => {
   const defaultProps = {
-    printLayoutPreviewUrl: 'blob:test-layout-url',
     croppedPreviewUrl: 'blob:test-cropped-url',
     paperType: '6-inch' as const,
     selectedSize: SIZE_OPTIONS[0],
@@ -47,19 +46,8 @@ describe('Step3Layout', () => {
     expect(screen.getByTestId('print-layout-preview')).toBeInTheDocument()
   })
 
-  it('renders ImagePreview when printLayoutPreviewUrl is provided', () => {
+  it('renders canvas for layout preview', async () => {
     render(<Step3Layout {...defaultProps} />)
-    // ImagePreview component renders an img tag with the preview URL
-    const preview = screen.getByTestId('print-layout-preview')
-    expect(preview).toBeInTheDocument()
-  })
-
-  it('renders canvas when printLayoutPreviewUrl is null', async () => {
-    const props = {
-      ...defaultProps,
-      printLayoutPreviewUrl: null,
-    }
-    render(<Step3Layout {...props} />)
     
     await waitFor(() => {
       const canvas = screen.getByTestId('layout-preview')

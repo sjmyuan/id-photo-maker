@@ -20,7 +20,6 @@ import { useToast } from '../components/toast/ToastProvider'
 
 interface ImageData {
   croppedPreviewUrl: string
-  printLayoutPreviewUrl: string
 }
 
 export function MainWorkflow() {
@@ -54,7 +53,7 @@ export function MainWorkflow() {
   const { showInfo, showSuccess, showWarning, showError } = useToast()
   const { currentStep, nextStep, goToStep } = useWorkflowSteps(1)
   const { start, stop } = usePerformanceMeasure()
-  const { downloadPhoto, downloadLayout } = useImageDownload({
+  const { downloadPhoto } = useImageDownload({
     selectedSize,
     onError: (errors: string[]) => {
       errors.forEach((error) => showError(error))
@@ -139,8 +138,6 @@ export function MainWorkflow() {
           normalisedFace: normalisedFace!,
           selectedSize,
           backgroundColor,
-          paperType,
-          margins: currentMargins,
           requiredDPI: 300,
         })
 
@@ -178,8 +175,6 @@ export function MainWorkflow() {
 
       backgroundColor,
       selectedSize,
-      paperType,
-      currentMargins,
       showInfo,
       showSuccess,
       showWarning,
@@ -224,10 +219,16 @@ export function MainWorkflow() {
     goToStep(1)
   }
 
-  const handleDownloadLayout = useCallback(async () => {
-    await downloadLayout(imageData?.printLayoutPreviewUrl || null)
+  const handleDownloadLayout = useCallback(async (canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return
+    const downloadService = new (await import('../services/downloadService')).DownloadService()
+    await downloadService.downloadCanvas(
+      canvas,
+      `id-photo-layout-${selectedSize.id}-${Date.now()}.png`,
+      300,
+    )
     showSuccess(t('step3.downloadSuccess'))
-  }, [imageData, downloadLayout, showSuccess, t])
+  }, [selectedSize, showSuccess, t])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -285,7 +286,6 @@ export function MainWorkflow() {
             {/* Step 3: Print Layout Preview */}
             {currentStep === 3 && imageData && (
               <Step3Layout
-                printLayoutPreviewUrl={imageData.printLayoutPreviewUrl}
                 croppedPreviewUrl={imageData.croppedPreviewUrl}
                 paperType={paperType}
                 selectedSize={selectedSize}

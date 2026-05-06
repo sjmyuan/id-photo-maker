@@ -4,8 +4,6 @@
  */
 
 import { type SizeOption } from '../components/size/CropEditor'
-import { type PaperType } from '../components/layout/PaperTypeSelector'
-import { type PaperMargins } from '../types'
 import { processImageViaApi, type ApiProcessError, type NormalisedFaceBox } from './apiClient'
 import {
   calculateCropAreaFromNormalisedFace,
@@ -14,7 +12,6 @@ import { getImageDimensions, cropImageToArea } from '../utils/imageCrop'
 
 export interface ProcessingResult {
   croppedPreviewUrl: string
-  printLayoutPreviewUrl: string
 }
 
 export interface ProcessingError {
@@ -27,8 +24,6 @@ export interface ProcessingOptions {
   normalisedFace: NormalisedFaceBox
   selectedSize: SizeOption
   backgroundColor: string
-  paperType: PaperType
-  margins: PaperMargins
   requiredDPI?: number
 }
 
@@ -40,7 +35,7 @@ export class ImageProcessingOrchestrator {
   async processImage(
     options: ProcessingOptions
   ): Promise<{ result?: ProcessingResult; errors?: ProcessingError[]; warnings?: string[] }> {
-    const { file, normalisedFace, selectedSize, backgroundColor, paperType, margins, requiredDPI = 300 } = options
+    const { file, normalisedFace, selectedSize, backgroundColor, requiredDPI = 300 } = options
 
     try {
       // 1. Compute the crop area from the normalised face bbox
@@ -55,14 +50,11 @@ export class ImageProcessingOrchestrator {
       // 2. Crop the original image to the face region
       const croppedFile = await cropImageToArea(file, cropArea)
 
-      // 3. Send the cropped image to the backend for background removal + layout
+      // 3. Send the cropped image to the backend for background removal
       const apiResult = await processImageViaApi({
         file: croppedFile,
         selectedSize,
         backgroundColor,
-        paperType,
-        margins,
-        requiredDPI,
       })
 
       if (apiResult.errors) {
@@ -72,7 +64,6 @@ export class ImageProcessingOrchestrator {
       return {
         result: {
           croppedPreviewUrl: `data:image/png;base64,${apiResult.idPhotoBase64}`,
-          printLayoutPreviewUrl: `data:image/png;base64,${apiResult.printLayoutBase64}`,
         },
         warnings: apiResult.warnings,
       }

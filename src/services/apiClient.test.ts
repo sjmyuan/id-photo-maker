@@ -8,9 +8,6 @@ describe('processImageViaApi', () => {
     file: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
     selectedSize: SIZE_OPTIONS[0],
     backgroundColor: '#0000FF',
-    paperType: '6-inch',
-    margins: { top: 0, bottom: 0, left: 0, right: 0 },
-    requiredDPI: 300,
   }
 
   beforeEach(() => {
@@ -22,11 +19,10 @@ describe('processImageViaApi', () => {
     vi.restoreAllMocks()
   })
 
-  it('returns idPhoto and printLayout on success', async () => {
+  it('returns idPhoto on success', async () => {
     const mockResponse = {
       success: true,
       idPhoto: 'base64idphoto==',
-      printLayout: 'base64printlayout==',
       warnings: [],
     }
     vi.mocked(fetch).mockResolvedValue({
@@ -37,7 +33,6 @@ describe('processImageViaApi', () => {
     const result = await processImageViaApi({ ...defaultOptions, file: mockFile })
 
     expect(result.idPhotoBase64).toBe('base64idphoto==')
-    expect(result.printLayoutBase64).toBe('base64printlayout==')
     expect(result.warnings).toEqual([])
     expect(result.errors).toBeUndefined()
   })
@@ -46,7 +41,6 @@ describe('processImageViaApi', () => {
     const mockResponse = {
       success: true,
       idPhoto: 'base64idphoto==',
-      printLayout: 'base64printlayout==',
       warnings: ['Image was downscaled'],
     }
     vi.mocked(fetch).mockResolvedValue({
@@ -107,7 +101,6 @@ describe('processImageViaApi', () => {
     const mockResponse = {
       success: true,
       idPhoto: 'base64==',
-      printLayout: 'base64==',
       warnings: [],
     }
     vi.mocked(fetch).mockResolvedValue({
@@ -120,9 +113,6 @@ describe('processImageViaApi', () => {
       file: mockFile,
       selectedSize: SIZE_OPTIONS[0],
       backgroundColor: '#FF0000',
-      paperType: 'a4',
-      margins: { top: 5, bottom: 5, left: 5, right: 5 },
-      requiredDPI: 600,
     })
 
     expect(fetch).toHaveBeenCalledOnce()
@@ -131,11 +121,6 @@ describe('processImageViaApi', () => {
 
     expect(body.get('sizeId')).toBe(SIZE_OPTIONS[0].id)
     expect(body.get('backgroundColor')).toBe('#FF0000')
-    expect(body.get('paperType')).toBe('a4')
-    expect(body.get('dpi')).toBe('600')
-    expect(JSON.parse(body.get('margins') as string)).toEqual({
-      top: 5, bottom: 5, left: 5, right: 5,
-    })
     expect(body.get('image')).toBe(mockFile)
   })
 })

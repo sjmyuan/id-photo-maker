@@ -4,8 +4,6 @@
  */
 
 import { type SizeOption } from '../components/size/CropEditor'
-import { type PaperType } from '../components/layout/PaperTypeSelector'
-import { type PaperMargins } from '../types'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3000/api'
 
@@ -13,9 +11,6 @@ export interface ApiProcessOptions {
   file: File
   selectedSize: SizeOption
   backgroundColor: string
-  paperType: PaperType
-  margins: PaperMargins
-  requiredDPI?: number
 }
 
 export interface ApiProcessError {
@@ -30,7 +25,6 @@ export interface ApiDetectError {
 
 export interface ApiProcessSuccess {
   idPhotoBase64: string
-  printLayoutBase64: string
   warnings: string[]
   errors?: never
 }
@@ -38,7 +32,6 @@ export interface ApiProcessSuccess {
 export interface ApiProcessFailure {
   errors: ApiProcessError[]
   idPhotoBase64?: never
-  printLayoutBase64?: never
   warnings?: never
 }
 
@@ -114,16 +107,13 @@ export async function detectFaceViaApi(file: File): Promise<ApiDetectResult> {
  * background removal, exact crop, print layout generation).
  */
 export async function processImageViaApi(options: ApiProcessOptions): Promise<ApiProcessResult> {
-  const { file, selectedSize, backgroundColor, paperType, margins, requiredDPI = 300 } = options
+  const { file, selectedSize, backgroundColor } = options
 
   try {
     const formData = new FormData()
     formData.append('image', file)
     formData.append('sizeId', selectedSize.id)
     formData.append('backgroundColor', backgroundColor)
-    formData.append('paperType', paperType)
-    formData.append('margins', JSON.stringify(margins))
-    formData.append('dpi', String(requiredDPI))
 
     const response = await fetch(`${API_BASE_URL}/process`, {
       method: 'POST',
@@ -133,7 +123,6 @@ export async function processImageViaApi(options: ApiProcessOptions): Promise<Ap
     const json = await response.json() as {
       success: boolean
       idPhoto?: string
-      printLayout?: string
       warnings?: string[]
       errors?: ApiProcessError[]
     }
@@ -146,7 +135,6 @@ export async function processImageViaApi(options: ApiProcessOptions): Promise<Ap
 
     return {
       idPhotoBase64: json.idPhoto!,
-      printLayoutBase64: json.printLayout!,
       warnings: json.warnings ?? [],
     }
   } catch (error) {

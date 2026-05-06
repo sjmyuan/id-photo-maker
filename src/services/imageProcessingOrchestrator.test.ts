@@ -22,8 +22,6 @@ describe('ImageProcessingOrchestrator', () => {
     normalisedFace: MOCK_FACE,
     selectedSize: SIZE_OPTIONS[0],
     backgroundColor: '#FFFFFF',
-    paperType: '6-inch' as const,
-    margins: { top: 0, bottom: 0, left: 0, right: 0 },
   }
 
   beforeEach(() => {
@@ -39,10 +37,9 @@ describe('ImageProcessingOrchestrator', () => {
   })
 
   describe('processImage - success', () => {
-    it('should return preview URLs derived from base64 on success', async () => {
+    it('should return preview URL derived from base64 on success', async () => {
       vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
         idPhotoBase64: 'abc123==',
-        printLayoutBase64: 'def456==',
         warnings: [],
       })
 
@@ -51,13 +48,11 @@ describe('ImageProcessingOrchestrator', () => {
       expect(result.errors).toBeUndefined()
       expect(result.result).toBeDefined()
       expect(result.result!.croppedPreviewUrl).toBe('data:image/png;base64,abc123==')
-      expect(result.result!.printLayoutPreviewUrl).toBe('data:image/png;base64,def456==')
     })
 
     it('should forward warnings from the API', async () => {
       vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
         idPhotoBase64: 'abc123==',
-        printLayoutBase64: 'def456==',
         warnings: ['Image was downscaled'],
       })
 
@@ -69,7 +64,6 @@ describe('ImageProcessingOrchestrator', () => {
     it('should send the cropped file (not the original) to the API', async () => {
       const spy = vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
         idPhotoBase64: 'abc==',
-        printLayoutBase64: 'def==',
         warnings: [],
       })
 
@@ -81,34 +75,26 @@ describe('ImageProcessingOrchestrator', () => {
     it('should pass non-file options through to the API', async () => {
       const spy = vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
         idPhotoBase64: 'abc==',
-        printLayoutBase64: 'def==',
         warnings: [],
       })
 
-      const margins = { top: 5, bottom: 10, left: 3, right: 3 }
       await orchestrator.processImage({
         file: mockFile,
         normalisedFace: MOCK_FACE,
         selectedSize: SIZE_OPTIONS[1],
         backgroundColor: '#FF0000',
-        paperType: 'a4',
-        margins,
-        requiredDPI: 600,
       })
 
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({
         selectedSize: SIZE_OPTIONS[1],
         backgroundColor: '#FF0000',
-        paperType: 'a4',
-        margins,
-        requiredDPI: 600,
       }))
     })
 
     it('should compute crop area using the normalised face and selected size aspect ratio', async () => {
       const calcSpy = vi.spyOn(cropCalcModule, 'calculateCropAreaFromNormalisedFace')
       vi.spyOn(apiClient, 'processImageViaApi').mockResolvedValue({
-        idPhotoBase64: 'abc==', printLayoutBase64: 'def==', warnings: [],
+        idPhotoBase64: 'abc==', warnings: [],
       })
 
       await orchestrator.processImage({ ...defaultOptions, file: mockFile })

@@ -1,21 +1,18 @@
 import { useTranslation } from 'react-i18next'
-import { ImagePreview } from '../layout/ImagePreview'
 import { type PaperType } from '../layout/PaperTypeSelector'
 import { type SizeOption } from '../size/CropEditor'
 import { usePrintLayoutCanvas } from '../../hooks/usePrintLayoutCanvas'
 
 interface Step3LayoutProps {
-  printLayoutPreviewUrl: string | null
   croppedPreviewUrl: string
   paperType: PaperType
   selectedSize: SizeOption
   isProcessing: boolean
-  onDownloadLayout: () => void
+  onDownloadLayout: (canvas: HTMLCanvasElement | null) => void
   onBack: () => void
 }
 
 export function Step3Layout({
-  printLayoutPreviewUrl,
   croppedPreviewUrl,
   paperType,
   selectedSize,
@@ -36,22 +33,13 @@ export function Step3Layout({
       
       {/* Print Layout Preview */}
       <div className="mb-6" data-testid="print-layout-preview">
-        {printLayoutPreviewUrl ? (
-          <ImagePreview 
-            imageUrl={printLayoutPreviewUrl} 
-            alt="Print layout preview"
+        <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
+          <canvas
+            ref={canvasRef}
+            data-testid="layout-preview"
+            className="border border-gray-300 shadow-sm"
           />
-        ) : (
-          // Defensive fallback: renders a client-side canvas preview when the backend
-          // printLayoutPreviewUrl is unavailable (e.g. offline or future local-processing mode).
-          <div className="bg-gray-100 p-4 rounded-lg flex justify-center items-center">
-            <canvas
-              ref={canvasRef}
-              data-testid="layout-preview"
-              className="border border-gray-300 shadow-sm"
-            />
-          </div>
-        )}
+        </div>
       </div>
       
       {/* Action Buttons */}
@@ -59,7 +47,7 @@ export function Step3Layout({
         {/* Primary Actions */}
         <div data-testid="primary-actions" className="space-y-3">
           <button
-            onClick={onDownloadLayout}
+            onClick={() => onDownloadLayout(canvasRef.current)}
             disabled={isProcessing}
             data-testid="download-print-layout-button"
             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"

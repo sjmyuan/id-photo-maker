@@ -32,25 +32,7 @@ export function useImageDownload({ selectedSize, onError }: UseImageDownloadPara
     [selectedSize, onError, downloadService]
   )
 
-  const downloadLayout = useCallback(
-    async (printLayoutUrl: string | null) => {
-      if (!printLayoutUrl) return
-
-      try {
-        await downloadService.downloadImageFromUrl(
-          printLayoutUrl,
-          `id-photo-layout-${selectedSize.id}-${Date.now()}.png`,
-          300
-        )
-      } catch (error) {
-        onError([error instanceof Error ? error.message : 'Failed to download layout'])
-      }
-    },
-    [selectedSize, onError, downloadService]
-  )
-
   return {
     downloadPhoto,
-    downloadLayout,
   }
 }
